@@ -198,20 +198,42 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { recipient_id, recipient_username, subject, content } = req.body;
     
+    console.log(`[MESSAGES] Sending message - recipient_id: ${recipient_id}, recipient_username: "${recipient_username}"`);
+    
     // Find recipient by ID or username (case-insensitive)
     let recipient;
     if (recipient_id) {
       recipient = await db.get('SELECT id, username FROM users WHERE id = ?', [recipient_id]);
     } else if (recipient_username) {
       // Use LOWER() for case-insensitive search
+      const searchName = recipient_username.trim();
+      console.log(`[MESSAGES] Searching for username: "${searchName}"`);
+      
+      // First try exact match (case-insensitive)
       recipient = await db.get(
         'SELECT id, username FROM users WHERE LOWER(username) = LOWER(?)', 
-        [recipient_username.trim()]
+        [searchName]
       );
+      
+      // If not found, try LIKE search
+      if (!recipient) {
+        console.log(`[MESSAGES] Exact match failed, trying LIKE search...`);
+        recipient = await db.get(
+          'SELECT id, username FROM users WHERE LOWER(username) LIKE LOWER(?)', 
+          [searchName]
+        );
+      }
+      
+      if (recipient) {
+        console.log(`[MESSAGES] Found user: id=${recipient.id}, username="${recipient.username}"`);
+      }
     }
     
     if (!recipient) {
       console.log(`[MESSAGES] Recipient not found: "${recipient_username}"`);
+      // List all users for debugging
+      const allUsers = await db.all('SELECT id, username FROM users LIMIT 20');
+      console.log(`[MESSAGES] Available users:`, allUsers.map(u => u.username));
       return res.status(404).json({ error: 'Empfänger nicht gefunden' });
     }
     
