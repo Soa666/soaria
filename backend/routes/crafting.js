@@ -14,13 +14,18 @@ router.get('/recipes', async (req, res) => {
         cr.result_item_id,
         cr.result_quantity,
         cr.required_workbench_level,
+        cr.required_building_id,
+        cr.required_building_level,
         i.name as result_name,
         i.display_name as result_display_name,
         i.type as result_type,
         i.rarity as result_rarity,
-        i.image_path as result_image_path
+        i.image_path as result_image_path,
+        b.display_name as building_display_name,
+        b.name as building_name
       FROM crafting_recipes cr
       JOIN items i ON cr.result_item_id = i.id
+      LEFT JOIN buildings b ON cr.required_building_id = b.id
       ORDER BY cr.required_workbench_level, i.name
     `);
 
@@ -83,16 +88,43 @@ router.post('/craft', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Rezept nicht gefunden' });
     }
 
-    // Check workbench level
-    const workbench = await db.get(
-      'SELECT level FROM user_workbench WHERE user_id = ?',
-      [req.user.id]
-    );
+    // Check workbench level (if required)
+    if (recipe.required_workbench_level > 0) {
+      const workbench = await db.get(
+        'SELECT level FROM user_workbench WHERE user_id = ?',
+        [req.user.id]
+      );
 
-    if (!workbench || workbench.level < recipe.required_workbench_level) {
-      return res.status(400).json({
-        error: `Werkbank-Level ${recipe.required_workbench_level} erforderlich (aktuell: ${workbench?.level || 0})`
-      });
+      if (!workbench || workbench.level < recipe.required_workbench_level) {
+        return res.status(400).json({
+          error: `Werkbank-Level ${recipe.required_workbench_level} erforderlich (aktuell: ${workbench?.level || 0})`
+        });
+      }
+    }
+
+    // Check building requirement (e.g., Schmiede for metal items)
+    if (recipe.required_building_id) {
+      const building = await db.get(`
+        SELECT ub.level, b.display_name 
+        FROM user_buildings ub
+        JOIN buildings b ON ub.building_id = b.id
+        WHERE ub.user_id = ? AND ub.building_id = ?
+      `, [req.user.id, recipe.required_building_id]);
+
+      const requiredLevel = recipe.required_building_level || 1;
+      const buildingInfo = await db.get('SELECT display_name FROM buildings WHERE id = ?', [recipe.required_building_id]);
+
+      if (!building) {
+        return res.status(400).json({
+          error: `Du benötigst eine ${buildingInfo?.display_name || 'Gebäude'} um dieses Rezept zu craften!`
+        });
+      }
+
+      if (building.level < requiredLevel) {
+        return res.status(400).json({
+          error: `${building.display_name} Level ${requiredLevel} erforderlich (aktuell: Level ${building.level})`
+        });
+      }
     }
 
     // Get ingredients
@@ -151,16 +183,22 @@ router.post('/craft', authenticateToken, async (req, res) => {
 // Create recipe (requires manage_recipes permission)
 router.post('/recipes', authenticateToken, requirePermission('manage_recipes'), async (req, res) => {
   try {
-    const { result_item_id, result_quantity, required_workbench_level, ingredients } = req.body;
+    const { result_item_id, result_quantity, required_workbench_level, required_building_id, required_building_level, ingredients } = req.body;
 
     if (!result_item_id || !ingredients || ingredients.length === 0) {
       return res.status(400).json({ error: 'Result-Item und Zutaten sind erforderlich' });
     }
 
     const result = await db.run(`
-      INSERT INTO crafting_recipes (result_item_id, result_quantity, required_workbench_level)
-      VALUES (?, ?, ?)
-    `, [result_item_id, result_quantity || 1, required_workbench_level || 0]);
+      INSERT INTO crafting_recipes (result_item_id, result_quantity, required_workbench_level, required_building_id, required_building_level)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      result_item_id, 
+      result_quantity || 1, 
+      required_workbench_level || 0,
+      required_building_id || null,
+      required_building_level || 1
+    ]);
 
     // Add ingredients
     for (const ing of ingredients) {
@@ -174,6 +212,78 @@ router.post('/recipes', authenticateToken, requirePermission('manage_recipes'), 
   } catch (error) {
     console.error('Create recipe error:', error);
     res.status(500).json({ error: 'Serverfehler beim Erstellen des Rezepts' });
+  }
+});
+
+// Update recipe
+router.put('/recipes/:id', authenticateToken, requirePermission('manage_recipes'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { result_item_id, result_quantity, required_workbench_level, required_building_id, required_building_level, ingredients } = req.body;
+
+    // Update recipe
+    await db.run(`
+      UPDATE crafting_recipes SET 
+        result_item_id = ?,
+        result_quantity = ?,
+        required_workbench_level = ?,
+        required_building_id = ?,
+        required_building_level = ?
+      WHERE id = ?
+    `, [
+      result_item_id,
+      result_quantity || 1,
+      required_workbench_level || 0,
+      required_building_id || null,
+      required_building_level || 1,
+      id
+    ]);
+
+    // Update ingredients - delete old and insert new
+    if (ingredients && ingredients.length > 0) {
+      await db.run('DELETE FROM recipe_ingredients WHERE recipe_id = ?', [id]);
+      for (const ing of ingredients) {
+        await db.run(`
+          INSERT INTO recipe_ingredients (recipe_id, item_id, quantity)
+          VALUES (?, ?, ?)
+        `, [id, ing.item_id, ing.quantity]);
+      }
+    }
+
+    res.json({ message: 'Rezept aktualisiert' });
+  } catch (error) {
+    console.error('Update recipe error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Aktualisieren' });
+  }
+});
+
+// Delete recipe
+router.delete('/recipes/:id', authenticateToken, requirePermission('manage_recipes'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Delete recipe (ingredients will cascade delete)
+    const result = await db.run('DELETE FROM crafting_recipes WHERE id = ?', [id]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Rezept nicht gefunden' });
+    }
+
+    res.json({ message: 'Rezept gelöscht' });
+  } catch (error) {
+    console.error('Delete recipe error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Löschen' });
+  }
+});
+
+// Get all buildings (for recipe form dropdown)
+router.get('/buildings', async (req, res) => {
+  try {
+    const buildings = await db.all('SELECT id, name, display_name, max_level FROM buildings ORDER BY display_name');
+    res.json({ buildings });
+  } catch (error) {
+    console.error('Get buildings error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
   }
 });
 

@@ -92,4 +92,45 @@ router.put('/:id/image', authenticateToken, requirePermission('manage_items'), a
   }
 });
 
+// Delete item
+router.delete('/:id', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if item is used in recipes
+    const usedInRecipes = await db.get(`
+      SELECT COUNT(*) as count FROM (
+        SELECT recipe_id FROM recipe_ingredients WHERE item_id = ?
+        UNION
+        SELECT id FROM crafting_recipes WHERE result_item_id = ?
+      )
+    `, [id, id]);
+
+    if (usedInRecipes.count > 0) {
+      return res.status(400).json({ 
+        error: 'Item kann nicht gelöscht werden - es wird noch in Rezepten verwendet!' 
+      });
+    }
+
+    // Check if any player has this item
+    const inInventory = await db.get('SELECT COUNT(*) as count FROM user_inventory WHERE item_id = ?', [id]);
+    
+    const result = await db.run('DELETE FROM items WHERE id = ?', [id]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Item nicht gefunden' });
+    }
+
+    let message = 'Item gelöscht';
+    if (inInventory.count > 0) {
+      message += ` (wurde aus ${inInventory.count} Inventaren entfernt)`;
+    }
+
+    res.json({ message });
+  } catch (error) {
+    console.error('Delete item error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Löschen des Items' });
+  }
+});
+
 export default router;

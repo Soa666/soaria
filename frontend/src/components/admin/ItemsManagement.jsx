@@ -96,6 +96,20 @@ function ItemsManagement() {
     });
   };
 
+  const handleDelete = async (item) => {
+    if (!confirm(`Item "${item.display_name}" wirklich löschen?\n\nAchtung: Das Item wird auch aus allen Spieler-Inventaren entfernt!`)) {
+      return;
+    }
+
+    try {
+      const response = await api.delete(`/items/${item.id}`);
+      setMessage(response.data.message);
+      fetchItems();
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Löschen des Items');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Lädt...</div>;
   }
@@ -298,8 +312,15 @@ function ItemsManagement() {
                 <button
                   onClick={() => handleEdit(item)}
                   className="btn btn-secondary btn-small"
+                  style={{ marginRight: '0.5rem' }}
                 >
                   Bearbeiten
+                </button>
+                <button
+                  onClick={() => handleDelete(item)}
+                  className="btn btn-danger btn-small"
+                >
+                  Löschen
                 </button>
               </td>
             </tr>

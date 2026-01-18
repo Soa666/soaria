@@ -173,9 +173,20 @@ export async function initDatabase() {
       result_item_id INTEGER NOT NULL,
       result_quantity INTEGER DEFAULT 1,
       required_workbench_level INTEGER DEFAULT 0,
-      FOREIGN KEY (result_item_id) REFERENCES items(id) ON DELETE CASCADE
+      required_building_id INTEGER,
+      required_building_level INTEGER DEFAULT 1,
+      FOREIGN KEY (result_item_id) REFERENCES items(id) ON DELETE CASCADE,
+      FOREIGN KEY (required_building_id) REFERENCES buildings(id) ON DELETE SET NULL
     )
   `);
+
+  // Migration: Add building requirement columns to crafting_recipes
+  try {
+    await db.run('ALTER TABLE crafting_recipes ADD COLUMN required_building_id INTEGER');
+  } catch (e) { /* Column exists */ }
+  try {
+    await db.run('ALTER TABLE crafting_recipes ADD COLUMN required_building_level INTEGER DEFAULT 1');
+  } catch (e) { /* Column exists */ }
 
   // Recipe ingredients
   await db.run(`
