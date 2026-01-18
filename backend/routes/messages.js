@@ -170,15 +170,20 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { recipient_id, recipient_username, subject, content } = req.body;
     
-    // Find recipient by ID or username
+    // Find recipient by ID or username (case-insensitive)
     let recipient;
     if (recipient_id) {
       recipient = await db.get('SELECT id, username FROM users WHERE id = ?', [recipient_id]);
     } else if (recipient_username) {
-      recipient = await db.get('SELECT id, username FROM users WHERE username = ?', [recipient_username]);
+      // Use LOWER() for case-insensitive search
+      recipient = await db.get(
+        'SELECT id, username FROM users WHERE LOWER(username) = LOWER(?)', 
+        [recipient_username.trim()]
+      );
     }
     
     if (!recipient) {
+      console.log(`[MESSAGES] Recipient not found: "${recipient_username}"`);
       return res.status(404).json({ error: 'Empfänger nicht gefunden' });
     }
     
