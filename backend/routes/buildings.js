@@ -84,6 +84,32 @@ router.get('/my-buildings', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper: Check if user has any active job
+async function hasActiveJob(userId) {
+  // Check collection jobs
+  const collectionJob = await db.get(
+    "SELECT id FROM collection_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
+    [userId]
+  );
+  if (collectionJob) return { active: true, type: 'Sammel-Auftrag' };
+  
+  // Check building jobs
+  const buildingJob = await db.get(
+    "SELECT id FROM building_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
+    [userId]
+  );
+  if (buildingJob) return { active: true, type: 'Bau-/Upgrade-Auftrag' };
+  
+  // Check crafting jobs
+  const craftingJob = await db.get(
+    "SELECT id FROM crafting_jobs WHERE user_id = ? AND is_completed = 0",
+    [userId]
+  );
+  if (craftingJob) return { active: true, type: 'Herstellungs-Auftrag' };
+  
+  return { active: false };
+}
+
 // Build a building
 router.post('/build/:buildingId', authenticateToken, async (req, res) => {
   try {
@@ -120,13 +146,13 @@ router.post('/build/:buildingId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Gebäude bereits gebaut' });
     }
 
-    // Check if user has active building job
-    const activeJob = await db.get(`
-      SELECT * FROM building_jobs 
-      WHERE user_id = ? AND status = 'active'
-    `, [req.user.id]);
-    if (activeJob) {
-      return res.status(400).json({ error: 'Du hast bereits einen aktiven Bau-/Upgrade-Job' });
+    // Check if user has ANY active job
+    const jobCheck = await hasActiveJob(req.user.id);
+    if (jobCheck.active) {
+      return res.status(400).json({ 
+        error: `Du hast bereits einen aktiven ${jobCheck.type}. Schließe ihn zuerst ab!`,
+        hasActiveJob: true
+      });
     }
 
     // Check requirements (only build requirements)
@@ -235,13 +261,13 @@ router.post('/upgrade/:buildingId', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Gebäude nicht gefunden oder nicht gebaut' });
     }
 
-    // Check if user has active building job
-    const activeJob = await db.get(`
-      SELECT * FROM building_jobs 
-      WHERE user_id = ? AND status = 'active'
-    `, [req.user.id]);
-    if (activeJob) {
-      return res.status(400).json({ error: 'Du hast bereits einen aktiven Bau-/Upgrade-Job' });
+    // Check if user has ANY active job
+    const jobCheck = await hasActiveJob(req.user.id);
+    if (jobCheck.active) {
+      return res.status(400).json({ 
+        error: `Du hast bereits einen aktiven ${jobCheck.type}. Schließe ihn zuerst ab!`,
+        hasActiveJob: true
+      });
     }
 
     // Check max level (use COALESCE to handle NULL values)

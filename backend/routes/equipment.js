@@ -425,6 +425,32 @@ async function isUserAtHome(userId) {
   return distance <= 50;
 }
 
+// Helper: Check if user has any active job
+async function hasActiveJob(userId) {
+  // Check collection jobs
+  const collectionJob = await db.get(
+    "SELECT id FROM collection_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
+    [userId]
+  );
+  if (collectionJob) return { active: true, type: 'Sammel-Auftrag' };
+  
+  // Check building jobs
+  const buildingJob = await db.get(
+    "SELECT id FROM building_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
+    [userId]
+  );
+  if (buildingJob) return { active: true, type: 'Bau-/Upgrade-Auftrag' };
+  
+  // Check crafting jobs
+  const craftingJob = await db.get(
+    "SELECT id FROM crafting_jobs WHERE user_id = ? AND is_completed = 0",
+    [userId]
+  );
+  if (craftingJob) return { active: true, type: 'Herstellungs-Auftrag' };
+  
+  return { active: false };
+}
+
 // Helper: Calculate quality based on profession level and forge level
 function calculateQuality(professionLevel, forgeLevel) {
   const skillBonus = professionLevel * 5;
@@ -533,16 +559,12 @@ router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const { recipeId } = req.params;
 
-    // Check if already crafting
-    const existingJob = await db.get(
-      'SELECT id FROM crafting_jobs WHERE user_id = ? AND is_completed = 0',
-      [userId]
-    );
-    
-    if (existingJob) {
+    // Check if user has ANY active job
+    const jobCheck = await hasActiveJob(userId);
+    if (jobCheck.active) {
       return res.status(400).json({ 
-        error: 'Du stellst bereits etwas her! Warte bis es fertig ist.',
-        alreadyCrafting: true
+        error: `Du hast bereits einen aktiven ${jobCheck.type}. Schließe ihn zuerst ab!`,
+        hasActiveJob: true
       });
     }
 

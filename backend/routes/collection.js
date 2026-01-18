@@ -13,6 +13,32 @@ const RARITY_WEIGHTS = {
   legendary: 3
 };
 
+// Helper: Check if user has any active job
+async function hasActiveJob(userId) {
+  // Check collection jobs
+  const collectionJob = await db.get(
+    "SELECT id, 'sammeln' as type FROM collection_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
+    [userId]
+  );
+  if (collectionJob) return { active: true, type: 'Sammel-Auftrag' };
+  
+  // Check building jobs
+  const buildingJob = await db.get(
+    "SELECT id, 'bauen' as type FROM building_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
+    [userId]
+  );
+  if (buildingJob) return { active: true, type: 'Bau-/Upgrade-Auftrag' };
+  
+  // Check crafting jobs
+  const craftingJob = await db.get(
+    "SELECT id, 'craften' as type FROM crafting_jobs WHERE user_id = ? AND is_completed = 0",
+    [userId]
+  );
+  if (craftingJob) return { active: true, type: 'Herstellungs-Auftrag' };
+  
+  return { active: false };
+}
+
 // Start collection job
 router.post('/start', authenticateToken, async (req, res) => {
   try {
@@ -24,15 +50,12 @@ router.post('/start', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if user has active collection job
-    const activeJob = await db.get(`
-      SELECT id FROM collection_jobs 
-      WHERE user_id = ? AND status = 'active'
-    `, [req.user.id]);
-
-    if (activeJob) {
+    // Check if user has ANY active job
+    const jobCheck = await hasActiveJob(req.user.id);
+    if (jobCheck.active) {
       return res.status(400).json({ 
-        error: 'Du hast bereits einen aktiven Sammel-Auftrag. Hole ihn zuerst ab!' 
+        error: `Du hast bereits einen aktiven ${jobCheck.type}. Schließe ihn zuerst ab!`,
+        hasActiveJob: true
       });
     }
 
