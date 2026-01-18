@@ -240,19 +240,32 @@ function Map() {
     }
   }, [searchParams]);
 
+  // Initial data load - only once on mount
   useEffect(() => {
     fetchPlayers();
     fetchNpcs();
     fetchHomes();
     fetchPlayerStats();
     fetchTravelStatus();
+    
+    // Periodic refresh every 30 seconds (without clearing selection)
+    const refreshInterval = setInterval(() => {
+      fetchPlayers();
+      fetchNpcs();
+      fetchPlayerStats();
+    }, 30000);
+    
+    return () => clearInterval(refreshInterval);
+  }, []);
+
+  // Center view when user coordinates are available
+  useEffect(() => {
     if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
       setViewCenter({ x: user.world_x, y: user.world_y });
     } else {
-      // If user has no coordinates, set default center
       setViewCenter({ x: 0, y: 0 });
     }
-  }, [user?.world_x, user?.world_y]);
+  }, [user?.id]); // Only re-center when user changes, not on every coordinate update
 
   // Poll travel status every 10 seconds while traveling
   useEffect(() => {
@@ -324,6 +337,13 @@ function Map() {
       const playersData = response.data.players || [];
       setPlayers(playersData);
       
+      // Update selectedPlayer with fresh data if still exists
+      setSelectedPlayer(prev => {
+        if (!prev) return null;
+        const updated = playersData.find(p => p.id === prev.id);
+        return updated || null; // Keep selection if player still exists
+      });
+      
       // Load player avatar images
       playersData.forEach(player => {
         if (player.avatar_path && !playerImages[player.id]) {
@@ -363,7 +383,15 @@ function Map() {
   const fetchNpcs = async () => {
     try {
       const response = await api.get('/npcs/world');
-      setNpcs(response.data.npcs || []);
+      const npcsData = response.data.npcs || [];
+      setNpcs(npcsData);
+      
+      // Update selectedNpc with fresh data if still exists
+      setSelectedNpc(prev => {
+        if (!prev) return null;
+        const updated = npcsData.find(n => n.id === prev.id);
+        return updated || null; // Keep selection if NPC still exists
+      });
     } catch (error) {
       console.error('Fehler beim Laden der NPCs:', error);
     }
