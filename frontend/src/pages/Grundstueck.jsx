@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import './Grundstueck.css';
 
@@ -270,20 +271,26 @@ function Grundstueck() {
             {selectedBuilding.name === 'werkbank' && selectedBuilding.is_built && workbench && (
               <div className="workbench-in-building">
                 <div className="workbench-info">
-                  <h4>Aktuelles Level: {workbench.level}</h4>
+                  <h4>🔨 Werkbank Level {workbench.level}</h4>
                   <p>Höhere Werkbank-Levels ermöglichen das Craften von besseren Items.</p>
                 </div>
                 
-                <div className="upgrade-section">
-                  <h4>Werkbank upgraden</h4>
-                  <p>Kosten: 10x Stein</p>
-                  {inventory.find(inv => inv.name === 'stein')?.quantity >= 10 ? (
-                    <button className="btn btn-primary" onClick={upgradeWorkbench}>
-                      Upgraden
-                    </button>
-                  ) : (
-                    <p className="error">Nicht genug Steine (benötigt: 10)</p>
-                  )}
+                <div className="workbench-actions">
+                  <Link to="/crafting" className="btn btn-primary">
+                    ⚒️ Crafting öffnen
+                  </Link>
+                  
+                  <div className="upgrade-section">
+                    <h5>Werkbank upgraden</h5>
+                    <p>Kosten: 10x Stein</p>
+                    {inventory.find(inv => inv.name === 'stein')?.quantity >= 10 ? (
+                      <button className="btn btn-secondary" onClick={upgradeWorkbench}>
+                        ⬆️ Upgraden
+                      </button>
+                    ) : (
+                      <p className="insufficient">Nicht genug Steine (benötigt: 10)</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

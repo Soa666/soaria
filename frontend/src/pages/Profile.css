@@ -298,3 +298,32 @@
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 }
+
+
+/* Admin Link Section */
+.admin-link-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #5a4a2a;
+  text-align: center;
+}
+
+.btn-admin {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background: linear-gradient(145deg, #8b0000, #a52a2a);
+  color: #ffd700;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  border: 2px solid #ffd700;
+  transition: all 0.3s;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-admin:hover {
+  background: linear-gradient(145deg, #a52a2a, #cd5c5c);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+}

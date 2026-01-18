@@ -24,12 +24,8 @@ function Navbar() {
           <Link to="/grundstueck">Grundstück</Link>
           <Link to="/collection">Sammeln</Link>
           <Link to="/inventory">Inventar</Link>
-          <Link to="/crafting">Crafting</Link>
           <Link to="/players">Spieler</Link>
           <Link to="/guilds">Gilden</Link>
-          {user?.role === 'admin' && (
-            <Link to="/admin">Admin</Link>
-          )}
           <div className="navbar-user">
             <Link to="/profile" className="navbar-username">
               {user?.username}

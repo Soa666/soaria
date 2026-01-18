@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import './Profile.css';
@@ -340,6 +341,15 @@ function Profile() {
             </div>
           )}
         </div>
+
+        {/* Admin Link */}
+        {profile?.role === 'admin' && (
+          <div className="admin-link-section">
+            <Link to="/admin" className="btn btn-admin">
+              🔧 Admin-Panel öffnen
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
