@@ -9,23 +9,72 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-// Create transporter (configure with your SMTP settings)
-// Only create transporter if SMTP credentials are provided
+// Transporter cache
 let transporter = null;
+let lastConfig = null;
 
-if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-} else {
-  console.warn('WARNUNG: SMTP-Konfiguration nicht gefunden. E-Mails können nicht gesendet werden.');
-  console.warn('Bitte setze SMTP_USER und SMTP_PASS in der .env Datei.');
+// Get active SMTP config from database
+async function getActiveSmtpConfig() {
+  try {
+    const config = await db.get('SELECT * FROM smtp_config WHERE is_active = 1 LIMIT 1');
+    return config;
+  } catch (error) {
+    console.error('Error loading SMTP config from database:', error);
+    return null;
+  }
+}
+
+// Create or update transporter based on config
+async function getTransporter() {
+  // First try database config
+  const dbConfig = await getActiveSmtpConfig();
+  
+  if (dbConfig) {
+    // Check if config changed
+    const configKey = `${dbConfig.host}:${dbConfig.port}:${dbConfig.username}`;
+    if (lastConfig !== configKey) {
+      transporter = nodemailer.createTransport({
+        host: dbConfig.host,
+        port: dbConfig.port,
+        secure: dbConfig.secure === 1,
+        auth: {
+          user: dbConfig.username,
+          pass: dbConfig.password,
+        },
+      });
+      lastConfig = configKey;
+      console.log(`[EMAIL] Using SMTP config from database: ${dbConfig.name}`);
+    }
+    return { transporter, config: dbConfig };
+  }
+  
+  // Fallback to .env config
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const configKey = `env:${process.env.SMTP_HOST}:${process.env.SMTP_USER}`;
+    if (lastConfig !== configKey) {
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+      lastConfig = configKey;
+      console.log('[EMAIL] Using SMTP config from .env');
+    }
+    return { 
+      transporter, 
+      config: { 
+        from_name: 'Soaria', 
+        from_email: process.env.SMTP_USER 
+      } 
+    };
+  }
+  
+  console.warn('[EMAIL] Keine SMTP-Konfiguration gefunden!');
+  return { transporter: null, config: null };
 }
 
 export async function sendActivationEmail(email, username, activationToken) {
@@ -152,26 +201,29 @@ export async function sendActivationEmail(email, username, activationToken) {
     `;
   }
 
+  // Get transporter
+  const { transporter: emailTransporter, config: smtpConfig } = await getTransporter();
+
+  if (!emailTransporter || !smtpConfig) {
+    console.warn('[EMAIL] Kein SMTP konfiguriert. E-Mail wird nicht gesendet.');
+    console.warn('[EMAIL] Konfiguriere SMTP im Admin-Panel oder in der .env Datei.');
+    return false;
+  }
+
   const mailOptions = {
-    from: `"Soaria" <${process.env.SMTP_USER || 'noreply@soaria.com'}>`,
+    from: `"${smtpConfig.from_name || 'Soaria'}" <${smtpConfig.from_email}>`,
     to: email,
     subject: subject,
     html: htmlContent,
     text: textContent,
   };
 
-  if (!transporter) {
-    console.warn('E-Mail-Transporter nicht konfiguriert. E-Mail wird nicht gesendet.');
-    console.warn('Bitte konfiguriere SMTP_USER und SMTP_PASS in der .env Datei.');
-    return false;
-  }
-
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Activation email sent:', info.messageId);
+    const info = await emailTransporter.sendMail(mailOptions);
+    console.log('[EMAIL] Activation email sent:', info.messageId);
     return true;
   } catch (error) {
-    console.error('Error sending activation email:', error);
+    console.error('[EMAIL] Error sending activation email:', error);
     return false;
   }
 }

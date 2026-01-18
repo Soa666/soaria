@@ -8,6 +8,7 @@ import UsersManagement from '../components/admin/UsersManagement';
 import GroupsManagement from '../components/admin/GroupsManagement';
 import BuildingsManagement from '../components/admin/BuildingsManagement';
 import EmailManagement from '../components/admin/EmailManagement';
+import SmtpManagement from '../components/admin/SmtpManagement';
 import ReportsManagement from '../components/admin/ReportsManagement';
 import MonsterManagement from '../components/admin/MonsterManagement';
 import NpcManagement from '../components/admin/NpcManagement';
@@ -22,7 +23,8 @@ const menuItems = [
   { id: 'users', icon: '👥', label: 'Benutzer', category: 'Verwaltung' },
   { id: 'groups', icon: '🛡️', label: 'Gruppen', category: 'Verwaltung' },
   { id: 'reports', icon: '🚩', label: 'Meldungen', category: 'Verwaltung' },
-  { id: 'email', icon: '📧', label: 'E-Mail & Webhooks', category: 'System' },
+  { id: 'smtp', icon: '📧', label: 'SMTP E-Mail', category: 'System' },
+  { id: 'email', icon: '📝', label: 'E-Mail Vorlagen', category: 'System' },
 ];
 
 function Admin() {
@@ -109,6 +111,7 @@ function Admin() {
           {activeTab === 'users' && <UsersManagement />}
           {activeTab === 'groups' && <GroupsManagement />}
           {activeTab === 'buildings' && <BuildingsManagement />}
+          {activeTab === 'smtp' && <SmtpManagement />}
           {activeTab === 'email' && <EmailManagement />}
           {activeTab === 'reports' && <ReportsManagement />}
           {activeTab === 'monsters' && <MonsterManagement />}

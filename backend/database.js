@@ -429,6 +429,23 @@ export async function initDatabase() {
     )
   `);
 
+  // SMTP configuration table (multiple configs possible, one active)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS smtp_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      host TEXT NOT NULL,
+      port INTEGER DEFAULT 587,
+      secure INTEGER DEFAULT 0,
+      username TEXT NOT NULL,
+      password TEXT NOT NULL,
+      from_name TEXT DEFAULT 'Soaria',
+      from_email TEXT NOT NULL,
+      is_active INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Discord webhooks table
   await db.run(`
     CREATE TABLE IF NOT EXISTS discord_webhooks (

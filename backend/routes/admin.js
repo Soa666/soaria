@@ -371,4 +371,166 @@ router.delete('/message-reports/:id', authenticateToken, requirePermission('mana
   }
 });
 
+// =====================
+// SMTP Configuration
+// =====================
+
+// Get all SMTP configs
+router.get('/smtp', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const configs = await db.all(`
+      SELECT id, name, host, port, secure, username, from_name, from_email, is_active, created_at
+      FROM smtp_config
+      ORDER BY is_active DESC, created_at DESC
+    `);
+    res.json({ configs });
+  } catch (error) {
+    console.error('Get SMTP configs error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Create new SMTP config
+router.post('/smtp', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { name, host, port, secure, username, password, from_name, from_email, is_active } = req.body;
+    
+    if (!name || !host || !username || !password || !from_email) {
+      return res.status(400).json({ error: 'Name, Host, Username, Passwort und Absender-E-Mail sind erforderlich' });
+    }
+    
+    // If this config should be active, deactivate all others
+    if (is_active) {
+      await db.run('UPDATE smtp_config SET is_active = 0');
+    }
+    
+    const result = await db.run(`
+      INSERT INTO smtp_config (name, host, port, secure, username, password, from_name, from_email, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [name, host, port || 587, secure ? 1 : 0, username, password, from_name || 'Soaria', from_email, is_active ? 1 : 0]);
+    
+    res.json({ message: 'SMTP-Konfiguration erstellt', id: result.lastID });
+  } catch (error) {
+    console.error('Create SMTP config error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Update SMTP config
+router.put('/smtp/:id', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, host, port, secure, username, password, from_name, from_email, is_active } = req.body;
+    
+    // If this config should be active, deactivate all others
+    if (is_active) {
+      await db.run('UPDATE smtp_config SET is_active = 0');
+    }
+    
+    // Build update query - only update password if provided
+    if (password) {
+      await db.run(`
+        UPDATE smtp_config 
+        SET name = ?, host = ?, port = ?, secure = ?, username = ?, password = ?, 
+            from_name = ?, from_email = ?, is_active = ?
+        WHERE id = ?
+      `, [name, host, port || 587, secure ? 1 : 0, username, password, from_name, from_email, is_active ? 1 : 0, id]);
+    } else {
+      await db.run(`
+        UPDATE smtp_config 
+        SET name = ?, host = ?, port = ?, secure = ?, username = ?, 
+            from_name = ?, from_email = ?, is_active = ?
+        WHERE id = ?
+      `, [name, host, port || 587, secure ? 1 : 0, username, from_name, from_email, is_active ? 1 : 0, id]);
+    }
+    
+    res.json({ message: 'SMTP-Konfiguration aktualisiert' });
+  } catch (error) {
+    console.error('Update SMTP config error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete SMTP config
+router.delete('/smtp/:id', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.run('DELETE FROM smtp_config WHERE id = ?', [id]);
+    res.json({ message: 'SMTP-Konfiguration gelöscht' });
+  } catch (error) {
+    console.error('Delete SMTP config error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Set active SMTP config
+router.post('/smtp/:id/activate', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Deactivate all configs
+    await db.run('UPDATE smtp_config SET is_active = 0');
+    
+    // Activate selected config
+    await db.run('UPDATE smtp_config SET is_active = 1 WHERE id = ?', [id]);
+    
+    res.json({ message: 'SMTP-Konfiguration aktiviert' });
+  } catch (error) {
+    console.error('Activate SMTP config error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Test SMTP config
+router.post('/smtp/:id/test', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { test_email } = req.body;
+    
+    if (!test_email) {
+      return res.status(400).json({ error: 'Test-E-Mail-Adresse erforderlich' });
+    }
+    
+    const config = await db.get('SELECT * FROM smtp_config WHERE id = ?', [id]);
+    
+    if (!config) {
+      return res.status(404).json({ error: 'SMTP-Konfiguration nicht gefunden' });
+    }
+    
+    // Create test transporter
+    const nodemailer = await import('nodemailer');
+    const testTransporter = nodemailer.default.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure === 1,
+      auth: {
+        user: config.username,
+        pass: config.password,
+      },
+    });
+    
+    // Send test email
+    await testTransporter.sendMail({
+      from: `"${config.from_name}" <${config.from_email}>`,
+      to: test_email,
+      subject: '🏰 Soaria - SMTP Test',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background: #1a1025; color: #e8dcc0;">
+          <h1 style="color: #d4af37;">✅ SMTP Test erfolgreich!</h1>
+          <p>Diese Test-E-Mail wurde von der Soaria SMTP-Konfiguration "${config.name}" gesendet.</p>
+          <p><strong>Server:</strong> ${config.host}:${config.port}</p>
+          <p><strong>Von:</strong> ${config.from_name} &lt;${config.from_email}&gt;</p>
+          <p style="color: #8b7a5a; margin-top: 20px;">Falls du diese E-Mail erhalten hast, funktioniert die Konfiguration korrekt!</p>
+        </div>
+      `,
+      text: `SMTP Test erfolgreich!\n\nDiese Test-E-Mail wurde von der Soaria SMTP-Konfiguration "${config.name}" gesendet.\n\nServer: ${config.host}:${config.port}\nVon: ${config.from_name} <${config.from_email}>`
+    });
+    
+    res.json({ message: `Test-E-Mail an ${test_email} gesendet!` });
+  } catch (error) {
+    console.error('Test SMTP error:', error);
+    res.status(500).json({ error: `SMTP-Fehler: ${error.message}` });
+  }
+});
+
 export default router;

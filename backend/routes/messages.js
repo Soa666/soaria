@@ -141,16 +141,16 @@ router.get('/search-users', authenticateToken, async (req, res) => {
     }
     
     // Search users by username (case-insensitive), exclude self and System user
+    // Include non-activated users so they can receive messages
     const users = await db.all(`
-      SELECT id, username, avatar_path 
+      SELECT id, username, avatar_path, is_activated
       FROM users 
       WHERE LOWER(username) LIKE LOWER(?) 
         AND id != ? 
         AND username != 'System'
-        AND is_activated = 1
-      ORDER BY username
+      ORDER BY is_activated DESC, username
       LIMIT 10
-    `, [`${q}%`, req.user.id]);
+    `, [`%${q}%`, req.user.id]);
     
     res.json({ users });
   } catch (error) {
