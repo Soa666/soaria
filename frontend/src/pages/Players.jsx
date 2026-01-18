@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import './Players.css';
 
 function Players() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -86,6 +89,15 @@ function Players() {
                 <div className="player-coords">
                   📍 {player.world_x}, {player.world_y}
                 </div>
+                {player.id !== user?.id && (
+                  <button 
+                    className="btn-message-small"
+                    onClick={() => navigate(`/messages?to=${player.username}`)}
+                    title="Nachricht senden"
+                  >
+                    ✉️
+                  </button>
+                )}
               </div>
             </div>
           ))}

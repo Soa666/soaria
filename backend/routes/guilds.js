@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { sendSystemMessage } from './messages.js';
 
 const router = express.Router();
 
@@ -248,10 +249,27 @@ router.post('/:guildId/apply', authenticateToken, async (req, res) => {
     }
 
     // Create application
-    await db.run(`
+    const result = await db.run(`
       INSERT INTO guild_applications (guild_id, user_id, message)
       VALUES (?, ?, ?)
     `, [guildId, req.user.id, message || null]);
+
+    // Notify guild leader and officers about new application
+    const applicantUser = await db.get('SELECT username FROM users WHERE id = ?', [req.user.id]);
+    const guildLeadersAndOfficers = await db.all(`
+      SELECT user_id FROM guild_members 
+      WHERE guild_id = ? AND role IN ('leader', 'officer')
+    `, [guildId]);
+
+    for (const member of guildLeadersAndOfficers) {
+      await sendSystemMessage(
+        member.user_id,
+        `📜 Neue Gildenbewerbung`,
+        `${applicantUser.username} hat sich bei der Gilde "${guild.name}" beworben!\n\n${message ? `Nachricht: "${message}"` : 'Keine Nachricht hinterlassen.'}\n\nGehe zu den Gildenbewerbungen, um sie zu prüfen.`,
+        'guild_application',
+        result.lastID
+      );
+    }
 
     res.json({ message: `Bewerbung an ${guild.name} gesendet` });
   } catch (error) {
@@ -334,6 +352,9 @@ router.put('/:guildId/applications/:applicationId', authenticateToken, async (re
       WHERE id = ?
     `, [status, req.user.id, applicationId]);
 
+    // Get guild info for message
+    const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [guildId]);
+
     // If accepted, add user to guild
     if (status === 'accepted') {
       // Check if user is still not in a guild
@@ -350,6 +371,24 @@ router.put('/:guildId/applications/:applicationId', authenticateToken, async (re
         INSERT INTO guild_members (guild_id, user_id, role)
         VALUES (?, ?, 'member')
       `, [guildId, application.user_id]);
+
+      // Notify applicant about acceptance
+      await sendSystemMessage(
+        application.user_id,
+        `🎉 Gildenbewerbung angenommen!`,
+        `Herzlichen Glückwunsch! Deine Bewerbung bei der Gilde "${guild.name}" wurde angenommen!\n\nDu bist jetzt offiziell ein Mitglied der Gilde. Willkommen! 🏰`,
+        'guild_accepted',
+        guildId
+      );
+    } else {
+      // Notify applicant about rejection
+      await sendSystemMessage(
+        application.user_id,
+        `❌ Gildenbewerbung abgelehnt`,
+        `Leider wurde deine Bewerbung bei der Gilde "${guild.name}" abgelehnt.\n\nDu kannst dich gerne bei anderen Gilden bewerben oder später erneut versuchen.`,
+        'guild_rejected',
+        guildId
+      );
     }
 
     res.json({ 

@@ -16,6 +16,7 @@ import buildingsAdminRoutes from './routes/buildingsAdmin.js';
 import mapRoutes from './routes/map.js';
 import guildsRoutes from './routes/guilds.js';
 import playersRoutes from './routes/players.js';
+import messagesRoutes from './routes/messages.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/admin/buildings', buildingsAdminRoutes);
 app.use('/api/map', mapRoutes);
 app.use('/api/guilds', guildsRoutes);
 app.use('/api/players', playersRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

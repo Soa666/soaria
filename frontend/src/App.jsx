@@ -16,6 +16,7 @@ import Activate from './pages/Activate';
 import Players from './pages/Players';
 import Guilds from './pages/Guilds';
 import GuildDetail from './pages/GuildDetail';
+import Messages from './pages/Messages';
 import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
@@ -135,6 +136,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <GuildDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <Messages />
             </ProtectedRoute>
           }
         />

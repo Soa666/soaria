@@ -443,6 +443,31 @@ export async function initDatabase() {
     )
   `);
 
+  // Messages table (Nachrichten-System)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      recipient_id INTEGER NOT NULL,
+      subject TEXT NOT NULL,
+      content TEXT NOT NULL,
+      is_read INTEGER DEFAULT 0,
+      is_system INTEGER DEFAULT 0,
+      message_type TEXT DEFAULT 'personal' CHECK(message_type IN ('personal', 'guild_application', 'guild_accepted', 'guild_rejected', 'trade_request', 'attack_report', 'system')),
+      related_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      read_at DATETIME,
+      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Create index for faster unread message queries
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_messages_recipient_unread 
+    ON messages(recipient_id, is_read)
+  `);
+
   // Insert default activation email template
   try {
     const existingTemplate = await db.get('SELECT id FROM email_templates WHERE name = ?', ['activation']);

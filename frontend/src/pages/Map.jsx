@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './Map.css';
@@ -26,6 +27,7 @@ function getTerrainAt(worldX, worldY) {
 
 function Map() {
   const { user, setUser } = useAuth();
+  const navigate = useNavigate();
   const [players, setPlayers] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -779,6 +781,12 @@ function Map() {
                 onClick={handleTrade}
               >
                 🤝 Handeln
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => navigate(`/messages?to=${selectedPlayer.username}`)}
+              >
+                ✉️ Nachricht
               </button>
               <button 
                 className="btn btn-secondary" 

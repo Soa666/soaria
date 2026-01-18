@@ -137,3 +137,30 @@
   color: #8b7a5a;
   font-style: italic;
 }
+
+/* Message button */
+.player-info {
+  position: relative;
+}
+
+.btn-message-small {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s;
+  padding: 0.25rem;
+}
+
+.btn-message-small:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.player-card:hover .btn-message-small {
+  opacity: 0.8;
+}

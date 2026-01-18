@@ -202,3 +202,37 @@
   transform: translateY(-1px);
   color: #fffacd;
 }
+
+/* Message icon in navbar */
+.navbar-messages {
+  position: relative;
+  font-size: 1.5rem !important;
+  padding: 0.3rem 0.6rem !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+.navbar-messages::before {
+  display: none !important;
+}
+
+.message-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: linear-gradient(135deg, #c74848, #a03030);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: bold;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  animation: badge-pulse 2s infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
