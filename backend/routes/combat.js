@@ -320,6 +320,31 @@ router.post('/heal', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Du kannst dich nur an bestimmten Orten heilen (Grundstück, Gilde, etc.)' });
     }
 
+    // Get user's current position and home coordinates
+    const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    // Check if player is actually at the healing location
+    if (location === 'grundstueck') {
+      const homeX = user.home_x ?? 0;
+      const homeY = user.home_y ?? 0;
+      const distance = Math.sqrt(
+        Math.pow((user.world_x || 0) - homeX, 2) + 
+        Math.pow((user.world_y || 0) - homeY, 2)
+      );
+      
+      if (distance > 50) {
+        return res.status(400).json({ 
+          error: 'Du bist zu weit von deinem Grundstück entfernt! Reise erst nach Hause.',
+          notAtHome: true,
+          distance: Math.round(distance)
+        });
+      }
+    }
+    // TODO: Add checks for guild hall and hospital locations
+
     const stats = await db.get('SELECT * FROM player_stats WHERE user_id = ?', [userId]);
     if (!stats) {
       return res.status(404).json({ error: 'Keine Spielerstatistiken gefunden' });

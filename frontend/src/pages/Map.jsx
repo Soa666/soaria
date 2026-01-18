@@ -1222,13 +1222,17 @@ function Map() {
 
   const handleHeal = async () => {
     try {
-      const response = await api.post('/combat/heal');
+      const response = await api.post('/combat/heal', { location: 'grundstueck' });
       setMessage(response.data.message);
       fetchPlayerStats();
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage(error.response?.data?.error || 'Heilungsfehler');
-      setTimeout(() => setMessage(''), 3000);
+      if (error.response?.data?.notAtHome) {
+        setMessage(`🏠 Du musst erst nach Hause reisen! (Entfernung: ${error.response.data.distance} Einheiten)`);
+      } else {
+        setMessage(error.response?.data?.error || 'Heilungsfehler');
+      }
+      setTimeout(() => setMessage(''), 5000);
     }
   };
 

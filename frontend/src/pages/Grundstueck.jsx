@@ -96,12 +96,17 @@ function Grundstueck() {
   // Check if player is at home (coordinates 0,0 means at home/grundstück)
   useEffect(() => {
     if (user) {
-      // Player is "at home" when coordinates are 0,0 or very close to origin
-      const atHome = (user.world_x === 0 && user.world_y === 0) || 
-                     (Math.abs(user.world_x || 0) < 50 && Math.abs(user.world_y || 0) < 50);
+      // Player is "at home" when near their home coordinates (not 0,0!)
+      const homeX = user.home_x ?? 0;
+      const homeY = user.home_y ?? 0;
+      const distance = Math.sqrt(
+        Math.pow((user.world_x || 0) - homeX, 2) + 
+        Math.pow((user.world_y || 0) - homeY, 2)
+      );
+      const atHome = distance < 50;
       setIsAtHome(atHome);
     }
-  }, [user?.world_x, user?.world_y]);
+  }, [user?.world_x, user?.world_y, user?.home_x, user?.home_y]);
 
   const handleHeal = async () => {
     try {
@@ -253,7 +258,7 @@ function Grundstueck() {
               )}
             </div>
             {!isAtHome && (
-              <p className="away-notice">Du musst zu Hause sein um dich zu heilen. Kehre zu Position (0, 0) zurück.</p>
+              <p className="away-notice">Du musst zu Hause sein um dich zu heilen. Nutze die Karte um nach Hause zu reisen.</p>
             )}
           </div>
         )}
