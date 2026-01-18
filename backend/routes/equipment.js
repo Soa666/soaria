@@ -279,7 +279,7 @@ router.delete('/:equipmentId', authenticateToken, async (req, res) => {
       const qualityMultiplier = QUALITY_MULTIPLIERS[equipment.quality] || 1.0;
       goldGained = Math.floor(basePrice * qualityMultiplier);
 
-      await db.run('UPDATE player_stats SET gold = gold + ? WHERE user_id = ?', [goldGained, userId]);
+      await db.run('UPDATE users SET gold = gold + ? WHERE id = ?', [goldGained, userId]);
     }
 
     await db.run('DELETE FROM user_equipment WHERE id = ?', [equipmentId]);
