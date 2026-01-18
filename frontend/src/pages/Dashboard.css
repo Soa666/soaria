@@ -384,12 +384,12 @@
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .inventory-slot:hover {
   transform: scale(1.05);
-  z-index: 1;
+  z-index: 10;
 }
 
 .inventory-slot.selected {
@@ -402,6 +402,67 @@
   height: 80%;
   object-fit: contain;
   image-rendering: pixelated;
+}
+
+/* Inventory Item Tooltip */
+.item-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  min-width: 120px;
+  max-width: 200px;
+  z-index: 100;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.item-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #5a4a2a;
+}
+
+.item-tooltip .tooltip-name {
+  color: #d4af37;
+  font-weight: bold;
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+
+.item-tooltip .tooltip-rarity {
+  font-size: 0.7rem;
+  text-transform: capitalize;
+  margin-bottom: 0.3rem;
+}
+
+.item-tooltip.rarity-common .tooltip-rarity { color: #9e9e9e; }
+.item-tooltip.rarity-uncommon .tooltip-rarity { color: #4caf50; }
+.item-tooltip.rarity-rare .tooltip-rarity { color: #2196f3; }
+.item-tooltip.rarity-epic .tooltip-rarity { color: #9c27b0; }
+.item-tooltip.rarity-legendary .tooltip-rarity { color: #ff9800; }
+
+.item-tooltip .tooltip-desc {
+  font-size: 0.7rem;
+  color: #a89070;
+  font-style: italic;
+  white-space: normal;
+  margin-bottom: 0.3rem;
+}
+
+.item-tooltip .tooltip-qty {
+  font-size: 0.7rem;
+  color: #8b7a5a;
 }
 
 .item-quantity {
@@ -554,7 +615,7 @@
   margin-left: 4px;
 }
 
-/* Equipment Slots Visual */
+/* Equipment Slots Visual - New Design */
 .equipment-slots {
   padding: 1rem;
   background: rgba(0, 0, 0, 0.3);
@@ -566,17 +627,31 @@
   margin: 0 0 1rem 0;
   color: #d4af37;
   font-size: 1rem;
+  text-align: center;
 }
 
-.equipment-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+.equipment-visual {
+  display: flex;
+  justify-content: center;
+}
+
+.equipment-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.equipment-slot {
-  aspect-ratio: 1;
-  background: rgba(30, 20, 40, 0.8);
+.equipment-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.equipment-slot-box {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.9), rgba(20, 15, 30, 0.9));
   border: 2px solid #3a2a1a;
   border-radius: 8px;
   display: flex;
@@ -585,43 +660,106 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  padding: 0.3rem;
+  position: relative;
 }
 
-.equipment-slot:hover {
+.equipment-slot-box:hover {
   border-color: #5a4a2a;
-  background: rgba(50, 30, 60, 0.8);
+  background: linear-gradient(145deg, rgba(50, 35, 60, 0.9), rgba(30, 25, 45, 0.9));
+  transform: scale(1.05);
 }
 
-.equipment-slot.equipped {
-  border-color: #d4af37;
-  background: rgba(212, 175, 55, 0.1);
+.equipment-slot-box.has-item {
+  border-width: 2px;
+  animation: equippedGlow 2s ease-in-out infinite;
 }
 
-.equipment-slot .slot-icon {
+@keyframes equippedGlow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.2); }
+}
+
+.equipment-slot-box .slot-empty-icon {
   font-size: 1.5rem;
-  opacity: 0.3;
+  opacity: 0.25;
 }
 
-.equipment-slot .slot-name {
-  font-size: 0.6rem;
+.equipment-slot-box .slot-item-icon {
+  font-size: 1.5rem;
+}
+
+.equipment-slot-box .slot-label {
+  font-size: 0.55rem;
   color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-top: 2px;
 }
 
-.equipment-slot .equip-item-border {
-  width: 36px;
-  height: 36px;
-  border: 2px solid;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
+.equipment-slot-box.has-item .slot-label {
+  color: #a89070;
 }
 
-.equipment-slot .equip-item-icon {
-  font-size: 1.2rem;
+/* Equipment Tooltip */
+.equipment-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 0.75rem;
+  min-width: 150px;
+  z-index: 100;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.equipment-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #5a4a2a;
+}
+
+.equipment-tooltip .tooltip-header {
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.equipment-tooltip .tooltip-quality {
+  font-size: 0.75rem;
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.equipment-tooltip .tooltip-stats {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: #e8dcc0;
+  margin-bottom: 0.5rem;
+}
+
+.equipment-tooltip .tooltip-hint {
+  font-size: 0.65rem;
+  color: #666;
+  font-style: italic;
+}
+
+.equipment-tooltip.empty-tooltip {
+  min-width: 100px;
+}
+
+.equipment-tooltip.empty-tooltip .tooltip-header {
+  color: #8b7a5a;
 }
 
 .equipment-slot .equip-item-name {

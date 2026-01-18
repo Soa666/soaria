@@ -3,6 +3,91 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './Dashboard.css';
 
+// Inventory Item Slot with Tooltip
+function InventoryItemSlot({ item, isSelected, onClick, getImageUrl, getRarityClass }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  
+  return (
+    <div 
+      className={`inventory-slot ${getRarityClass(item.rarity)} ${isSelected ? 'selected' : ''}`}
+      onClick={onClick}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <img 
+        src={getImageUrl(item.image_path)} 
+        alt={item.display_name}
+        onError={(e) => { e.target.src = '/placeholder-item.png'; }}
+      />
+      <span className="item-quantity">{item.quantity}</span>
+      <div className="rarity-indicator"></div>
+      
+      {/* Tooltip */}
+      {showTooltip && (
+        <div className={`item-tooltip ${getRarityClass(item.rarity)}`}>
+          <div className="tooltip-name">{item.display_name}</div>
+          {item.rarity && item.rarity !== 'common' && (
+            <div className="tooltip-rarity">{item.rarity}</div>
+          )}
+          {item.description && (
+            <div className="tooltip-desc">{item.description}</div>
+          )}
+          <div className="tooltip-qty">Anzahl: {item.quantity}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Equipment Slot Component with Tooltip
+function EquipmentSlotBox({ slot, equipped, getSlotIcon, getSlotName, onSelect }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const item = equipped[slot];
+  
+  return (
+    <div 
+      className={`equipment-slot-box ${item ? 'has-item' : 'empty'}`}
+      style={item ? { borderColor: item.quality_color, boxShadow: `0 0 10px ${item.quality_color}40` } : {}}
+      onClick={() => item && onSelect(item)}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      {item ? (
+        <span className="slot-item-icon">{getSlotIcon(slot)}</span>
+      ) : (
+        <span className="slot-empty-icon">{getSlotIcon(slot)}</span>
+      )}
+      <span className="slot-label">{getSlotName(slot)}</span>
+      
+      {/* Tooltip */}
+      {showTooltip && item && (
+        <div className="equipment-tooltip" style={{ borderColor: item.quality_color }}>
+          <div className="tooltip-header" style={{ color: item.quality_color }}>
+            {item.display_name}
+          </div>
+          <div className="tooltip-quality" style={{ color: item.quality_color }}>
+            {item.quality_name}
+          </div>
+          <div className="tooltip-stats">
+            {item.actual_attack > 0 && <span>⚔️ +{item.actual_attack}</span>}
+            {item.actual_defense > 0 && <span>🛡️ +{item.actual_defense}</span>}
+            {item.actual_health > 0 && <span>❤️ +{item.actual_health}</span>}
+          </div>
+          <div className="tooltip-hint">Klicken für Details</div>
+        </div>
+      )}
+      
+      {/* Empty slot tooltip */}
+      {showTooltip && !item && (
+        <div className="equipment-tooltip empty-tooltip">
+          <div className="tooltip-header">{getSlotName(slot)}</div>
+          <div className="tooltip-hint">Kein Item ausgerüstet</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Dashboard() {
   const { user } = useAuth();
   const [playerStats, setPlayerStats] = useState(null);
@@ -270,34 +355,81 @@ function Dashboard() {
         {/* Equipment Slots Visual */}
         <div className="equipment-slots">
           <h3>⚔️ Ausrüstung</h3>
-          <div className="equipment-grid">
-            {['head', 'chest', 'weapon', 'shield', 'legs', 'hands', 'feet', 'accessory'].map(slot => (
-              <div 
-                key={slot} 
-                className={`equipment-slot slot-${slot} ${equipped[slot] ? 'equipped' : 'empty'}`}
-                onClick={() => equipped[slot] && setSelectedEquipment(equipped[slot])}
-                title={equipped[slot]?.display_name || getSlotName(slot)}
-              >
-                {equipped[slot] ? (
-                  <>
-                    <div 
-                      className="equip-item-border"
-                      style={{ borderColor: equipped[slot].quality_color }}
-                    >
-                      <span className="equip-item-icon">{getSlotIcon(slot)}</span>
-                    </div>
-                    <span className="equip-item-name" style={{ color: equipped[slot].quality_color }}>
-                      {equipped[slot].display_name}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="slot-icon">{getSlotIcon(slot)}</span>
-                    <span className="slot-name">{getSlotName(slot)}</span>
-                  </>
-                )}
+          <div className="equipment-visual">
+            {/* Character silhouette with slots */}
+            <div className="equipment-body">
+              {/* Top row: Head */}
+              <div className="equipment-row top-row">
+                <EquipmentSlotBox 
+                  slot="head" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
               </div>
-            ))}
+              
+              {/* Middle row: Weapon, Chest, Shield */}
+              <div className="equipment-row middle-row">
+                <EquipmentSlotBox 
+                  slot="weapon" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
+                <EquipmentSlotBox 
+                  slot="chest" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
+                <EquipmentSlotBox 
+                  slot="shield" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
+              </div>
+              
+              {/* Hands row */}
+              <div className="equipment-row hands-row">
+                <EquipmentSlotBox 
+                  slot="hands" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
+                <EquipmentSlotBox 
+                  slot="legs" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
+                <EquipmentSlotBox 
+                  slot="accessory" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
+              </div>
+              
+              {/* Bottom row: Feet */}
+              <div className="equipment-row bottom-row">
+                <EquipmentSlotBox 
+                  slot="feet" 
+                  equipped={equipped} 
+                  getSlotIcon={getSlotIcon} 
+                  getSlotName={getSlotName}
+                  onSelect={setSelectedEquipment}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -383,20 +515,14 @@ function Dashboard() {
                     </h3>
                     <div className="inventory-grid">
                       {items.map((item) => (
-                        <div 
-                          key={item.item_id} 
-                          className={`inventory-slot ${getRarityClass(item.rarity)} ${selectedItem?.item_id === item.item_id ? 'selected' : ''}`}
+                        <InventoryItemSlot
+                          key={item.item_id}
+                          item={item}
+                          isSelected={selectedItem?.item_id === item.item_id}
                           onClick={() => setSelectedItem(selectedItem?.item_id === item.item_id ? null : item)}
-                          title={item.display_name}
-                        >
-                          <img 
-                            src={getImageUrl(item.image_path)} 
-                            alt={item.display_name}
-                            onError={(e) => { e.target.src = '/placeholder-item.png'; }}
-                          />
-                          <span className="item-quantity">{item.quantity}</span>
-                          <div className="rarity-indicator"></div>
-                        </div>
+                          getImageUrl={getImageUrl}
+                          getRarityClass={getRarityClass}
+                        />
                       ))}
                     </div>
                   </div>
