@@ -39,6 +39,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/profile/:username', authenticateToken, async (req, res) => {
   try {
     const { username } = req.params;
+    console.log('[PLAYERS] Loading profile for username:', username);
 
     const player = await db.get(`
       SELECT 
@@ -70,29 +71,47 @@ router.get('/profile/:username', authenticateToken, async (req, res) => {
     `, [username]);
 
     if (!player) {
+      console.log('[PLAYERS] Player not found:', username);
       return res.status(404).json({ error: 'Spieler nicht gefunden' });
     }
 
-    // Count equipped items
-    const equippedCount = await db.get(`
-      SELECT COUNT(*) as count FROM user_equipment WHERE user_id = ? AND is_equipped = 1
-    `, [player.id]);
+    console.log('[PLAYERS] Found player:', player.id, player.username);
 
-    // Count monsters killed (wins in combat_log)
-    const monstersKilled = await db.get(`
-      SELECT COUNT(*) as count FROM combat_log WHERE attacker_id = ? AND winner = 'attacker'
-    `, [player.id]);
+    // Count equipped items (with safe check)
+    let equippedCount = { count: 0 };
+    try {
+      equippedCount = await db.get(`
+        SELECT COUNT(*) as count FROM user_equipment WHERE user_id = ? AND is_equipped = 1
+      `, [player.id]) || { count: 0 };
+    } catch (e) {
+      console.log('[PLAYERS] user_equipment table may not exist');
+    }
 
-    // Calculate total stats with equipment
-    const equipmentStats = await db.get(`
-      SELECT 
-        COALESCE(SUM(et.base_attack * ue.quality_bonus), 0) as total_attack,
-        COALESCE(SUM(et.base_defense * ue.quality_bonus), 0) as total_defense,
-        COALESCE(SUM(et.base_health * ue.quality_bonus), 0) as total_health
-      FROM user_equipment ue
-      JOIN equipment_types et ON ue.equipment_type_id = et.id
-      WHERE ue.user_id = ? AND ue.is_equipped = 1
-    `, [player.id]);
+    // Count monsters killed (with safe check)
+    let monstersKilled = { count: 0 };
+    try {
+      monstersKilled = await db.get(`
+        SELECT COUNT(*) as count FROM combat_log WHERE attacker_id = ? AND winner = 'attacker'
+      `, [player.id]) || { count: 0 };
+    } catch (e) {
+      console.log('[PLAYERS] combat_log table may not exist');
+    }
+
+    // Calculate total stats with equipment (with safe check)
+    let equipmentStats = { total_attack: 0, total_defense: 0, total_health: 0 };
+    try {
+      equipmentStats = await db.get(`
+        SELECT 
+          COALESCE(SUM(et.base_attack * ue.quality_bonus), 0) as total_attack,
+          COALESCE(SUM(et.base_defense * ue.quality_bonus), 0) as total_defense,
+          COALESCE(SUM(et.base_health * ue.quality_bonus), 0) as total_health
+        FROM user_equipment ue
+        JOIN equipment_types et ON ue.equipment_type_id = et.id
+        WHERE ue.user_id = ? AND ue.is_equipped = 1
+      `, [player.id]) || equipmentStats;
+    } catch (e) {
+      console.log('[PLAYERS] equipment tables may not exist');
+    }
 
     res.json({ 
       player: {
