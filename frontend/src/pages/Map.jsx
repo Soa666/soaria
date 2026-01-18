@@ -1380,7 +1380,10 @@ function Map() {
 
   const centerOnUser = () => {
     try {
-      if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
+      // Use currentUserPosition during travel, otherwise use user's stored position
+      if (travelStatus?.traveling && currentUserPosition) {
+        setViewCenter({ x: currentUserPosition.x, y: currentUserPosition.y });
+      } else if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
         setViewCenter({ x: user.world_x, y: user.world_y });
       } else {
         setViewCenter({ x: 0, y: 0 });
@@ -1388,6 +1391,20 @@ function Map() {
     } catch (error) {
       console.error('Error centering on user:', error);
     }
+  };
+
+  // Pan the map in a direction
+  const panMap = (direction) => {
+    const panAmount = 100 / zoom; // Adjust pan amount based on zoom level
+    setViewCenter(prev => {
+      switch (direction) {
+        case 'up': return { ...prev, y: prev.y - panAmount };
+        case 'down': return { ...prev, y: prev.y + panAmount };
+        case 'left': return { ...prev, x: prev.x - panAmount };
+        case 'right': return { ...prev, x: prev.x + panAmount };
+        default: return prev;
+      }
+    });
   };
 
   if (loading) {
@@ -1457,6 +1474,15 @@ function Map() {
                 className="zoom-slider"
               />
             </label>
+          </div>
+
+          <div className="control-group pan-controls">
+            <button className="btn btn-small pan-btn" onClick={() => panMap('up')} title="Nach oben">↑</button>
+            <div className="pan-row">
+              <button className="btn btn-small pan-btn" onClick={() => panMap('left')} title="Nach links">←</button>
+              <button className="btn btn-small pan-btn" onClick={() => panMap('right')} title="Nach rechts">→</button>
+            </div>
+            <button className="btn btn-small pan-btn" onClick={() => panMap('down')} title="Nach unten">↓</button>
           </div>
 
           <div className="map-info">
