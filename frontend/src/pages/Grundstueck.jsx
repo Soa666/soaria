@@ -31,7 +31,8 @@ function Grundstueck() {
   const [isAtHome, setIsAtHome] = useState(false);
   const [equipmentRecipes, setEquipmentRecipes] = useState([]);
   const [professions, setProfessions] = useState([]);
-  const [showSmithyPanel, setShowSmithyPanel] = useState(false);
+  const [showSmithyView, setShowSmithyView] = useState(false);
+  const [smithyTab, setSmithyTab] = useState('weapon');
   const [craftingMessage, setCraftingMessage] = useState(null);
 
   useEffect(() => {
@@ -276,6 +277,177 @@ function Grundstueck() {
   const maxX = Math.max(...buildings.map(b => b.position_x + b.size_width), 400);
   const maxY = Math.max(...buildings.map(b => b.position_y + b.size_height), 400);
 
+  // Slot names and icons for tabs
+  const slotConfig = {
+    weapon: { name: 'Waffen', icon: '⚔️' },
+    shield: { name: 'Schilde', icon: '🛡️' },
+    head: { name: 'Helme', icon: '🪖' },
+    chest: { name: 'Rüstungen', icon: '👕' },
+    legs: { name: 'Beine', icon: '👖' },
+    feet: { name: 'Schuhe', icon: '👢' },
+    hands: { name: 'Handschuhe', icon: '🧤' },
+    accessory: { name: 'Accessoires', icon: '💍' }
+  };
+
+  // Smithy Full View
+  if (showSmithyView) {
+    const filteredRecipes = equipmentRecipes.filter(r => r.slot === smithyTab);
+    
+    return (
+      <div className="grundstueck-page">
+        <div className="card smithy-fullview">
+          <div className="smithy-header">
+            <button className="btn btn-back" onClick={() => setShowSmithyView(false)}>
+              ← Zurück zum Grundstück
+            </button>
+            <h2>⚒️ Schmiede</h2>
+            <div className="smithy-stats">
+              <div className="smithy-stat">
+                <span className="stat-icon">🏭</span>
+                <span>Schmiede Lv. {getForgeLevel()}</span>
+              </div>
+              <div className="smithy-stat">
+                <span className="stat-icon">🔨</span>
+                <span>Schmied Lv. {getProfessionLevel('blacksmith')}</span>
+              </div>
+            </div>
+          </div>
+
+          {craftingMessage && (
+            <div className={`crafting-message ${craftingMessage.type}`}>
+              <span style={{ color: craftingMessage.quality_color }}>{craftingMessage.text}</span>
+              {craftingMessage.leveled_up && (
+                <div className="level-up-notice">🎉 Schmied Level {craftingMessage.new_level}!</div>
+              )}
+            </div>
+          )}
+
+          {!isAtHome && (
+            <div className="smithy-warning">
+              ⚠️ Du musst zu Hause sein um zu schmieden! <Link to="/map">Zur Karte</Link>
+            </div>
+          )}
+
+          <div className="smithy-tabs">
+            {Object.entries(slotConfig).map(([slot, config]) => {
+              const recipeCount = equipmentRecipes.filter(r => r.slot === slot).length;
+              return (
+                <button
+                  key={slot}
+                  className={`smithy-tab ${smithyTab === slot ? 'active' : ''}`}
+                  onClick={() => setSmithyTab(slot)}
+                >
+                  <span className="tab-icon">{config.icon}</span>
+                  <span className="tab-name">{config.name}</span>
+                  {recipeCount > 0 && <span className="tab-count">({recipeCount})</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="smithy-content">
+            <div className="recipes-grid">
+              {filteredRecipes.length === 0 ? (
+                <div className="no-recipes">
+                  <p>Keine Rezepte für {slotConfig[smithyTab]?.name || smithyTab} verfügbar</p>
+                </div>
+              ) : (
+                filteredRecipes.map(recipe => {
+                  const canCraft = canCraftRecipe(recipe);
+                  const hasLevel = recipe.can_craft;
+                  
+                  return (
+                    <div key={recipe.id} className={`recipe-card ${!canCraft ? 'unavailable' : ''}`}>
+                      <div className="recipe-icon">
+                        {slotConfig[recipe.slot]?.icon || '❓'}
+                      </div>
+                      <div className="recipe-main">
+                        <div className="recipe-header">
+                          <span className={`recipe-name rarity-${recipe.rarity}`}>
+                            {recipe.display_name}
+                          </span>
+                          <span className={`recipe-level-req ${hasLevel ? 'met' : 'unmet'}`}>
+                            Lv.{recipe.required_profession_level}
+                          </span>
+                        </div>
+                        
+                        {recipe.description && (
+                          <p className="recipe-desc">{recipe.description}</p>
+                        )}
+                        
+                        <div className="recipe-stats">
+                          {recipe.base_attack > 0 && <span className="stat-atk">⚔️ +{recipe.base_attack}</span>}
+                          {recipe.base_defense > 0 && <span className="stat-def">🛡️ +{recipe.base_defense}</span>}
+                          {recipe.base_health > 0 && <span className="stat-hp">❤️ +{recipe.base_health}</span>}
+                          <span className="stat-exp">+{recipe.experience_reward} EP</span>
+                        </div>
+                        
+                        <div className="recipe-materials">
+                          {recipe.materials.map((mat, idx) => {
+                            const invItem = inventory.find(i => i.item_id === mat.item_id);
+                            const hasEnough = invItem && invItem.quantity >= mat.quantity;
+                            return (
+                              <span key={idx} className={`material ${hasEnough ? 'has' : 'missing'}`}>
+                                {mat.item_name}: {invItem?.quantity || 0}/{mat.quantity}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
+                      <button 
+                        className="btn btn-craft"
+                        onClick={() => craftEquipment(recipe.id)}
+                        disabled={!canCraft || !isAtHome}
+                      >
+                        {!isAtHome ? '🏠' : canCraft ? '⚒️ Herstellen' : '❌'}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="smithy-sidebar">
+              <div className="quality-info">
+                <h4>📊 Qualitätsstufen</h4>
+                <div className="quality-list">
+                  <div className="quality-item"><span style={{ color: '#9d9d9d' }}>●</span> Minderwertig (70%)</div>
+                  <div className="quality-item"><span style={{ color: '#ffffff' }}>●</span> Normal (100%)</div>
+                  <div className="quality-item"><span style={{ color: '#1eff00' }}>●</span> Gut (120%)</div>
+                  <div className="quality-item"><span style={{ color: '#0070dd' }}>●</span> Ausgezeichnet (150%)</div>
+                  <div className="quality-item"><span style={{ color: '#a335ee' }}>●</span> Meisterwerk (180%)</div>
+                  <div className="quality-item"><span style={{ color: '#ff8000' }}>●</span> Legendär (250%)</div>
+                </div>
+              </div>
+
+              <div className="smithy-tip">
+                <h4>💡 Tipps</h4>
+                <ul>
+                  <li>Höheres <strong>Schmied-Level</strong> = bessere Qualitätschance</li>
+                  <li>Höhere <strong>Schmiede-Stufe</strong> = noch bessere Chance</li>
+                  <li>Qualität multipliziert die Basis-Stats</li>
+                </ul>
+              </div>
+
+              <div className="inventory-preview">
+                <h4>🎒 Materialien</h4>
+                <div className="materials-list">
+                  {inventory.filter(i => i.type === 'resource' || i.type === 'material').slice(0, 10).map(item => (
+                    <div key={item.item_id} className="material-item">
+                      <span>{item.display_name}</span>
+                      <span className="material-qty">x{item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grundstueck-page">
       <div className="card">
@@ -451,7 +623,7 @@ function Grundstueck() {
               <div className="smithy-in-building">
                 <div className="smithy-info">
                   <h4>⚒️ Schmiede Level {getForgeLevel()}</h4>
-                  <p>Stelle Waffen und Rüstungen her. Höheres Level = bessere Qualitätschance!</p>
+                  <p>Stelle Waffen und Rüstungen her.</p>
                   <div className="profession-display">
                     <span>🔨 Schmied Level: {getProfessionLevel('blacksmith')}</span>
                   </div>
@@ -459,87 +631,10 @@ function Grundstueck() {
                 
                 <button 
                   className="btn btn-primary smithy-open-btn"
-                  onClick={() => setShowSmithyPanel(!showSmithyPanel)}
+                  onClick={() => { setShowSmithyView(true); setSelectedBuilding(null); }}
                 >
-                  {showSmithyPanel ? '✕ Schließen' : '⚔️ Ausrüstung herstellen'}
+                  ⚔️ Schmiede öffnen
                 </button>
-
-                {showSmithyPanel && (
-                  <div className="smithy-panel">
-                    {craftingMessage && (
-                      <div className={`crafting-message ${craftingMessage.type}`}>
-                        <span style={{ color: craftingMessage.quality_color }}>{craftingMessage.text}</span>
-                        {craftingMessage.leveled_up && (
-                          <div className="level-up-notice">🎉 Schmied Level {craftingMessage.new_level}!</div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="recipe-list">
-                      {equipmentRecipes.filter(r => r.profession === 'blacksmith').map(recipe => {
-                        const canCraft = canCraftRecipe(recipe);
-                        const hasLevel = recipe.can_craft;
-                        
-                        return (
-                          <div key={recipe.id} className={`recipe-card ${!canCraft ? 'unavailable' : ''}`}>
-                            <div className="recipe-header">
-                              <span className={`recipe-name rarity-${recipe.rarity}`}>
-                                {recipe.display_name}
-                              </span>
-                              <span className="recipe-slot">{recipe.slot}</span>
-                            </div>
-                            
-                            <div className="recipe-stats">
-                              {recipe.base_attack > 0 && <span>⚔️ +{recipe.base_attack}</span>}
-                              {recipe.base_defense > 0 && <span>🛡️ +{recipe.base_defense}</span>}
-                              {recipe.base_health > 0 && <span>❤️ +{recipe.base_health}</span>}
-                            </div>
-                            
-                            <div className="recipe-materials">
-                              {recipe.materials.map((mat, idx) => {
-                                const invItem = inventory.find(i => i.item_id === mat.item_id);
-                                const hasEnough = invItem && invItem.quantity >= mat.quantity;
-                                return (
-                                  <span key={idx} className={`material ${hasEnough ? 'has' : 'missing'}`}>
-                                    {mat.item_name}: {invItem?.quantity || 0}/{mat.quantity}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                            
-                            <div className="recipe-requirements">
-                              <span className={hasLevel ? 'met' : 'unmet'}>
-                                🔨 Benötigt: Schmied Lv.{recipe.required_profession_level}
-                              </span>
-                              <span className="exp-reward">+{recipe.experience_reward} EP</span>
-                            </div>
-                            
-                            <button 
-                              className="btn btn-craft"
-                              onClick={() => craftEquipment(recipe.id)}
-                              disabled={!canCraft || !isAtHome}
-                            >
-                              {!isAtHome ? '🏠 Nicht zu Hause' : canCraft ? '⚒️ Herstellen' : 'Fehlt Material/Level'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="quality-info">
-                      <h5>📊 Qualitätsstufen</h5>
-                      <div className="quality-list">
-                        <span style={{ color: '#9d9d9d' }}>Minderwertig (70%)</span>
-                        <span style={{ color: '#ffffff' }}>Normal (100%)</span>
-                        <span style={{ color: '#1eff00' }}>Gut (120%)</span>
-                        <span style={{ color: '#0070dd' }}>Ausgezeichnet (150%)</span>
-                        <span style={{ color: '#a335ee' }}>Meisterwerk (180%)</span>
-                        <span style={{ color: '#ff8000' }}>Legendär (250%)</span>
-                      </div>
-                      <p>Höheres Schmied-Level und Schmiede-Level erhöhen die Chance auf bessere Qualität!</p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
             

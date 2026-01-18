@@ -709,7 +709,7 @@
   font-style: italic;
 }
 
-/* Smithy Panel Styles */
+/* Smithy in Building (small preview) */
 .smithy-in-building {
   margin-top: 1rem;
   padding: 1rem;
@@ -744,28 +744,86 @@
 
 .smithy-open-btn {
   width: 100%;
-  margin-bottom: 1rem;
 }
 
-.smithy-panel {
-  margin-top: 1rem;
+/* ========================================
+   SMITHY FULLVIEW STYLES
+   ======================================== */
+
+.smithy-fullview {
+  min-height: calc(100vh - 120px);
+}
+
+.smithy-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+  flex-wrap: wrap;
+}
+
+.smithy-header h2 {
+  color: #ff8c00;
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 1.8rem;
+  flex: 1;
+}
+
+.btn-back {
+  padding: 0.5rem 1rem;
+  background: rgba(50, 40, 60, 0.8);
+  border: 1px solid #5a4a2a;
+  color: #d4af37;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-back:hover {
+  background: rgba(70, 50, 80, 0.9);
+  border-color: #d4af37;
+}
+
+.smithy-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.smithy-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #5a4a2a;
+  border-radius: 6px;
+  color: #d4af37;
+  font-size: 0.9rem;
+}
+
+.smithy-stat .stat-icon {
+  font-size: 1.1rem;
 }
 
 .crafting-message {
-  padding: 0.75rem;
-  border-radius: 6px;
+  padding: 1rem;
+  border-radius: 8px;
   margin-bottom: 1rem;
   text-align: center;
+  font-size: 1.1rem;
 }
 
 .crafting-message.success {
   background: rgba(39, 174, 96, 0.2);
-  border: 1px solid #27ae60;
+  border: 2px solid #27ae60;
 }
 
 .crafting-message.error {
   background: rgba(231, 76, 60, 0.2);
-  border: 1px solid #e74c3c;
+  border: 2px solid #e74c3c;
   color: #e74c3c;
 }
 
@@ -773,30 +831,140 @@
   margin-top: 0.5rem;
   color: #f1c40f;
   font-weight: bold;
+  font-size: 1rem;
 }
 
-.recipe-list {
+.smithy-warning {
+  padding: 1rem;
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid #e74c3c;
+  border-radius: 8px;
+  color: #e74c3c;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.smithy-warning a {
+  color: #3498db;
+  margin-left: 0.5rem;
+}
+
+/* Smithy Tabs */
+.smithy-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.smithy-tab {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: 400px;
-  overflow-y: auto;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  background: rgba(30, 20, 40, 0.6);
+  border: 2px solid #3a2a1a;
+  border-radius: 8px;
+  color: #8b7a5a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
 }
 
+.smithy-tab:hover {
+  background: rgba(50, 30, 60, 0.8);
+  border-color: #5a4a2a;
+  color: #d4af37;
+}
+
+.smithy-tab.active {
+  background: linear-gradient(145deg, #5a4a2a, #3a2a1a);
+  border-color: #ff8c00;
+  color: #ff8c00;
+}
+
+.smithy-tab .tab-icon {
+  font-size: 1.5rem;
+}
+
+.smithy-tab .tab-name {
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.smithy-tab .tab-count {
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+
+/* Smithy Content Layout */
+.smithy-content {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1.5rem;
+}
+
+.recipes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+  align-content: start;
+}
+
+.no-recipes {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: #8b7a5a;
+  font-size: 1.1rem;
+}
+
+/* Recipe Cards */
 .recipe-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
   background: rgba(30, 20, 40, 0.8);
   border: 2px solid #5a4a2a;
-  border-radius: 8px;
-  padding: 1rem;
+  border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .recipe-card:hover {
-  border-color: #d4af37;
+  border-color: #ff8c00;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .recipe-card.unavailable {
-  opacity: 0.6;
+  opacity: 0.5;
+}
+
+.recipe-card.unavailable:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.recipe-icon {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(145deg, #3a2a1a, #5a4a2a);
+  border: 2px solid #8b7a5a;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.recipe-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .recipe-header {
@@ -817,115 +985,212 @@
 .recipe-name.rarity-epic { color: #a335ee; }
 .recipe-name.rarity-legendary { color: #ff8000; }
 
-.recipe-slot {
+.recipe-level-req {
   font-size: 0.75rem;
-  color: #8b7a5a;
-  text-transform: capitalize;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.recipe-level-req.met { color: #2ecc71; }
+.recipe-level-req.unmet { color: #e74c3c; }
+
+.recipe-desc {
+  font-size: 0.8rem;
+  color: #a89070;
+  margin: 0 0 0.5rem 0;
+  font-style: italic;
 }
 
 .recipe-stats {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   font-size: 0.85rem;
-  color: #2ecc71;
   margin-bottom: 0.5rem;
 }
+
+.recipe-stats .stat-atk { color: #e74c3c; }
+.recipe-stats .stat-def { color: #3498db; }
+.recipe-stats .stat-hp { color: #2ecc71; }
+.recipe-stats .stat-exp { color: #9b59b6; }
 
 .recipe-materials {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.4rem;
 }
 
 .recipe-materials .material {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
+  border: 1px solid transparent;
 }
 
 .recipe-materials .material.has {
   color: #2ecc71;
-  border: 1px solid #27ae60;
+  border-color: rgba(39, 174, 96, 0.5);
 }
 
 .recipe-materials .material.missing {
   color: #e74c3c;
-  border: 1px solid #c0392b;
-}
-
-.recipe-requirements {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  margin-bottom: 0.75rem;
-}
-
-.recipe-requirements .met {
-  color: #2ecc71;
-}
-
-.recipe-requirements .unmet {
-  color: #e74c3c;
-}
-
-.recipe-requirements .exp-reward {
-  color: #3498db;
+  border-color: rgba(231, 76, 60, 0.5);
 }
 
 .btn-craft {
-  width: 100%;
-  padding: 0.5rem;
+  padding: 0.75rem 1rem;
   background: linear-gradient(145deg, #8b4513, #a0522d);
-  border: 1px solid #cd853f;
+  border: 2px solid #cd853f;
   color: white;
   cursor: pointer;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: bold;
   transition: all 0.2s ease;
+  align-self: center;
+  white-space: nowrap;
 }
 
 .btn-craft:hover:not(:disabled) {
   background: linear-gradient(145deg, #a0522d, #cd853f);
+  transform: scale(1.05);
 }
 
 .btn-craft:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  transform: none;
 }
 
-.quality-info {
-  margin-top: 1.5rem;
+/* Smithy Sidebar */
+.smithy-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.quality-info,
+.smithy-tip,
+.inventory-preview {
   padding: 1rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 8px;
   border: 1px solid #5a4a2a;
 }
 
-.quality-info h5 {
+.quality-info h4,
+.smithy-tip h4,
+.inventory-preview h4 {
   color: #d4af37;
   margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
 }
 
 .quality-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.quality-list span {
+.quality-item {
   font-size: 0.8rem;
-  padding: 0.2rem 0.5rem;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.quality-info p {
+.smithy-tip ul {
+  margin: 0;
+  padding-left: 1.2rem;
   font-size: 0.85rem;
   color: #a89070;
-  margin: 0;
+}
+
+.smithy-tip li {
+  margin-bottom: 0.4rem;
+}
+
+.materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.material-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.material-item span:first-child {
+  color: #ccc;
+}
+
+.material-qty {
+  color: #d4af37;
+  font-weight: bold;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .smithy-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .smithy-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .smithy-sidebar > div {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .smithy-tabs {
+    justify-content: center;
+  }
+  
+  .smithy-tab {
+    min-width: 60px;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .smithy-tab .tab-name {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .smithy-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .recipes-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .recipe-card {
+    flex-direction: column;
+  }
+  
+  .recipe-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.4rem;
+  }
+  
+  .btn-craft {
+    width: 100%;
+  }
 }
 
 /* Workbench in building styles */
