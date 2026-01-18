@@ -12,15 +12,23 @@ const router = express.Router();
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    let { username, email, password } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Benutzername, E-Mail und Passwort sind erforderlich' });
     }
 
+    // Trim whitespace from username and email
+    username = username.trim();
+    email = email.trim().toLowerCase();
+
+    if (username.length < 2 || username.length > 20) {
+      return res.status(400).json({ error: 'Benutzername muss zwischen 2 und 20 Zeichen lang sein' });
+    }
+
     // Check if username exists
     const existingUsername = await db.get(
-      'SELECT id FROM users WHERE username = ?',
+      'SELECT id FROM users WHERE LOWER(username) = LOWER(?)',
       [username]
     );
 
