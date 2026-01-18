@@ -393,6 +393,55 @@ router.delete('/world-npcs/:id', authenticateToken, requirePermission('manage_it
   }
 });
 
+// Spawn multiple monsters of a type at random positions
+router.post('/monsters/:monsterId/spawn', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { monsterId } = req.params;
+    const { count = 5, minX = -2000, maxX = 2000, minY = -2000, maxY = 2000 } = req.body;
+
+    const monster = await db.get('SELECT * FROM monster_types WHERE id = ?', [monsterId]);
+    if (!monster) {
+      return res.status(404).json({ error: 'Monster-Typ nicht gefunden' });
+    }
+
+    const spawned = [];
+    for (let i = 0; i < count; i++) {
+      // Random position within bounds
+      const worldX = Math.floor(Math.random() * (maxX - minX)) + minX;
+      const worldY = Math.floor(Math.random() * (maxY - minY)) + minY;
+      
+      // Random level within monster's range
+      const level = Math.floor(Math.random() * (monster.max_level - monster.min_level + 1)) + monster.min_level;
+      
+      // Calculate health for this level
+      const currentHealth = monster.base_health + (level - 1) * monster.health_per_level;
+      
+      // Respawn time from monster type or default
+      const respawnMinutes = monster.respawn_cooldown || (monster.is_boss ? 60 : 10);
+
+      const result = await db.run(`
+        INSERT INTO world_npcs (monster_type_id, world_x, world_y, level, current_health, respawn_minutes, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+      `, [monsterId, worldX, worldY, level, currentHealth, respawnMinutes]);
+
+      spawned.push({
+        id: result.lastID,
+        x: worldX,
+        y: worldY,
+        level
+      });
+    }
+
+    res.json({ 
+      message: `${count}x ${monster.display_name} gespawnt!`,
+      spawned
+    });
+  } catch (error) {
+    console.error('Spawn monsters error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Spawnen' });
+  }
+});
+
 // Respawn all dead monsters
 router.post('/world-npcs/respawn-all', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {

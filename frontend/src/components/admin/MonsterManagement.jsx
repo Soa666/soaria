@@ -41,6 +41,16 @@ function MonsterManagement() {
     gold_max: 0
   });
 
+  const [showSpawnModal, setShowSpawnModal] = useState(false);
+  const [spawnMonster, setSpawnMonster] = useState(null);
+  const [spawnForm, setSpawnForm] = useState({
+    count: 5,
+    minX: -2000,
+    maxX: 2000,
+    minY: -2000,
+    maxY: 2000
+  });
+
   useEffect(() => {
     fetchMonsters();
     fetchItems();
@@ -190,6 +200,34 @@ function MonsterManagement() {
     }
   };
 
+  const openSpawnModal = (monster, e) => {
+    e?.stopPropagation();
+    setSpawnMonster(monster);
+    setSpawnForm({
+      count: monster.is_boss ? 1 : 5,
+      minX: -2000,
+      maxX: 2000,
+      minY: -2000,
+      maxY: 2000
+    });
+    setShowSpawnModal(true);
+  };
+
+  const handleSpawn = async (e) => {
+    e.preventDefault();
+    if (!spawnMonster) return;
+
+    try {
+      const response = await api.post(`/admin/npcs/monsters/${spawnMonster.id}/spawn`, spawnForm);
+      setMessage(response.data.message);
+      setShowSpawnModal(false);
+      setSpawnMonster(null);
+      fetchMonsters(); // Refresh to update spawn count
+    } catch (err) {
+      setError(err.response?.data?.error || 'Fehler beim Spawnen');
+    }
+  };
+
   const resetForm = () => {
     setForm({
       name: '',
@@ -323,6 +361,13 @@ function MonsterManagement() {
                     <span className="spawn-count">{monster.spawn_count || 0}x</span>
                   </td>
                   <td className="action-cell">
+                    <button 
+                      className="btn-icon btn-spawn" 
+                      onClick={(e) => openSpawnModal(monster, e)}
+                      title="Auf Karte spawnen"
+                    >
+                      🌍
+                    </button>
                     <button 
                       className="btn-icon btn-edit" 
                       onClick={(e) => handleEdit(monster, e)}
@@ -652,6 +697,86 @@ function MonsterManagement() {
                 <button type="button" onClick={() => setShowForm(false)}>Abbrechen</button>
                 <button type="submit" className="btn-primary">
                   {editMode ? '💾 Speichern' : '✨ Erstellen'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Spawn Modal */}
+      {showSpawnModal && spawnMonster && (
+        <div className="modal-overlay" onClick={() => setShowSpawnModal(false)}>
+          <div className="modal-content spawn-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>🌍 {spawnMonster.display_name} spawnen</h3>
+              <button className="btn-close" onClick={() => setShowSpawnModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSpawn}>
+              <div className="spawn-info">
+                <p>Spawne <strong>{spawnMonster.display_name}</strong> an zufälligen Positionen auf der Karte.</p>
+                <p className="spawn-note">
+                  {spawnMonster.is_boss 
+                    ? '👑 Boss-Monster sollten einzeln gespawnt werden!' 
+                    : '💡 Tipp: 5-10 Monster pro Typ sind ein guter Start.'}
+                </p>
+              </div>
+              
+              <div className="spawn-form-grid">
+                <div className="form-group">
+                  <label>Anzahl</label>
+                  <input
+                    type="number"
+                    value={spawnForm.count}
+                    onChange={(e) => setSpawnForm({...spawnForm, count: parseInt(e.target.value)})}
+                    min="1"
+                    max={spawnMonster.is_boss ? 3 : 50}
+                  />
+                </div>
+                
+                <div className="form-group span-2">
+                  <label>X-Bereich (West → Ost)</label>
+                  <div className="range-inputs">
+                    <input
+                      type="number"
+                      value={spawnForm.minX}
+                      onChange={(e) => setSpawnForm({...spawnForm, minX: parseInt(e.target.value)})}
+                      placeholder="Min X"
+                    />
+                    <span>bis</span>
+                    <input
+                      type="number"
+                      value={spawnForm.maxX}
+                      onChange={(e) => setSpawnForm({...spawnForm, maxX: parseInt(e.target.value)})}
+                      placeholder="Max X"
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-group span-2">
+                  <label>Y-Bereich (Nord → Süd)</label>
+                  <div className="range-inputs">
+                    <input
+                      type="number"
+                      value={spawnForm.minY}
+                      onChange={(e) => setSpawnForm({...spawnForm, minY: parseInt(e.target.value)})}
+                      placeholder="Min Y"
+                    />
+                    <span>bis</span>
+                    <input
+                      type="number"
+                      value={spawnForm.maxY}
+                      onChange={(e) => setSpawnForm({...spawnForm, maxY: parseInt(e.target.value)})}
+                      placeholder="Max Y"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" onClick={() => setShowSpawnModal(false)}>Abbrechen</button>
+                <button type="submit" className="btn-primary btn-spawn-confirm">
+                  🌍 {spawnForm.count}x Spawnen
                 </button>
               </div>
             </form>

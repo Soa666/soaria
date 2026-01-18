@@ -235,6 +235,11 @@
   transform: translateY(-1px);
 }
 
+.btn-icon.btn-spawn:hover {
+  background: rgba(46, 125, 50, 0.8);
+  border-color: #4caf50;
+}
+
 .btn-icon.btn-edit:hover {
   background: rgba(100, 80, 50, 0.8);
   border-color: #d4af37;
@@ -704,4 +709,76 @@
   .monster-table td:nth-child(8) {
     display: none;
   }
+}
+
+/* Spawn Modal */
+.spawn-modal {
+  max-width: 500px;
+}
+
+.spawn-info {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(40, 30, 50, 0.5);
+  border-radius: 8px;
+  border-left: 3px solid #4caf50;
+}
+
+.spawn-info p {
+  margin: 0 0 8px 0;
+  color: #e8dcc0;
+}
+
+.spawn-info p:last-child {
+  margin-bottom: 0;
+}
+
+.spawn-note {
+  font-size: 0.9rem;
+  color: #a89070 !important;
+}
+
+.spawn-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.spawn-form-grid .span-2 {
+  grid-column: span 2;
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range-inputs input {
+  flex: 1;
+  background: rgba(20, 15, 30, 0.8);
+  border: 1px solid #4a3a5a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #e8dcc0;
+  font-size: 0.95rem;
+}
+
+.range-inputs input:focus {
+  border-color: #d4af37;
+  outline: none;
+}
+
+.range-inputs span {
+  color: #8b7a5a;
+  font-size: 0.9rem;
+}
+
+.btn-spawn-confirm {
+  background: linear-gradient(135deg, #2e7d32, #4caf50) !important;
+  border-color: #66bb6a !important;
+}
+
+.btn-spawn-confirm:hover {
+  background: linear-gradient(135deg, #388e3c, #66bb6a) !important;
 }
