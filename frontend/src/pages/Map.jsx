@@ -3,6 +3,27 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './Map.css';
 
+// Seeded random number generator for consistent terrain
+function seededRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+// Generate terrain features based on coordinates
+function getTerrainAt(worldX, worldY) {
+  const seed = worldX * 10000 + worldY;
+  const rand = seededRandom(seed);
+  
+  // Water (rivers/lakes) - about 5%
+  if (rand < 0.05) return 'water';
+  // Mountains - about 8%
+  if (rand < 0.13) return 'mountain';
+  // Forest - about 25%
+  if (rand < 0.38) return 'forest';
+  // Plains - rest
+  return 'plains';
+}
+
 function Map() {
   const { user, setUser } = useAuth();
   const [players, setPlayers] = useState([]);
@@ -18,6 +39,7 @@ function Map() {
   const [tradeData, setTradeData] = useState(null);
   const [myTradeItems, setMyTradeItems] = useState([]);
   const [targetTradeItems, setTargetTradeItems] = useState([]);
+  const [playerImages, setPlayerImages] = useState({});
 
   useEffect(() => {
     fetchPlayers();
@@ -48,12 +70,25 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, viewCenter, zoom, user, selectedPlayer, targetCoords, actionMode]);
+  }, [players, viewCenter, zoom, user, selectedPlayer, targetCoords, actionMode, playerImages]);
 
   const fetchPlayers = async () => {
     try {
       const response = await api.get('/map/players');
-      setPlayers(response.data.players || []);
+      const playersData = response.data.players || [];
+      setPlayers(playersData);
+      
+      // Load player avatar images
+      playersData.forEach(player => {
+        if (player.avatar_path && !playerImages[player.id]) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = `/chars/${player.avatar_path}`;
+          img.onload = () => {
+            setPlayerImages(prev => ({ ...prev, [player.id]: img }));
+          };
+        }
+      });
     } catch (error) {
       console.error('Fehler beim Laden der Spieler:', error);
     } finally {
@@ -73,107 +108,211 @@ function Map() {
   const drawMap = () => {
     try {
       const canvas = canvasRef.current;
-      if (!canvas) {
-        return;
-      }
+      if (!canvas) return;
 
       const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        return;
-      }
+      if (!ctx) return;
 
       const width = canvas.width || 1000;
       const height = canvas.height || 700;
 
-      // Clear canvas
-      ctx.fillStyle = '#1a1a2e';
-      ctx.fillRect(0, 0, width, height);
-
-      // Draw grid
-      try {
-        ctx.strokeStyle = 'rgba(90, 74, 42, 0.3)';
-        ctx.lineWidth = 1;
-        const gridSize = Math.max(50, 100 * zoom);
-        const offsetX = ((viewCenter.x % gridSize) || 0) * zoom;
-        const offsetY = ((viewCenter.y % gridSize) || 0) * zoom;
-
-        for (let x = -offsetX; x < width; x += gridSize) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, height);
-          ctx.stroke();
-        }
-
-        for (let y = -offsetY; y < height; y += gridSize) {
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(width, y);
-          ctx.stroke();
-        }
-      } catch (error) {
-        console.error('Error drawing grid:', error);
-      }
-
       // Calculate scale
-      const scale = Math.max(0.1, Math.min(3, zoom)); // Clamp zoom
+      const scale = Math.max(0.1, Math.min(3, zoom));
       const centerX = width / 2;
       const centerY = height / 2;
+
+      // Clear canvas with base grass color
+      ctx.fillStyle = '#3d5c3d';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw terrain tiles
+      const tileSize = 40 * scale;
+      const startWorldX = viewCenter.x - (centerX / scale);
+      const startWorldY = viewCenter.y - (centerY / scale);
+      const tilesX = Math.ceil(width / tileSize) + 2;
+      const tilesY = Math.ceil(height / tileSize) + 2;
+
+      for (let tx = -1; tx < tilesX; tx++) {
+        for (let ty = -1; ty < tilesY; ty++) {
+          const worldTileX = Math.floor(startWorldX / 40) + tx;
+          const worldTileY = Math.floor(startWorldY / 40) + ty;
+          const terrain = getTerrainAt(worldTileX, worldTileY);
+          
+          const screenX = (worldTileX * 40 - viewCenter.x) * scale + centerX;
+          const screenY = (worldTileY * 40 - viewCenter.y) * scale + centerY;
+
+          // Draw terrain
+          switch (terrain) {
+            case 'water':
+              ctx.fillStyle = '#4a90c2';
+              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
+              // Water sparkle
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+              ctx.beginPath();
+              ctx.arc(screenX + tileSize * 0.3, screenY + tileSize * 0.3, tileSize * 0.1, 0, Math.PI * 2);
+              ctx.fill();
+              break;
+            case 'mountain':
+              ctx.fillStyle = '#6b6b6b';
+              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
+              // Mountain peak
+              ctx.fillStyle = '#888';
+              ctx.beginPath();
+              ctx.moveTo(screenX + tileSize * 0.5, screenY + tileSize * 0.2);
+              ctx.lineTo(screenX + tileSize * 0.2, screenY + tileSize * 0.8);
+              ctx.lineTo(screenX + tileSize * 0.8, screenY + tileSize * 0.8);
+              ctx.closePath();
+              ctx.fill();
+              // Snow cap
+              ctx.fillStyle = '#fff';
+              ctx.beginPath();
+              ctx.moveTo(screenX + tileSize * 0.5, screenY + tileSize * 0.2);
+              ctx.lineTo(screenX + tileSize * 0.35, screenY + tileSize * 0.4);
+              ctx.lineTo(screenX + tileSize * 0.65, screenY + tileSize * 0.4);
+              ctx.closePath();
+              ctx.fill();
+              break;
+            case 'forest':
+              ctx.fillStyle = '#2d4a2d';
+              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
+              // Tree
+              ctx.fillStyle = '#1a3a1a';
+              ctx.beginPath();
+              ctx.moveTo(screenX + tileSize * 0.5, screenY + tileSize * 0.15);
+              ctx.lineTo(screenX + tileSize * 0.2, screenY + tileSize * 0.7);
+              ctx.lineTo(screenX + tileSize * 0.8, screenY + tileSize * 0.7);
+              ctx.closePath();
+              ctx.fill();
+              // Tree trunk
+              ctx.fillStyle = '#5d4037';
+              ctx.fillRect(screenX + tileSize * 0.4, screenY + tileSize * 0.7, tileSize * 0.2, tileSize * 0.25);
+              break;
+            default: // plains
+              ctx.fillStyle = '#4a6b3a';
+              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
+              // Grass detail
+              if (seededRandom(worldTileX * 1000 + worldTileY + 1) > 0.7) {
+                ctx.fillStyle = '#5a7b4a';
+                ctx.fillRect(screenX + tileSize * 0.3, screenY + tileSize * 0.3, tileSize * 0.1, tileSize * 0.2);
+                ctx.fillRect(screenX + tileSize * 0.6, screenY + tileSize * 0.5, tileSize * 0.1, tileSize * 0.15);
+              }
+              break;
+          }
+        }
+      }
+
+      // Draw subtle grid
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.lineWidth = 1;
+      const gridSize = 40 * scale;
+      const offsetX = ((viewCenter.x % 40) || 0) * scale;
+      const offsetY = ((viewCenter.y % 40) || 0) * scale;
+
+      for (let x = -offsetX; x < width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = -offsetY; y < height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
 
       // Draw players
       if (players && Array.isArray(players) && players.length > 0) {
         players.forEach((player) => {
-          if (!player || (player.world_x === undefined && player.world_y === undefined)) return; // Skip players without coordinates
-          if (player.world_x === 0 && player.world_y === 0) return; // Skip players at origin (likely no coordinates)
+          if (!player || (player.world_x === undefined && player.world_y === undefined)) return;
+          if (player.world_x === 0 && player.world_y === 0) return;
           
           const playerX = player.world_x || 0;
           const playerY = player.world_y || 0;
           const x = centerX + (playerX - viewCenter.x) * scale;
           const y = centerY + (playerY - viewCenter.y) * scale;
 
-          // Only draw if within canvas bounds
-          if (x < -20 || x > width + 20 || y < -20 || y > height + 20) return;
+          if (x < -30 || x > width + 30 || y < -30 || y > height + 30) return;
 
           const isCurrentUser = user && player.id === user.id;
           const isSelected = selectedPlayer && selectedPlayer.id === player.id;
+          const markerSize = (isCurrentUser ? 20 : 16) * Math.min(scale, 1.5);
 
-          // Draw player marker
-          ctx.beginPath();
-          ctx.arc(x, y, isCurrentUser ? 8 : 6, 0, Math.PI * 2);
+          // Draw player avatar or marker
+          const playerImg = playerImages[player.id];
           
-          if (isCurrentUser) {
-            ctx.fillStyle = '#d4af37';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#d4af37';
-          } else if (isSelected) {
-            ctx.fillStyle = '#f4d03f';
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = '#f4d03f';
+          if (playerImg && playerImg.complete) {
+            // Draw avatar from sprite sheet (front-facing, middle column)
+            ctx.save();
+            
+            // Draw circular clip
+            ctx.beginPath();
+            ctx.arc(x, y, markerSize, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            
+            // Draw avatar (front-facing sprite: column 1, row 0)
+            // Sprite sheet is 96x128, each sprite is 32x32
+            const spriteX = 32; // Middle column (front-facing)
+            const spriteY = 0;  // First row
+            ctx.drawImage(
+              playerImg,
+              spriteX, spriteY, 32, 32,  // Source
+              x - markerSize, y - markerSize, markerSize * 2, markerSize * 2  // Destination
+            );
+            
+            ctx.restore();
+            
+            // Draw border
+            ctx.beginPath();
+            ctx.arc(x, y, markerSize, 0, Math.PI * 2);
+            ctx.strokeStyle = isCurrentUser ? '#d4af37' : isSelected ? '#f4d03f' : '#2c3e50';
+            ctx.lineWidth = isCurrentUser ? 3 : 2;
+            ctx.stroke();
+            
+            // Glow effect for current user
+            if (isCurrentUser) {
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#d4af37';
+              ctx.strokeStyle = '#d4af37';
+              ctx.stroke();
+              ctx.shadowBlur = 0;
+            }
           } else {
-            ctx.fillStyle = '#4a90e2';
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = '#4a90e2';
+            // Fallback: colored circle
+            ctx.beginPath();
+            ctx.arc(x, y, markerSize * 0.6, 0, Math.PI * 2);
+            
+            if (isCurrentUser) {
+              ctx.fillStyle = '#d4af37';
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = '#d4af37';
+            } else if (isSelected) {
+              ctx.fillStyle = '#f4d03f';
+              ctx.shadowBlur = 8;
+              ctx.shadowColor = '#f4d03f';
+            } else {
+              ctx.fillStyle = '#4a90e2';
+              ctx.shadowBlur = 5;
+              ctx.shadowColor = '#4a90e2';
+            }
+            
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = isCurrentUser ? '#f4d03f' : '#2c3e50';
+            ctx.lineWidth = 2;
+            ctx.stroke();
           }
-          
-          ctx.fill();
-          ctx.shadowBlur = 0;
-
-          // Draw border
-          ctx.strokeStyle = isCurrentUser ? '#f4d03f' : '#2c3e50';
-          ctx.lineWidth = 2;
-          ctx.stroke();
 
           // Draw username
-          if (isCurrentUser || isSelected || (x > 0 && x < width && y > 0 && y < height)) {
-            try {
-              ctx.fillStyle = '#e8dcc0';
-              ctx.font = '12px Arial';
-              ctx.textAlign = 'center';
-              if (player.username) {
-                ctx.fillText(player.username, x, y - 12);
-              }
-            } catch (error) {
-              console.error('Error drawing username:', error);
-            }
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 3;
+          ctx.font = `bold ${Math.max(10, 12 * Math.min(scale, 1.2))}px Arial`;
+          ctx.textAlign = 'center';
+          if (player.username) {
+            ctx.strokeText(player.username, x, y - markerSize - 5);
+            ctx.fillText(player.username, x, y - markerSize - 5);
           }
         });
       }
@@ -183,23 +322,31 @@ function Map() {
         const x = centerX + (targetCoords.x - viewCenter.x) * scale;
         const y = centerY + (targetCoords.y - viewCenter.y) * scale;
 
-        // Only draw if within bounds
         if (x >= -50 && x <= width + 50 && y >= -50 && y <= height + 50) {
+          // Target marker
           ctx.strokeStyle = '#27ae60';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([5, 5]);
+          ctx.fillStyle = 'rgba(39, 174, 96, 0.3)';
+          ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(x, y, 10, 0, Math.PI * 2);
+          ctx.arc(x, y, 15, 0, Math.PI * 2);
+          ctx.fill();
           ctx.stroke();
-          ctx.setLineDash([]);
+          
+          // Crosshair
+          ctx.beginPath();
+          ctx.moveTo(x - 20, y);
+          ctx.lineTo(x + 20, y);
+          ctx.moveTo(x, y - 20);
+          ctx.lineTo(x, y + 20);
+          ctx.stroke();
 
           // Draw line from user to target
           if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
             const userX = centerX + ((user.world_x || 0) - viewCenter.x) * scale;
             const userY = centerY + ((user.world_y || 0) - viewCenter.y) * scale;
             ctx.strokeStyle = '#27ae60';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([3, 3]);
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 4]);
             ctx.beginPath();
             ctx.moveTo(userX, userY);
             ctx.lineTo(x, y);
@@ -530,7 +677,25 @@ function Map() {
           <div className="map-info">
             <p>Deine Position: ({user?.world_x ?? 0}, {user?.world_y ?? 0})</p>
             <p>Spieler auf Karte: {Array.isArray(players) ? players.length : 0}</p>
-            <p>Spieler in der Nähe: {Array.isArray(nearbyPlayers) ? nearbyPlayers.length : 0}</p>
+          </div>
+        </div>
+
+        <div className="terrain-legend">
+          <div className="legend-item">
+            <div className="legend-color plains"></div>
+            <span>Wiese</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-color forest"></div>
+            <span>Wald</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-color water"></div>
+            <span>Wasser</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-color mountain"></div>
+            <span>Berg</span>
           </div>
         </div>
 

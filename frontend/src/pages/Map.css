@@ -262,3 +262,35 @@
     font-size: 2rem;
   }
 }
+
+/* Terrain Legend */
+.terrain-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(30, 20, 40, 0.6);
+  border: 1px solid #5a4a2a;
+  border-radius: 6px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #e8dcc0;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.legend-color.plains { background: #4a6b3a; }
+.legend-color.forest { background: #2d4a2d; }
+.legend-color.water { background: #4a90c2; }
+.legend-color.mountain { background: #6b6b6b; }
