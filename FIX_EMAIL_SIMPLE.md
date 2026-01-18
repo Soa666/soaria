@@ -18,12 +18,12 @@ nano ecosystem.config.js
 env: {
   NODE_ENV: 'production',
   PORT: 3001,
-  JWT_SECRET: 'Soa95449939-soantos95449939-soa9544-',
+  JWT_SECRET: 'DEIN-GEHEIMER-JWT-SECRET-HIER-EINTRAGEN',
   FRONTEND_URL: 'https://soaria.soa666.de',
   SMTP_HOST: 'smtp.gmail.com',
   SMTP_PORT: '587',
-  SMTP_USER: 'd.rudolph83@gmail.com',
-  SMTP_PASS: 'gsaboelxgbuctrbs'
+  SMTP_USER: 'DEINE-EMAIL@gmail.com',
+  SMTP_PASS: 'DEIN-APP-PASSWORT'
 },
 ```
 

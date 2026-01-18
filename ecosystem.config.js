@@ -17,12 +17,12 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3001,
         // Load from .env or use fallback values
-        JWT_SECRET: process.env.JWT_SECRET || 'Soa95449939-soantos95449939-soa9544-',
+        JWT_SECRET: process.env.JWT_SECRET || 'CHANGE-THIS-SECRET-IN-PRODUCTION',
         FRONTEND_URL: process.env.FRONTEND_URL || 'https://soaria.soa666.de',
         SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
         SMTP_PORT: process.env.SMTP_PORT || '587',
-        SMTP_USER: process.env.SMTP_USER || 'd.rudolph83@gmail.com',
-        SMTP_PASS: process.env.SMTP_PASS || 'gsaboelxgbuctrbs'
+        SMTP_USER: process.env.SMTP_USER || '',
+        SMTP_PASS: process.env.SMTP_PASS || ''
       },
       error_file: './logs/backend-error.log',
       out_file: './logs/backend-out.log',
