@@ -112,6 +112,78 @@ router.get('/requirements/create', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user's guild - MUST BE BEFORE /:guildId route!
+router.get('/my/guild', authenticateToken, async (req, res) => {
+  try {
+    const membership = await db.get(`
+      SELECT 
+        gm.guild_id,
+        gm.role,
+        gm.joined_at,
+        g.name,
+        g.tag,
+        g.description,
+        g.leader_id
+      FROM guild_members gm
+      JOIN guilds g ON gm.guild_id = g.id
+      WHERE gm.user_id = ?
+    `, [req.user.id]);
+
+    if (!membership) {
+      return res.json({ guild: null });
+    }
+
+    res.json({ guild: membership });
+  } catch (error) {
+    console.error('Get my guild error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden deiner Gilde' });
+  }
+});
+
+// Get user's pending applications - MUST BE BEFORE /:guildId route!
+router.get('/my/applications', authenticateToken, async (req, res) => {
+  try {
+    const applications = await db.all(`
+      SELECT 
+        ga.*,
+        g.name as guild_name,
+        g.tag as guild_tag
+      FROM guild_applications ga
+      JOIN guilds g ON ga.guild_id = g.id
+      WHERE ga.user_id = ?
+      ORDER BY ga.created_at DESC
+    `, [req.user.id]);
+
+    res.json({ applications });
+  } catch (error) {
+    console.error('Get my applications error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden deiner Bewerbungen' });
+  }
+});
+
+// Cancel application - MUST BE BEFORE /:guildId route!
+router.delete('/my/applications/:applicationId', authenticateToken, async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+
+    const application = await db.get(`
+      SELECT id FROM guild_applications 
+      WHERE id = ? AND user_id = ? AND status = 'pending'
+    `, [applicationId, req.user.id]);
+
+    if (!application) {
+      return res.status(404).json({ error: 'Bewerbung nicht gefunden' });
+    }
+
+    await db.run('DELETE FROM guild_applications WHERE id = ?', [applicationId]);
+
+    res.json({ message: 'Bewerbung zurückgezogen' });
+  } catch (error) {
+    console.error('Cancel application error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Zurückziehen der Bewerbung' });
+  }
+});
+
 // Get single guild details
 router.get('/:guildId', authenticateToken, async (req, res) => {
   try {
@@ -856,78 +928,6 @@ router.delete('/:guildId/pacts/:pactId', authenticateToken, async (req, res) => 
   } catch (error) {
     console.error('Cancel pact error:', error);
     res.status(500).json({ error: 'Serverfehler beim Beenden des Pakts' });
-  }
-});
-
-// Get user's guild
-router.get('/my/guild', authenticateToken, async (req, res) => {
-  try {
-    const membership = await db.get(`
-      SELECT 
-        gm.guild_id,
-        gm.role,
-        gm.joined_at,
-        g.name,
-        g.tag,
-        g.description,
-        g.leader_id
-      FROM guild_members gm
-      JOIN guilds g ON gm.guild_id = g.id
-      WHERE gm.user_id = ?
-    `, [req.user.id]);
-
-    if (!membership) {
-      return res.json({ guild: null });
-    }
-
-    res.json({ guild: membership });
-  } catch (error) {
-    console.error('Get my guild error:', error);
-    res.status(500).json({ error: 'Serverfehler beim Laden deiner Gilde' });
-  }
-});
-
-// Get user's pending applications
-router.get('/my/applications', authenticateToken, async (req, res) => {
-  try {
-    const applications = await db.all(`
-      SELECT 
-        ga.*,
-        g.name as guild_name,
-        g.tag as guild_tag
-      FROM guild_applications ga
-      JOIN guilds g ON ga.guild_id = g.id
-      WHERE ga.user_id = ?
-      ORDER BY ga.created_at DESC
-    `, [req.user.id]);
-
-    res.json({ applications });
-  } catch (error) {
-    console.error('Get my applications error:', error);
-    res.status(500).json({ error: 'Serverfehler beim Laden deiner Bewerbungen' });
-  }
-});
-
-// Cancel application
-router.delete('/my/applications/:applicationId', authenticateToken, async (req, res) => {
-  try {
-    const { applicationId } = req.params;
-
-    const application = await db.get(`
-      SELECT id FROM guild_applications 
-      WHERE id = ? AND user_id = ? AND status = 'pending'
-    `, [applicationId, req.user.id]);
-
-    if (!application) {
-      return res.status(404).json({ error: 'Bewerbung nicht gefunden' });
-    }
-
-    await db.run('DELETE FROM guild_applications WHERE id = ?', [applicationId]);
-
-    res.json({ message: 'Bewerbung zurückgezogen' });
-  } catch (error) {
-    console.error('Cancel application error:', error);
-    res.status(500).json({ error: 'Serverfehler beim Zurückziehen der Bewerbung' });
   }
 });
 
