@@ -120,7 +120,7 @@ function Dashboard() {
               />
             </div>
             {hpPercent < 100 && (
-              <a href="/grundstueck" className="heal-link">💊 Auf Grundstück heilen</a>
+              <a href="/grundstueck" className="heal-link">🏠 Heilen</a>
             )}
           </div>
 

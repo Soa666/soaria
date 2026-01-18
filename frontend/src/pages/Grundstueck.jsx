@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import './Grundstueck.css';
 
 const getImageUrl = (imagePath) => {
@@ -17,6 +18,7 @@ const getImageUrl = (imagePath) => {
 };
 
 function Grundstueck() {
+  const { user } = useAuth();
   const [buildings, setBuildings] = useState([]);
   const [myBuildings, setMyBuildings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +28,7 @@ function Grundstueck() {
   const [workbench, setWorkbench] = useState(null);
   const [inventory, setInventory] = useState([]);
   const [playerStats, setPlayerStats] = useState(null);
+  const [isAtHome, setIsAtHome] = useState(false);
 
   useEffect(() => {
     fetchBuildings();
@@ -89,6 +92,16 @@ function Grundstueck() {
       console.error('Fehler beim Laden der Spielerstatistiken:', error);
     }
   };
+
+  // Check if player is at home (coordinates 0,0 means at home/grundstück)
+  useEffect(() => {
+    if (user) {
+      // Player is "at home" when coordinates are 0,0 or very close to origin
+      const atHome = (user.world_x === 0 && user.world_y === 0) || 
+                     (Math.abs(user.world_x || 0) < 50 && Math.abs(user.world_y || 0) < 50);
+      setIsAtHome(atHome);
+    }
+  }, [user?.world_x, user?.world_y]);
 
   const handleHeal = async () => {
     try {
@@ -192,9 +205,21 @@ function Grundstueck() {
   const maxY = Math.max(...buildings.map(b => b.position_y + b.size_height), 400);
 
   return (
-    <div className="container">
+    <div className="grundstueck-page">
       <div className="card">
-        <h2>🏡 Mein Grundstück</h2>
+        <div className="grundstueck-header">
+          <h2>🏡 Mein Grundstück</h2>
+          <div className="grundstueck-stats">
+            <div className="gs-stat">
+              <div className="gs-stat-value">{myBuildings.length}</div>
+              <div className="gs-stat-label">Gebäude</div>
+            </div>
+            <div className="gs-stat">
+              <div className="gs-stat-value">{workbench?.level || 1}</div>
+              <div className="gs-stat-label">Werkbank Lv.</div>
+            </div>
+          </div>
+        </div>
         
         {message && (
           <div className={message.includes('Fehler') ? 'error' : 'success'}>
@@ -204,7 +229,7 @@ function Grundstueck() {
 
         {/* Health Recovery Panel */}
         {playerStats && playerStats.current_health < playerStats.max_health && (
-          <div className="health-recovery-panel">
+          <div className={`health-recovery-panel ${!isAtHome ? 'away-from-home' : ''}`}>
             <div className="health-info">
               <span className="health-icon">❤️</span>
               <div className="health-bar-container">
@@ -216,10 +241,20 @@ function Grundstueck() {
                 </div>
                 <span className="health-text">{playerStats.current_health} / {playerStats.max_health} HP</span>
               </div>
-              <button className="btn-heal" onClick={handleHeal}>
-                💊 Heilen (+25 HP)
-              </button>
+              {isAtHome ? (
+                <button className="btn-heal" onClick={handleHeal}>
+                  💊 Heilen (+25 HP)
+                </button>
+              ) : (
+                <div className="heal-unavailable">
+                  <span>🚶 Du bist unterwegs</span>
+                  <Link to="/map" className="btn-return-home">Zur Karte</Link>
+                </div>
+              )}
             </div>
+            {!isAtHome && (
+              <p className="away-notice">Du musst zu Hause sein um dich zu heilen. Kehre zu Position (0, 0) zurück.</p>
+            )}
           </div>
         )}
 
