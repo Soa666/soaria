@@ -8,6 +8,7 @@ import UsersManagement from '../components/admin/UsersManagement';
 import GroupsManagement from '../components/admin/GroupsManagement';
 import BuildingsManagement from '../components/admin/BuildingsManagement';
 import EmailManagement from '../components/admin/EmailManagement';
+import ReportsManagement from '../components/admin/ReportsManagement';
 import './Admin.css';
 
 function Admin() {
@@ -70,6 +71,12 @@ function Admin() {
           >
             📧 E-Mail-Verwaltung
           </button>
+          <button
+            className={`admin-tab ${activeTab === 'reports' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reports')}
+          >
+            🚩 Meldungen
+          </button>
         </div>
 
         <div className="admin-content">
@@ -79,6 +86,7 @@ function Admin() {
           {activeTab === 'groups' && <GroupsManagement />}
           {activeTab === 'buildings' && <BuildingsManagement />}
           {activeTab === 'email' && <EmailManagement />}
+          {activeTab === 'reports' && <ReportsManagement />}
         </div>
       </div>
     </div>

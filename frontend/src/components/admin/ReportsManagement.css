@@ -1,0 +1,370 @@
+.reports-management h2 {
+  color: #d4af37;
+  margin-bottom: 1rem;
+}
+
+.pending-alert {
+  background: rgba(199, 72, 72, 0.2);
+  border: 2px solid rgba(199, 72, 72, 0.5);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #e89090;
+  font-weight: bold;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-bar label {
+  color: #d4af37;
+  font-weight: bold;
+}
+
+.filter-bar select {
+  padding: 0.5rem 1rem;
+  background: rgba(20, 15, 30, 0.8);
+  border: 2px solid #5a4a2a;
+  border-radius: 6px;
+  color: #e8dcc0;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.filter-bar select:focus {
+  outline: none;
+  border-color: #d4af37;
+}
+
+.no-reports {
+  text-align: center;
+  padding: 2rem;
+  color: #8b7a5a;
+  font-style: italic;
+}
+
+.reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.report-card {
+  background: rgba(30, 20, 40, 0.8);
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.report-card:hover {
+  border-color: #8b6914;
+  transform: translateX(4px);
+}
+
+.report-card.selected {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.report-card.pending {
+  border-left: 4px solid #c74848;
+}
+
+.report-card.reviewed {
+  border-left: 4px solid #4a90e2;
+}
+
+.report-card.action_taken {
+  border-left: 4px solid #f0a050;
+}
+
+.report-card.dismissed {
+  border-left: 4px solid #666;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.report-users {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reporter {
+  color: #e8dcc0;
+}
+
+.arrow {
+  color: #8b7a5a;
+}
+
+.reported {
+  color: #e89090;
+  font-weight: bold;
+}
+
+.status-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.status-badge.pending {
+  background: rgba(199, 72, 72, 0.3);
+  color: #e89090;
+}
+
+.status-badge.reviewed {
+  background: rgba(74, 144, 226, 0.3);
+  color: #90c0e8;
+}
+
+.status-badge.action {
+  background: rgba(240, 160, 80, 0.3);
+  color: #f0c080;
+}
+
+.status-badge.dismissed {
+  background: rgba(100, 100, 100, 0.3);
+  color: #a0a0a0;
+}
+
+.report-reason {
+  color: #e8dcc0;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.report-date {
+  color: #8b7a5a;
+  font-size: 0.8rem;
+}
+
+/* Report Detail Modal */
+.report-detail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.report-detail {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 3px solid #8b6914;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 2px solid #5a4a2a;
+}
+
+.detail-header h3 {
+  color: #d4af37;
+  margin: 0;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: #8b7a5a;
+  font-size: 2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.btn-close:hover {
+  color: #d4af37;
+}
+
+.detail-content {
+  padding: 1.5rem;
+}
+
+.detail-row {
+  margin-bottom: 0.75rem;
+  color: #e8dcc0;
+}
+
+.detail-row strong {
+  color: #d4af37;
+  margin-right: 0.5rem;
+}
+
+.message-preview {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #5a4a2a;
+}
+
+.message-preview h4 {
+  color: #d4af37;
+  margin-bottom: 0.75rem;
+}
+
+.message-box {
+  background: rgba(20, 15, 30, 0.8);
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.message-subject {
+  color: #e8dcc0;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(90, 74, 42, 0.5);
+}
+
+.message-content {
+  color: #c0b090;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.admin-notes-display {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 6px;
+}
+
+.admin-notes-display strong {
+  color: #90c0e8;
+}
+
+.admin-notes-display p {
+  color: #e8dcc0;
+  margin-top: 0.5rem;
+}
+
+.review-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #5a4a2a;
+}
+
+.review-section h4 {
+  color: #d4af37;
+  margin-bottom: 1rem;
+}
+
+.review-section .form-group {
+  margin-bottom: 1rem;
+}
+
+.review-section label {
+  display: block;
+  color: #d4af37;
+  margin-bottom: 0.5rem;
+}
+
+.review-section textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(20, 15, 30, 0.8);
+  border: 2px solid #5a4a2a;
+  border-radius: 6px;
+  color: #e8dcc0;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.review-section textarea:focus {
+  outline: none;
+  border-color: #d4af37;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.review-actions .btn {
+  flex: 1;
+  min-width: 150px;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.btn-action {
+  background: linear-gradient(135deg, #6a4a2a 0%, #8a5a3a 50%, #6a4a2a 100%);
+  color: #f0c080;
+  border: 2px solid #a07040;
+}
+
+.btn-action:hover {
+  border-color: #f0c080;
+}
+
+.btn-reviewed {
+  background: linear-gradient(135deg, #2a4a6a 0%, #3a5a8a 50%, #2a4a6a 100%);
+  color: #90c0e8;
+  border: 2px solid #4080b0;
+}
+
+.btn-reviewed:hover {
+  border-color: #90c0e8;
+}
+
+.btn-dismiss {
+  background: linear-gradient(135deg, #3a3a3a 0%, #4a4a4a 50%, #3a3a3a 100%);
+  color: #a0a0a0;
+  border: 2px solid #606060;
+}
+
+.btn-dismiss:hover {
+  border-color: #a0a0a0;
+}
+
+.detail-actions {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #5a4a2a;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, #4a2a2a 0%, #6a3a3a 50%, #4a2a2a 100%);
+  color: #d49090;
+  border: 2px solid #8a4a4a;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover {
+  border-color: #d49090;
+}

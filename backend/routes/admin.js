@@ -311,4 +311,64 @@ router.post('/discord-webhooks/:id/test', authenticateToken, requirePermission('
   }
 });
 
+// === MESSAGE REPORTS ===
+
+// Get all message reports
+router.get('/message-reports', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const reports = await db.all(`
+      SELECT 
+        mr.*,
+        reporter.username as reporter_name,
+        reported.username as reported_user_name
+      FROM message_reports mr
+      JOIN users reporter ON mr.reporter_id = reporter.id
+      JOIN users reported ON mr.reported_user_id = reported.id
+      ORDER BY 
+        CASE mr.status WHEN 'pending' THEN 1 ELSE 2 END,
+        mr.created_at DESC
+    `);
+
+    res.json({ reports });
+  } catch (error) {
+    console.error('Get message reports error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Review a message report
+router.put('/message-reports/:id', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, admin_notes } = req.body;
+
+    if (!['reviewed', 'action_taken', 'dismissed'].includes(status)) {
+      return res.status(400).json({ error: 'Ungültiger Status' });
+    }
+
+    await db.run(`
+      UPDATE message_reports 
+      SET status = ?, admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [status, admin_notes || null, req.user.id, id]);
+
+    res.json({ message: 'Report aktualisiert' });
+  } catch (error) {
+    console.error('Review message report error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete a message report
+router.delete('/message-reports/:id', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.run('DELETE FROM message_reports WHERE id = ?', [id]);
+    res.json({ message: 'Report gelöscht' });
+  } catch (error) {
+    console.error('Delete message report error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 export default router;

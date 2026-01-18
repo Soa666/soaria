@@ -71,10 +71,21 @@ function convertEmojis(text) {
   return result;
 }
 
+// Category definitions
+const categories = [
+  { id: 'all', label: '📬 Alle', types: null },
+  { id: 'personal', label: '✉️ Spieler', types: ['personal'] },
+  { id: 'trade', label: '🤝 Handel', types: ['trade_received', 'trade_sent'] },
+  { id: 'combat', label: '⚔️ Kampf', types: ['attack_received', 'attack_sent'] },
+  { id: 'guild', label: '🏰 Gilde', types: ['guild_application', 'guild_accepted', 'guild_rejected'] },
+  { id: 'system', label: '📢 System', types: ['system'] },
+];
+
 function Messages() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('inbox');
+  const [activeCategory, setActiveCategory] = useState('all');
   const [messages, setMessages] = useState([]);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,6 +98,11 @@ function Messages() {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
+  
+  // Report state
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reporting, setReporting] = useState(false);
 
   // Check for ?to= parameter
   useEffect(() => {
@@ -125,6 +141,24 @@ function Messages() {
       setLoading(false);
     }
   };
+
+  // Filter messages by category
+  const filteredMessages = activeCategory === 'all' 
+    ? messages 
+    : messages.filter(m => {
+        const category = categories.find(c => c.id === activeCategory);
+        return category?.types?.includes(m.message_type);
+      });
+
+  // Count messages per category
+  const categoryCounts = categories.reduce((acc, cat) => {
+    if (cat.id === 'all') {
+      acc[cat.id] = messages.filter(m => !m.is_read).length;
+    } else {
+      acc[cat.id] = messages.filter(m => !m.is_read && cat.types?.includes(m.message_type)).length;
+    }
+    return acc;
+  }, {});
 
   const openMessage = async (message) => {
     try {
@@ -240,6 +274,36 @@ function Messages() {
     setShowCompose(true);
   };
 
+  const handleReport = async () => {
+    if (!selectedMessage) return;
+    
+    setReporting(true);
+    try {
+      const response = await fetch(`/api/messages/${selectedMessage.id}/report`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: reportReason })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Fehler beim Melden');
+      }
+      
+      alert(data.message);
+      setShowReportModal(false);
+      setReportReason('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setReporting(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -262,10 +326,26 @@ function Messages() {
       case 'guild_application': return '📜';
       case 'guild_accepted': return '🎉';
       case 'guild_rejected': return '❌';
-      case 'trade_request': return '🤝';
-      case 'attack_report': return '⚔️';
+      case 'trade_received': return '📦';
+      case 'trade_sent': return '📤';
+      case 'attack_received': return '⚔️';
+      case 'attack_sent': return '🗡️';
       case 'system': return '📢';
       default: return '✉️';
+    }
+  };
+
+  const getMessageTypeLabel = (type) => {
+    switch (type) {
+      case 'guild_application': return 'Gildenbewerbung';
+      case 'guild_accepted': return 'Gilde';
+      case 'guild_rejected': return 'Gilde';
+      case 'trade_received': return 'Handel';
+      case 'trade_sent': return 'Handel';
+      case 'attack_received': return 'Kampf';
+      case 'attack_sent': return 'Kampf';
+      case 'system': return 'System';
+      default: return 'Nachricht';
     }
   };
 
@@ -287,7 +367,7 @@ function Messages() {
       </div>
 
       <div className="messages-container">
-        {/* Tabs */}
+        {/* Main Tabs */}
         <div className="messages-tabs">
           <button 
             className={`tab ${activeTab === 'inbox' ? 'active' : ''}`}
@@ -303,6 +383,24 @@ function Messages() {
           </button>
         </div>
 
+        {/* Category Tabs (only for inbox) */}
+        {activeTab === 'inbox' && (
+          <div className="category-tabs">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                className={`category-tab ${activeCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setActiveCategory(cat.id)}
+              >
+                {cat.label}
+                {categoryCounts[cat.id] > 0 && (
+                  <span className="category-badge">{categoryCounts[cat.id]}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="messages-content">
           {/* Message List */}
           <div className="messages-list">
@@ -316,12 +414,14 @@ function Messages() {
               <div className="loading">Laden...</div>
             ) : error ? (
               <div className="error">{error}</div>
-            ) : messages.length === 0 ? (
+            ) : filteredMessages.length === 0 ? (
               <div className="no-messages">
-                {activeTab === 'inbox' ? 'Keine Nachrichten' : 'Keine gesendeten Nachrichten'}
+                {activeTab === 'inbox' 
+                  ? (activeCategory === 'all' ? 'Keine Nachrichten' : `Keine ${categories.find(c => c.id === activeCategory)?.label.split(' ')[1]}-Nachrichten`)
+                  : 'Keine gesendeten Nachrichten'}
               </div>
             ) : (
-              messages.map(message => (
+              filteredMessages.map(message => (
                 <div 
                   key={message.id}
                   className={`message-item ${!message.is_read && activeTab === 'inbox' ? 'unread' : ''} ${selectedMessage?.id === message.id ? 'selected' : ''}`}
@@ -332,6 +432,11 @@ function Messages() {
                     <div className="message-from">
                       {activeTab === 'inbox' ? message.sender_name : `An: ${message.recipient_name}`}
                       {message.is_system === 1 && <span className="system-badge">System</span>}
+                      {message.message_type !== 'personal' && (
+                        <span className={`type-badge type-${message.message_type}`}>
+                          {getMessageTypeLabel(message.message_type)}
+                        </span>
+                      )}
                     </div>
                     <div className="message-subject">{message.subject}</div>
                   </div>
@@ -355,7 +460,10 @@ function Messages() {
             {selectedMessage ? (
               <>
                 <div className="detail-header">
-                  <h2>{selectedMessage.subject}</h2>
+                  <div className="detail-title-row">
+                    <span className="detail-icon">{getMessageIcon(selectedMessage.message_type)}</span>
+                    <h2>{selectedMessage.subject}</h2>
+                  </div>
                   <div className="detail-meta">
                     <span>
                       {activeTab === 'inbox' 
@@ -365,6 +473,13 @@ function Messages() {
                     </span>
                     <span>{new Date(selectedMessage.created_at).toLocaleString('de-DE')}</span>
                   </div>
+                  {selectedMessage.message_type !== 'personal' && (
+                    <div className="detail-type">
+                      <span className={`type-badge type-${selectedMessage.message_type}`}>
+                        {getMessageTypeLabel(selectedMessage.message_type)}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="detail-content">
                   {selectedMessage.content.split('\n').map((line, i) => (
@@ -373,9 +488,16 @@ function Messages() {
                 </div>
                 <div className="detail-actions">
                   {activeTab === 'inbox' && selectedMessage.sender_name !== 'System' && (
-                    <button className="btn-reply" onClick={handleReply}>
-                      ↩️ Antworten
-                    </button>
+                    <>
+                      <button className="btn-reply" onClick={handleReply}>
+                        ↩️ Antworten
+                      </button>
+                      {selectedMessage.message_type === 'personal' && !selectedMessage.is_system && (
+                        <button className="btn-report" onClick={() => setShowReportModal(true)}>
+                          🚩 Melden
+                        </button>
+                      )}
+                    </>
                   )}
                   <button className="btn-delete" onClick={(e) => deleteMessage(selectedMessage.id, e)}>
                     🗑️ Löschen
@@ -441,6 +563,51 @@ function Messages() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && selectedMessage && (
+        <div className="compose-overlay" onClick={() => setShowReportModal(false)}>
+          <div className="report-modal" onClick={e => e.stopPropagation()}>
+            <div className="compose-header">
+              <h2>🚩 Nachricht melden</h2>
+              <button className="btn-close" onClick={() => setShowReportModal(false)}>×</button>
+            </div>
+            <div className="report-content">
+              <p>Du meldest eine Nachricht von <strong>{selectedMessage.sender_name}</strong>.</p>
+              <p className="report-warning">
+                Missbrauch der Meldefunktion kann zu Sanktionen führen. 
+                Melde nur Nachrichten, die gegen die Regeln verstoßen.
+              </p>
+              <div className="form-group">
+                <label>Grund für die Meldung:</label>
+                <select 
+                  value={reportReason} 
+                  onChange={e => setReportReason(e.target.value)}
+                  required
+                >
+                  <option value="">-- Bitte wählen --</option>
+                  <option value="Beleidigung">Beleidigung</option>
+                  <option value="Bedrohung">Bedrohung</option>
+                  <option value="Spam">Spam</option>
+                  <option value="Betrug">Betrug / Scam</option>
+                  <option value="Unangemessener Inhalt">Unangemessener Inhalt</option>
+                  <option value="Sonstiges">Sonstiges</option>
+                </select>
+              </div>
+              <div className="compose-actions">
+                <button type="button" onClick={() => setShowReportModal(false)}>Abbrechen</button>
+                <button 
+                  className="btn-report-submit" 
+                  onClick={handleReport}
+                  disabled={!reportReason || reporting}
+                >
+                  {reporting ? 'Melden...' : '🚩 Melden'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

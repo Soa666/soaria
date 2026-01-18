@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { sendSystemMessage } from './messages.js';
 
 const router = express.Router();
 
@@ -258,6 +259,19 @@ router.post('/attack', authenticateToken, async (req, res) => {
       });
     }
 
+    // Get attacker username
+    const attackerUser = await db.get('SELECT username FROM users WHERE id = ?', [req.user.id]);
+    
+    // Send attack notification to target
+    const stolenItemsList = stolenItems.map(i => `${i.quantity}x ${i.name}`).join(', ');
+    await sendSystemMessage(
+      target_user_id,
+      `⚔️ Du wurdest angegriffen!`,
+      `${attackerUser.username} hat dich angegriffen und folgende Items erbeutet:\n\n${stolenItemsList}\n\nPosition des Angreifers: (${attacker.world_x}, ${attacker.world_y})`,
+      'attack_received',
+      req.user.id
+    );
+
     res.json({
       message: `Du hast ${target.username} erfolgreich angegriffen und Items erbeutet!`,
       stolen_items: stolenItems
@@ -438,6 +452,40 @@ router.post('/trade/execute', authenticateToken, async (req, res) => {
         ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?
       `, [req.user.id, item.item_id, item.quantity, item.quantity]);
     }
+
+    // Get item names for messages
+    const myItemNames = [];
+    for (const item of my_items) {
+      const itemData = await db.get('SELECT display_name FROM items WHERE id = ?', [item.item_id]);
+      if (itemData) myItemNames.push(`${item.quantity}x ${itemData.display_name}`);
+    }
+    
+    const targetItemNames = [];
+    for (const item of target_items) {
+      const itemData = await db.get('SELECT display_name FROM items WHERE id = ?', [item.item_id]);
+      if (itemData) targetItemNames.push(`${item.quantity}x ${itemData.display_name}`);
+    }
+
+    // Get current user's username
+    const currentUser = await db.get('SELECT username FROM users WHERE id = ?', [req.user.id]);
+
+    // Send trade notification to target (the other player)
+    await sendSystemMessage(
+      target_user_id,
+      `🤝 Handel abgeschlossen`,
+      `Du hast mit ${currentUser.username} gehandelt!\n\n📦 Du hast erhalten:\n${myItemNames.length > 0 ? myItemNames.join('\n') : '- Nichts'}\n\n📤 Du hast gegeben:\n${targetItemNames.length > 0 ? targetItemNames.join('\n') : '- Nichts'}`,
+      'trade_received',
+      req.user.id
+    );
+
+    // Send confirmation to the initiator
+    await sendSystemMessage(
+      req.user.id,
+      `🤝 Handel abgeschlossen`,
+      `Du hast mit ${target.username} gehandelt!\n\n📦 Du hast erhalten:\n${targetItemNames.length > 0 ? targetItemNames.join('\n') : '- Nichts'}\n\n📤 Du hast gegeben:\n${myItemNames.length > 0 ? myItemNames.join('\n') : '- Nichts'}`,
+      'trade_sent',
+      target_user_id
+    );
 
     res.json({
       message: `Handel mit ${target.username} erfolgreich abgeschlossen!`

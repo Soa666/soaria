@@ -261,6 +261,47 @@ router.delete('/:messageId', authenticateToken, async (req, res) => {
   }
 });
 
+// Report a message
+router.post('/:messageId/report', authenticateToken, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const messageId = req.params.messageId;
+    
+    // Get the message
+    const message = await db.get(`
+      SELECT m.*, u.username as sender_name
+      FROM messages m
+      JOIN users u ON m.sender_id = u.id
+      WHERE m.id = ? AND m.recipient_id = ?
+    `, [messageId, req.user.id]);
+    
+    if (!message) {
+      return res.status(404).json({ error: 'Nachricht nicht gefunden' });
+    }
+    
+    // Check if already reported
+    const existingReport = await db.get(
+      'SELECT id FROM message_reports WHERE message_id = ? AND reporter_id = ?',
+      [messageId, req.user.id]
+    );
+    
+    if (existingReport) {
+      return res.status(400).json({ error: 'Nachricht wurde bereits gemeldet' });
+    }
+    
+    // Create report
+    await db.run(`
+      INSERT INTO message_reports (message_id, reporter_id, reported_user_id, reason, message_content, message_subject)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [messageId, req.user.id, message.sender_id, reason || 'Keine Angabe', message.content, message.subject]);
+    
+    res.json({ message: 'Nachricht wurde gemeldet. Ein Admin wird sie überprüfen.' });
+  } catch (error) {
+    console.error('Error reporting message:', error);
+    res.status(500).json({ error: 'Fehler beim Melden der Nachricht' });
+  }
+});
+
 // Helper function to send system messages (exported for use in other routes)
 export async function sendSystemMessage(recipientId, subject, content, messageType = 'system', relatedId = null) {
   try {

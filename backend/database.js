@@ -453,12 +453,34 @@ export async function initDatabase() {
       content TEXT NOT NULL,
       is_read INTEGER DEFAULT 0,
       is_system INTEGER DEFAULT 0,
-      message_type TEXT DEFAULT 'personal' CHECK(message_type IN ('personal', 'guild_application', 'guild_accepted', 'guild_rejected', 'trade_request', 'attack_report', 'system')),
+      message_type TEXT DEFAULT 'personal' CHECK(message_type IN ('personal', 'guild_application', 'guild_accepted', 'guild_rejected', 'trade_received', 'trade_sent', 'attack_received', 'attack_sent', 'system')),
       related_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       read_at DATETIME,
       FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Message reports table (Gemeldete Nachrichten)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS message_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER NOT NULL,
+      reporter_id INTEGER NOT NULL,
+      reported_user_id INTEGER NOT NULL,
+      reason TEXT,
+      message_content TEXT NOT NULL,
+      message_subject TEXT NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'reviewed', 'action_taken', 'dismissed')),
+      reviewed_by INTEGER,
+      reviewed_at DATETIME,
+      admin_notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL,
+      FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reported_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
 

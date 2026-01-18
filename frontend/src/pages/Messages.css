@@ -459,3 +459,178 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Category Tabs */
+.category-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  background: rgba(20, 15, 30, 0.5);
+  border-bottom: 1px solid rgba(90, 74, 42, 0.4);
+  flex-wrap: wrap;
+}
+
+.category-tab {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  color: #8b7a5a;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.category-tab:hover {
+  background: rgba(212, 175, 55, 0.1);
+  color: #d4af37;
+}
+
+.category-tab.active {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: #8b6914;
+  color: #d4af37;
+}
+
+.category-badge {
+  background: #c74848;
+  color: white;
+  padding: 0.1rem 0.35rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+/* Type badges in message list */
+.type-badge {
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
+.type-badge.type-trade_received,
+.type-badge.type-trade_sent {
+  background: rgba(39, 174, 96, 0.3);
+  color: #90d490;
+}
+
+.type-badge.type-attack_received,
+.type-badge.type-attack_sent {
+  background: rgba(199, 72, 72, 0.3);
+  color: #e89090;
+}
+
+.type-badge.type-guild_application,
+.type-badge.type-guild_accepted,
+.type-badge.type-guild_rejected {
+  background: rgba(90, 74, 138, 0.3);
+  color: #b0a0d0;
+}
+
+.type-badge.type-system {
+  background: rgba(212, 175, 55, 0.3);
+  color: #d4af37;
+}
+
+/* Detail title row */
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.detail-icon {
+  font-size: 1.5rem;
+}
+
+.detail-type {
+  margin-top: 0.5rem;
+}
+
+/* Report button */
+.btn-report {
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #4a3a2a 0%, #5a4a3a 50%, #4a3a2a 100%);
+  color: #f0a050;
+  border: 2px solid #8a6a4a;
+}
+
+.btn-report:hover {
+  border-color: #f0a050;
+  transform: translateY(-2px);
+}
+
+/* Report Modal */
+.report-modal {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 3px solid #8b6914;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.report-content {
+  padding: 1.5rem;
+}
+
+.report-content p {
+  color: #e8dcc0;
+  margin-bottom: 1rem;
+}
+
+.report-warning {
+  background: rgba(199, 72, 72, 0.2);
+  border: 1px solid rgba(199, 72, 72, 0.5);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  color: #e89090 !important;
+}
+
+.report-content select {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(20, 15, 30, 0.8);
+  border: 2px solid #5a4a2a;
+  border-radius: 6px;
+  color: #e8dcc0;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.report-content select:focus {
+  outline: none;
+  border-color: #d4af37;
+}
+
+.btn-report-submit {
+  background: linear-gradient(135deg, #8b4a2a 0%, #a05a3a 50%, #8b4a2a 100%);
+  color: #ffd090;
+  border: 2px solid #c07040;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn-report-submit:hover:not(:disabled) {
+  border-color: #ffd090;
+  transform: translateY(-2px);
+}
+
+.btn-report-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
