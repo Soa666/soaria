@@ -305,7 +305,7 @@ router.get('/travel/status', authenticateToken, async (req, res) => {
 router.post('/travel/cancel', authenticateToken, async (req, res) => {
   try {
     const user = await db.get(`
-      SELECT travel_target_x, travel_target_y, travel_end_time
+      SELECT world_x, world_y, travel_target_x, travel_target_y, travel_start_time, travel_end_time
       FROM users WHERE id = ?
     `, [req.user.id]);
 
@@ -313,17 +313,40 @@ router.post('/travel/cancel', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Du bist gerade nicht unterwegs' });
     }
 
-    // Cancel travel - stay at current position
+    // Calculate current position based on travel progress
+    const now = Date.now();
+    const startTime = new Date(user.travel_start_time).getTime();
+    const endTime = new Date(user.travel_end_time).getTime();
+    const totalDuration = endTime - startTime;
+    const elapsed = now - startTime;
+    const progress = Math.min(1, Math.max(0, elapsed / totalDuration));
+
+    // Interpolate position
+    const startX = user.world_x;
+    const startY = user.world_y;
+    const targetX = user.travel_target_x;
+    const targetY = user.travel_target_y;
+    
+    const currentX = Math.round(startX + (targetX - startX) * progress);
+    const currentY = Math.round(startY + (targetY - startY) * progress);
+
+    // Cancel travel and update position to current progress
     await db.run(`
       UPDATE users 
-      SET travel_target_x = NULL,
+      SET world_x = ?,
+          world_y = ?,
+          travel_target_x = NULL,
           travel_target_y = NULL,
           travel_start_time = NULL,
           travel_end_time = NULL
       WHERE id = ?
-    `, [req.user.id]);
+    `, [currentX, currentY, req.user.id]);
 
-    res.json({ message: 'Reise abgebrochen. Du bleibst an deiner aktuellen Position.' });
+    res.json({ 
+      message: 'Reise abgebrochen.',
+      new_x: currentX,
+      new_y: currentY
+    });
   } catch (error) {
     console.error('Cancel travel error:', error);
     res.status(500).json({ error: 'Serverfehler' });
@@ -362,6 +385,45 @@ router.put('/coordinates', authenticateToken, async (req, res) => {
       return res.status(400).json({ 
         error: 'Du bist bereits unterwegs! Warte bis du ankommst oder brich die Reise ab.',
         alreadyTraveling: true
+      });
+    }
+
+    // Check if user has active collection job
+    const activeCollectionJob = await db.get(`
+      SELECT id FROM collection_jobs 
+      WHERE user_id = ? AND status = 'active'
+    `, [req.user.id]);
+
+    if (activeCollectionJob) {
+      return res.status(400).json({ 
+        error: 'Du kannst nicht loslaufen während du sammelst! Hole den Auftrag zuerst ab oder brich ihn ab.',
+        isCollecting: true
+      });
+    }
+
+    // Check if user has active building job
+    const activeBuildingJob = await db.get(`
+      SELECT id FROM building_jobs 
+      WHERE user_id = ? AND status = 'active'
+    `, [req.user.id]);
+
+    if (activeBuildingJob) {
+      return res.status(400).json({ 
+        error: 'Du kannst nicht loslaufen während du baust! Warte bis der Bau fertig ist.',
+        isBuilding: true
+      });
+    }
+
+    // Check if user has active crafting job
+    const activeCraftingJob = await db.get(`
+      SELECT id FROM crafting_jobs 
+      WHERE user_id = ? AND is_completed = 0
+    `, [req.user.id]);
+
+    if (activeCraftingJob) {
+      return res.status(400).json({ 
+        error: 'Du kannst nicht loslaufen während du etwas herstellst! Hole das Item zuerst ab oder brich ab.',
+        isCrafting: true
       });
     }
 
