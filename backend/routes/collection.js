@@ -48,6 +48,19 @@ async function hasActiveJob(userId) {
   return { active: false };
 }
 
+// Helper: Check if user is at home
+async function isUserAtHome(userId) {
+  const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
+  if (!user) return false;
+  const homeX = user.home_x ?? 0;
+  const homeY = user.home_y ?? 0;
+  const distance = Math.sqrt(
+    Math.pow((user.world_x || 0) - homeX, 2) + 
+    Math.pow((user.world_y || 0) - homeY, 2)
+  );
+  return distance <= 50;
+}
+
 // Start collection job
 router.post('/start', authenticateToken, async (req, res) => {
   try {
@@ -56,6 +69,15 @@ router.post('/start', authenticateToken, async (req, res) => {
     if (!duration_minutes || duration_minutes < 5 || duration_minutes > 480) {
       return res.status(400).json({ 
         error: 'Dauer muss zwischen 5 Minuten und 8 Stunden (480 Minuten) liegen' 
+      });
+    }
+
+    // Check if user is at home
+    const atHome = await isUserAtHome(req.user.id);
+    if (!atHome) {
+      return res.status(400).json({ 
+        error: 'Du musst zu Hause sein um Sammeln zu starten! Reise zuerst zu deinem Grundstück.',
+        notAtHome: true
       });
     }
 
@@ -90,19 +112,6 @@ router.post('/start', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Serverfehler beim Starten des Sammel-Auftrags' });
   }
 });
-
-// Helper: Check if user is at home
-async function isUserAtHome(userId) {
-  const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
-  if (!user) return false;
-  const homeX = user.home_x ?? 0;
-  const homeY = user.home_y ?? 0;
-  const distance = Math.sqrt(
-    Math.pow((user.world_x || 0) - homeX, 2) + 
-    Math.pow((user.world_y || 0) - homeY, 2)
-  );
-  return distance <= 50;
-}
 
 // Get active collection job status
 router.get('/status', authenticateToken, async (req, res) => {
