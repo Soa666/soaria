@@ -98,7 +98,7 @@ function Dashboard() {
                   width: '100%', 
                   height: '100%', 
                   backgroundImage: `url(/chars/${user.avatar_path})`,
-                  backgroundPosition: '-32px 0',
+                  backgroundPosition: 'center top',
                   backgroundSize: '300% 400%',
                   imageRendering: 'pixelated'
                 }}

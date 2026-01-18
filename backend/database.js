@@ -635,9 +635,17 @@ export async function initDatabase() {
       current_health INTEGER DEFAULT 100,
       base_attack INTEGER DEFAULT 10,
       base_defense INTEGER DEFAULT 5,
+      last_healed_at DATETIME,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
+
+  // Add last_healed_at column if it doesn't exist
+  try {
+    await db.run(`ALTER TABLE player_stats ADD COLUMN last_healed_at DATETIME`);
+  } catch (e) {
+    // Column might already exist
+  }
 
   // Combat log (Kampfprotokoll)
   await db.run(`

@@ -272,7 +272,7 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
   }
 });
 
-// Heal player (simple healing at home)
+// Heal player (free, but with cooldown)
 router.post('/heal', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -283,35 +283,44 @@ router.post('/heal', authenticateToken, async (req, res) => {
     }
 
     if (stats.current_health >= stats.max_health) {
-      return res.json({ message: 'Du hast bereits volle HP!', currentHealth: stats.current_health, maxHealth: stats.max_health });
-    }
-
-    // Calculate healing cost (1 gold per 2 HP)
-    const hpToHeal = stats.max_health - stats.current_health;
-    const healCost = Math.ceil(hpToHeal / 2);
-
-    const user = await db.get('SELECT gold FROM users WHERE id = ?', [userId]);
-    if (user.gold < healCost) {
-      // Free partial heal if no gold
-      const freeHeal = Math.min(20, hpToHeal);
-      await db.run('UPDATE player_stats SET current_health = current_health + ? WHERE user_id = ?', [freeHeal, userId]);
       return res.json({ 
-        message: `Du hast dich um ${freeHeal} HP erholt (kostenlos). Für vollständige Heilung brauchst du ${healCost} Gold.`,
-        currentHealth: stats.current_health + freeHeal,
-        maxHealth: stats.max_health,
-        cost: 0
+        message: 'Du hast bereits volle HP!', 
+        currentHealth: stats.current_health, 
+        maxHealth: stats.max_health 
       });
     }
 
-    // Full heal
-    await db.run('UPDATE player_stats SET current_health = max_health WHERE user_id = ?', [userId]);
-    await db.run('UPDATE users SET gold = gold - ? WHERE id = ?', [healCost, userId]);
+    // Check cooldown (last_healed_at)
+    if (stats.last_healed_at) {
+      const lastHeal = new Date(stats.last_healed_at);
+      const now = new Date();
+      const cooldownMinutes = 1; // 1 minute cooldown
+      const timeSinceHeal = (now - lastHeal) / 1000 / 60; // in minutes
+      
+      if (timeSinceHeal < cooldownMinutes) {
+        const secondsLeft = Math.ceil((cooldownMinutes - timeSinceHeal) * 60);
+        return res.status(400).json({ 
+          error: `Du musst noch ${secondsLeft} Sekunden warten bevor du dich wieder heilen kannst.` 
+        });
+      }
+    }
+
+    // Heal 25% of max HP (minimum 20 HP)
+    const healAmount = Math.max(20, Math.floor(stats.max_health * 0.25));
+    const newHealth = Math.min(stats.max_health, stats.current_health + healAmount);
+    const actualHeal = newHealth - stats.current_health;
+
+    await db.run(`
+      UPDATE player_stats 
+      SET current_health = ?, last_healed_at = datetime('now') 
+      WHERE user_id = ?
+    `, [newHealth, userId]);
 
     res.json({
-      message: `Du wurdest vollständig geheilt! (${healCost} Gold)`,
-      currentHealth: stats.max_health,
+      message: `Du hast dich um ${actualHeal} HP erholt!`,
+      currentHealth: newHealth,
       maxHealth: stats.max_health,
-      cost: healCost
+      healAmount: actualHeal
     });
   } catch (error) {
     console.error('Heal error:', error);
