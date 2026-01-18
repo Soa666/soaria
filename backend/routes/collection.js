@@ -59,18 +59,34 @@ router.post('/start', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper: Check if user is at home
+async function isUserAtHome(userId) {
+  const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
+  if (!user) return false;
+  const homeX = user.home_x ?? 0;
+  const homeY = user.home_y ?? 0;
+  const distance = Math.sqrt(
+    Math.pow((user.world_x || 0) - homeX, 2) + 
+    Math.pow((user.world_y || 0) - homeY, 2)
+  );
+  return distance <= 50;
+}
+
 // Get active collection job status
 router.get('/status', authenticateToken, async (req, res) => {
   try {
-    const job = await db.get(`
+    // Check for active OR paused job
+    let job = await db.get(`
       SELECT 
         id,
         duration_minutes,
         started_at,
         completed_at,
-        status
+        status,
+        paused_at,
+        remaining_seconds
       FROM collection_jobs
-      WHERE user_id = ? AND status = 'active'
+      WHERE user_id = ? AND status IN ('active', 'paused')
       ORDER BY started_at DESC
       LIMIT 1
     `, [req.user.id]);
@@ -80,16 +96,50 @@ router.get('/status', authenticateToken, async (req, res) => {
     }
 
     const now = new Date();
+    const atHome = await isUserAtHome(req.user.id);
+
+    // Resume paused job if user is at home
+    if (job.status === 'paused' && atHome && job.remaining_seconds) {
+      const newCompletedAt = new Date(now.getTime() + job.remaining_seconds * 1000);
+      await db.run(`
+        UPDATE collection_jobs 
+        SET status = 'active', paused_at = NULL, remaining_seconds = NULL, completed_at = ?
+        WHERE id = ?
+      `, [newCompletedAt.toISOString(), job.id]);
+      job.status = 'active';
+      job.completed_at = newCompletedAt.toISOString();
+      job.paused_at = null;
+    }
+
+    // Pause active job if user left home
+    if (job.status === 'active' && !atHome) {
+      const completedAt = new Date(job.completed_at);
+      const remainingMs = Math.max(0, completedAt.getTime() - now.getTime());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      await db.run(`
+        UPDATE collection_jobs 
+        SET status = 'paused', paused_at = ?, remaining_seconds = ?
+        WHERE id = ?
+      `, [now.toISOString(), remainingSeconds, job.id]);
+      job.status = 'paused';
+      job.paused_at = now.toISOString();
+      job.remaining_seconds = remainingSeconds;
+    }
+
     const completedAt = new Date(job.completed_at);
     const startedAt = new Date(job.started_at);
     
-    // Calculate elapsed time (in case server was down)
-    const elapsedMinutes = Math.floor((now - startedAt) / 1000 / 60);
-    const isCompleted = now >= completedAt;
-    const timeRemaining = Math.max(0, Math.floor((completedAt - now) / 1000 / 60));
+    let isCompleted = false;
+    let timeRemaining = 0;
 
-    // Note: Die Zeit läuft weiter, auch wenn der Server abstürzt,
-    // weil completed_at in der Datenbank gespeichert ist
+    if (job.status === 'paused') {
+      timeRemaining = Math.ceil(job.remaining_seconds / 60);
+    } else {
+      isCompleted = now >= completedAt;
+      timeRemaining = Math.max(0, Math.floor((completedAt - now) / 1000 / 60));
+    }
+
+    const elapsedMinutes = Math.floor((now - startedAt) / 1000 / 60);
 
     res.json({
       active: true,
@@ -100,7 +150,9 @@ router.get('/status', authenticateToken, async (req, res) => {
       elapsed_minutes: elapsedMinutes,
       is_completed: isCompleted,
       time_remaining_minutes: timeRemaining,
-      server_restart_safe: true // Zeit läuft auch bei Server-Absturz weiter
+      is_paused: job.status === 'paused',
+      remaining_seconds: job.remaining_seconds,
+      server_restart_safe: true
     });
   } catch (error) {
     console.error('Get collection status error:', error);

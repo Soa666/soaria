@@ -189,6 +189,9 @@ function Map() {
   const [combatResult, setCombatResult] = useState(null);
   const [travelStatus, setTravelStatus] = useState(null);
   const [animationFrame, setAnimationFrame] = useState(0);
+  const [showTravelWarning, setShowTravelWarning] = useState(false);
+  const [activeJobs, setActiveJobs] = useState([]);
+  const [pendingTravel, setPendingTravel] = useState(null);
   const [currentUserPosition, setCurrentUserPosition] = useState(null);
   const [npcShopData, setNpcShopData] = useState(null);
   const [tilesetImage, setTilesetImage] = useState(null);
@@ -998,20 +1001,43 @@ function Map() {
     return isWaterTerrain(terrain);
   };
 
-  const handleMove = async () => {
-    if (!targetCoords) {
-      setMessage('Bitte wähle ein Ziel auf der Karte');
-      setTimeout(() => setMessage(''), 3000);
-      return;
+  // Check for active jobs before traveling
+  const checkActiveJobsAndTravel = async (travelFn, travelData = null) => {
+    try {
+      const response = await api.get('/map/active-jobs');
+      if (response.data.hasActiveJobs) {
+        setActiveJobs(response.data.activeJobs);
+        setPendingTravel({ fn: travelFn, data: travelData });
+        setShowTravelWarning(true);
+      } else {
+        // No active jobs, proceed with travel
+        travelFn(travelData);
+      }
+    } catch (error) {
+      console.error('Error checking active jobs:', error);
+      // On error, proceed anyway
+      travelFn(travelData);
     }
+  };
 
-    // Check if already traveling
-    if (travelStatus?.traveling) {
-      setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
-      setTimeout(() => setMessage(''), 3000);
-      return;
+  // Confirm travel and pause jobs
+  const confirmTravel = () => {
+    setShowTravelWarning(false);
+    if (pendingTravel) {
+      pendingTravel.fn(pendingTravel.data);
+      setPendingTravel(null);
     }
+  };
 
+  // Cancel travel warning
+  const cancelTravelWarning = () => {
+    setShowTravelWarning(false);
+    setPendingTravel(null);
+    setActiveJobs([]);
+  };
+
+  // Actual move function
+  const executeMove = async () => {
     try {
       const response = await api.put('/map/coordinates', {
         world_x: targetCoords.x,
@@ -1033,7 +1059,6 @@ function Map() {
       setActionMode(null);
       setTargetCoords(null);
     } catch (error) {
-      // Check if it's a boat requirement error
       if (error.response?.data?.needsBoat) {
         setMessage('🚣 Du brauchst ein Boot um aufs Wasser zu gehen!');
       } else if (error.response?.data?.alreadyTraveling) {
@@ -1046,13 +1071,26 @@ function Map() {
     }
   };
 
-  const handleTravelHome = async () => {
+  const handleMove = async () => {
+    if (!targetCoords) {
+      setMessage('Bitte wähle ein Ziel auf der Karte');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    // Check if already traveling
     if (travelStatus?.traveling) {
       setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
       setTimeout(() => setMessage(''), 3000);
       return;
     }
 
+    // Check for active jobs first
+    await checkActiveJobsAndTravel(executeMove);
+  };
+
+  // Actual travel home function
+  const executeTravelHome = async () => {
     try {
       const response = await api.post('/map/travel/home');
       setMessage(response.data.message);
@@ -1071,6 +1109,17 @@ function Map() {
     }
   };
 
+  const handleTravelHome = async () => {
+    if (travelStatus?.traveling) {
+      setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    // Check for active jobs first
+    await checkActiveJobsAndTravel(executeTravelHome);
+  };
+
   const handleCancelTravel = async () => {
     try {
       const response = await api.post('/map/travel/cancel');
@@ -1083,14 +1132,9 @@ function Map() {
     }
   };
 
-  // Travel to a specific target (NPC, player, or coordinates)
-  const handleTravelTo = async (targetX, targetY, targetName) => {
-    if (travelStatus?.traveling) {
-      setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-
+  // Actual travel to target function
+  const executeTravelTo = async (data) => {
+    const { targetX, targetY, targetName } = data;
     try {
       const response = await api.put('/map/coordinates', {
         world_x: targetX,
@@ -1124,6 +1168,18 @@ function Map() {
       }
       setTimeout(() => setMessage(''), 5000);
     }
+  };
+
+  // Travel to a specific target (NPC, player, or coordinates)
+  const handleTravelTo = async (targetX, targetY, targetName) => {
+    if (travelStatus?.traveling) {
+      setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    // Check for active jobs first
+    await checkActiveJobsAndTravel(executeTravelTo, { targetX, targetY, targetName });
   };
 
   // Calculate distance to a target
@@ -1437,6 +1493,37 @@ function Map() {
         {message && (
           <div className={message.includes('Fehler') ? 'error' : 'success'}>
             {message}
+          </div>
+        )}
+
+        {/* Travel Warning Dialog */}
+        {showTravelWarning && (
+          <div className="travel-warning-overlay">
+            <div className="travel-warning-dialog">
+              <h3>⚠️ Achtung!</h3>
+              <p>Du hast noch laufende Aktivitäten:</p>
+              <ul className="active-jobs-list">
+                {activeJobs.map((job, idx) => (
+                  <li key={idx}>
+                    {job.type === 'collection' && '🪓'}
+                    {job.type === 'building' && '🏗️'}
+                    {job.type === 'crafting' && '⚒️'}
+                    {' '}{job.name}
+                  </li>
+                ))}
+              </ul>
+              <p className="warning-text">
+                Diese werden <strong>pausiert</strong> wenn du losläufst und erst fortgesetzt wenn du zurück nach Hause kommst!
+              </p>
+              <div className="warning-buttons">
+                <button className="btn btn-secondary" onClick={cancelTravelWarning}>
+                  Abbrechen
+                </button>
+                <button className="btn btn-primary" onClick={confirmTravel}>
+                  Trotzdem loslaufen
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

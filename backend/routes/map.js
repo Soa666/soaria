@@ -388,43 +388,62 @@ router.put('/coordinates', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if user has active collection job
+    // Check for active jobs that will be paused
     const activeCollectionJob = await db.get(`
-      SELECT id FROM collection_jobs 
+      SELECT id, completed_at FROM collection_jobs 
       WHERE user_id = ? AND status = 'active'
     `, [req.user.id]);
 
-    if (activeCollectionJob) {
-      return res.status(400).json({ 
-        error: 'Du kannst nicht loslaufen während du sammelst! Hole den Auftrag zuerst ab oder brich ihn ab.',
-        isCollecting: true
-      });
-    }
-
-    // Check if user has active building job
     const activeBuildingJob = await db.get(`
-      SELECT id FROM building_jobs 
+      SELECT id, completed_at FROM building_jobs 
       WHERE user_id = ? AND status = 'active'
     `, [req.user.id]);
 
-    if (activeBuildingJob) {
-      return res.status(400).json({ 
-        error: 'Du kannst nicht loslaufen während du baust! Warte bis der Bau fertig ist.',
-        isBuilding: true
-      });
-    }
-
-    // Check if user has active crafting job
     const activeCraftingJob = await db.get(`
-      SELECT id FROM crafting_jobs 
+      SELECT id, finish_at, paused_at, remaining_seconds FROM crafting_jobs 
       WHERE user_id = ? AND is_completed = 0
     `, [req.user.id]);
 
-    if (activeCraftingJob) {
-      return res.status(400).json({ 
-        error: 'Du kannst nicht loslaufen während du etwas herstellst! Hole das Item zuerst ab oder brich ab.',
-        isCrafting: true
-      });
+    // Pause collection job if active
+    if (activeCollectionJob) {
+      const now = new Date();
+      const completedAt = new Date(activeCollectionJob.completed_at);
+      const remainingMs = Math.max(0, completedAt.getTime() - now.getTime());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      
+      await db.run(`
+        UPDATE collection_jobs 
+        SET status = 'paused', paused_at = ?, remaining_seconds = ?
+        WHERE id = ?
+      `, [now.toISOString(), remainingSeconds, activeCollectionJob.id]);
+    }
+
+    // Pause building job if active
+    if (activeBuildingJob) {
+      const now = new Date();
+      const completedAt = new Date(activeBuildingJob.completed_at);
+      const remainingMs = Math.max(0, completedAt.getTime() - now.getTime());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      
+      await db.run(`
+        UPDATE building_jobs 
+        SET status = 'paused', paused_at = ?, remaining_seconds = ?
+        WHERE id = ?
+      `, [now.toISOString(), remainingSeconds, activeBuildingJob.id]);
+    }
+
+    // Pause crafting job if active (and not already paused)
+    if (activeCraftingJob && !activeCraftingJob.paused_at) {
+      const now = new Date();
+      const finishAt = new Date(activeCraftingJob.finish_at);
+      const remainingMs = Math.max(0, finishAt.getTime() - now.getTime());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      
+      await db.run(`
+        UPDATE crafting_jobs 
+        SET paused_at = ?, remaining_seconds = ?
+        WHERE id = ?
+      `, [now.toISOString(), remainingSeconds, activeCraftingJob.id]);
     }
 
     // Check if already at target
@@ -936,6 +955,45 @@ router.post('/trade/execute', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Trade execute error:', error);
     res.status(500).json({ error: 'Serverfehler beim Ausführen des Handels' });
+  }
+});
+
+// Check for active jobs that would be paused when traveling
+router.get('/active-jobs', authenticateToken, async (req, res) => {
+  try {
+    const activeJobs = [];
+
+    const collectionJob = await db.get(`
+      SELECT id, completed_at FROM collection_jobs 
+      WHERE user_id = ? AND status = 'active'
+    `, [req.user.id]);
+    if (collectionJob) {
+      activeJobs.push({ type: 'collection', name: 'Sammeln' });
+    }
+
+    const buildingJob = await db.get(`
+      SELECT bj.id, b.display_name FROM building_jobs bj
+      JOIN buildings b ON bj.building_id = b.id
+      WHERE bj.user_id = ? AND bj.status = 'active'
+    `, [req.user.id]);
+    if (buildingJob) {
+      activeJobs.push({ type: 'building', name: `Bauen: ${buildingJob.display_name}` });
+    }
+
+    const craftingJob = await db.get(`
+      SELECT cj.id, et.display_name FROM crafting_jobs cj
+      JOIN equipment_recipes er ON cj.recipe_id = er.id
+      JOIN equipment_types et ON er.equipment_type_id = et.id
+      WHERE cj.user_id = ? AND cj.is_completed = 0 AND cj.paused_at IS NULL
+    `, [req.user.id]);
+    if (craftingJob) {
+      activeJobs.push({ type: 'crafting', name: `Herstellen: ${craftingJob.display_name}` });
+    }
+
+    res.json({ activeJobs, hasActiveJobs: activeJobs.length > 0 });
+  } catch (error) {
+    console.error('Check active jobs error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
   }
 });
 

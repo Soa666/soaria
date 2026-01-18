@@ -208,10 +208,20 @@ export async function initDatabase() {
       duration_minutes INTEGER NOT NULL,
       started_at DATETIME NOT NULL,
       completed_at DATETIME NOT NULL,
-      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'claimed')),
+      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'claimed', 'paused')),
+      paused_at DATETIME,
+      remaining_seconds INTEGER,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
+
+  // Add pause columns to collection_jobs if not exist
+  try {
+    await db.run('ALTER TABLE collection_jobs ADD COLUMN paused_at DATETIME');
+  } catch (e) { /* Column exists */ }
+  try {
+    await db.run('ALTER TABLE collection_jobs ADD COLUMN remaining_seconds INTEGER');
+  } catch (e) { /* Column exists */ }
 
   // Collection job results
   await db.run(`
@@ -316,11 +326,21 @@ export async function initDatabase() {
       duration_minutes INTEGER NOT NULL,
       started_at DATETIME NOT NULL,
       completed_at DATETIME NOT NULL,
-      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'claimed')),
+      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'claimed', 'paused')),
+      paused_at DATETIME,
+      remaining_seconds INTEGER,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE
     )
   `);
+
+  // Add pause columns to building_jobs if not exist
+  try {
+    await db.run('ALTER TABLE building_jobs ADD COLUMN paused_at DATETIME');
+  } catch (e) { /* Column exists */ }
+  try {
+    await db.run('ALTER TABLE building_jobs ADD COLUMN remaining_seconds INTEGER');
+  } catch (e) { /* Column exists */ }
 
   // User buildings (gebaute Gebäude)
   await db.run(`

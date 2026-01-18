@@ -61,6 +61,84 @@
   margin: 0.25rem 0;
 }
 
+/* Travel Warning Dialog */
+.travel-warning-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.travel-warning-dialog {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 3px solid #f39c12;
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+  animation: warningPop 0.3s ease-out;
+}
+
+@keyframes warningPop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.travel-warning-dialog h3 {
+  color: #f39c12;
+  margin: 0 0 1rem 0;
+  text-align: center;
+  font-size: 1.3rem;
+}
+
+.travel-warning-dialog p {
+  color: #e8dcc0;
+  margin: 0.5rem 0;
+}
+
+.active-jobs-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.active-jobs-list li {
+  padding: 0.5rem;
+  color: #d4af37;
+  border-bottom: 1px solid rgba(90, 74, 42, 0.3);
+}
+
+.active-jobs-list li:last-child {
+  border-bottom: none;
+}
+
+.warning-text {
+  color: #f39c12;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.warning-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.warning-buttons .btn {
+  min-width: 120px;
+}
+
 /* Travel Status Panel */
 .travel-status-panel {
   margin-top: 1rem;

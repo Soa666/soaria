@@ -625,10 +625,17 @@ function Grundstueck() {
           <div className="job-status-banner">
             <div className="job-status-content">
               <h3>
-                {jobStatus.job_type === 'build' ? '🏗️ Bau in Arbeit' : '⬆️ Upgrade in Arbeit'}
+                {jobStatus.is_paused ? '⏸️' : jobStatus.job_type === 'build' ? '🏗️' : '⬆️'} 
+                {jobStatus.job_type === 'build' ? ' Bau' : ' Upgrade'}
+                {jobStatus.is_paused ? ' (Pausiert)' : ' in Arbeit'}
               </h3>
               <p>{jobStatus.building_name}</p>
-              {jobStatus.is_completed ? (
+              {jobStatus.is_paused ? (
+                <div className="job-paused">
+                  <p className="pause-notice">⚠️ Pausiert - Geh nach Hause um fortzufahren!</p>
+                  <p>Verbleibend: {formatTime(jobStatus.time_remaining_seconds || 0)}</p>
+                </div>
+              ) : jobStatus.is_completed ? (
                 <div>
                   <p className="job-completed">✅ Fertig!</p>
                   <button className="btn btn-primary" onClick={claimJob}>
