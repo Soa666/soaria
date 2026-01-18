@@ -59,7 +59,11 @@ function Players() {
 
         <div className="players-grid">
           {filteredPlayers.map(player => (
-            <div key={player.id} className="player-card">
+            <div 
+              key={player.id} 
+              className="player-card"
+              onClick={() => navigate(`/player/${player.username}`)}
+            >
               <div className="player-avatar">
                 {player.avatar_path ? (
                   <div 
@@ -77,12 +81,18 @@ function Players() {
               <div className="player-info">
                 <h3>{player.username}</h3>
                 {player.guild_name ? (
-                  <Link to={`/guilds/${player.guild_id}`} className="player-guild">
+                  <div 
+                    className="player-guild"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/guilds/${player.guild_id}`);
+                    }}
+                  >
                     <span className="guild-tag">[{player.guild_tag}]</span>
                     <span className="guild-name">{player.guild_name}</span>
                     {player.guild_role === 'leader' && <span className="role-badge">👑</span>}
                     {player.guild_role === 'officer' && <span className="role-badge">⚔️</span>}
-                  </Link>
+                  </div>
                 ) : (
                   <span className="no-guild">Keine Gilde</span>
                 )}
@@ -92,13 +102,17 @@ function Players() {
                 {player.id !== user?.id && (
                   <button 
                     className="btn-message-small"
-                    onClick={() => navigate(`/messages?to=${player.username}`)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/messages?to=${player.username}`);
+                    }}
                     title="Nachricht senden"
                   >
                     ✉️
                   </button>
                 )}
               </div>
+              <div className="player-card-hint">Klicken für Profil</div>
             </div>
           ))}
         </div>

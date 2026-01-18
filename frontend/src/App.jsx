@@ -14,6 +14,7 @@ import Grundstueck from './pages/Grundstueck';
 import Map from './pages/Map';
 import Activate from './pages/Activate';
 import Players from './pages/Players';
+import PlayerProfile from './pages/PlayerProfile';
 import Guilds from './pages/Guilds';
 import GuildDetail from './pages/GuildDetail';
 import Messages from './pages/Messages';
@@ -120,6 +121,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Players />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/player/:username"
+          element={
+            <ProtectedRoute>
+              <PlayerProfile />
             </ProtectedRoute>
           }
         />

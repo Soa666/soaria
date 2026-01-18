@@ -35,7 +35,82 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Get single player profile (public)
+// Get player profile by username (public visitenkarte)
+router.get('/profile/:username', authenticateToken, async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const player = await db.get(`
+      SELECT 
+        u.id,
+        u.username,
+        u.avatar_path,
+        u.world_x,
+        u.world_y,
+        u.created_at,
+        u.last_login,
+        ps.level,
+        ps.experience,
+        ps.base_attack,
+        ps.base_defense,
+        ps.max_health,
+        ps.current_health,
+        ps.gold,
+        g.id as guild_id,
+        g.name as guild_name,
+        g.tag as guild_tag,
+        gm.role as guild_role
+      FROM users u
+      LEFT JOIN player_stats ps ON u.id = ps.user_id
+      LEFT JOIN guild_members gm ON u.id = gm.user_id
+      LEFT JOIN guilds g ON gm.guild_id = g.id
+      WHERE LOWER(u.username) = LOWER(?) 
+        AND u.is_activated = 1 
+        AND u.username != 'System'
+    `, [username]);
+
+    if (!player) {
+      return res.status(404).json({ error: 'Spieler nicht gefunden' });
+    }
+
+    // Count equipped items
+    const equippedCount = await db.get(`
+      SELECT COUNT(*) as count FROM user_equipment WHERE user_id = ? AND is_equipped = 1
+    `, [player.id]);
+
+    // Count monsters killed (wins in combat_log)
+    const monstersKilled = await db.get(`
+      SELECT COUNT(*) as count FROM combat_log WHERE attacker_id = ? AND winner = 'attacker'
+    `, [player.id]);
+
+    // Calculate total stats with equipment
+    const equipmentStats = await db.get(`
+      SELECT 
+        COALESCE(SUM(et.base_attack * ue.quality_bonus), 0) as total_attack,
+        COALESCE(SUM(et.base_defense * ue.quality_bonus), 0) as total_defense,
+        COALESCE(SUM(et.base_health * ue.quality_bonus), 0) as total_health
+      FROM user_equipment ue
+      JOIN equipment_types et ON ue.equipment_type_id = et.id
+      WHERE ue.user_id = ? AND ue.is_equipped = 1
+    `, [player.id]);
+
+    res.json({ 
+      player: {
+        ...player,
+        equipped_count: equippedCount?.count || 0,
+        monsters_killed: monstersKilled?.count || 0,
+        total_attack: (player.base_attack || 10) + Math.floor(equipmentStats?.total_attack || 0),
+        total_defense: (player.base_defense || 5) + Math.floor(equipmentStats?.total_defense || 0),
+        total_health: (player.max_health || 100) + Math.floor(equipmentStats?.total_health || 0)
+      }
+    });
+  } catch (error) {
+    console.error('Get player profile error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden des Profils' });
+  }
+});
+
+// Get single player profile by ID (public)
 router.get('/:playerId', authenticateToken, async (req, res) => {
   try {
     const { playerId } = req.params;
