@@ -366,11 +366,15 @@ function Map() {
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      
+      // Scale click coordinates to canvas size (CSS may scale the canvas)
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
 
-      const centerX = (canvas.width || 1000) / 2;
-      const centerY = (canvas.height || 700) / 2;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
       const scale = Math.max(0.1, Math.min(3, zoom));
 
       const worldX = viewCenter.x + (x - centerX) / scale;
@@ -378,10 +382,12 @@ function Map() {
 
       // Check if clicked on a player (larger click area)
       let clickedPlayer = null;
-      const clickRadius = 25 * Math.min(scale, 1.5); // Larger click area
+      const clickRadius = 30; // Fixed pixel radius for click detection
       if (players && Array.isArray(players)) {
         for (const player of players) {
           if (!player || player.world_x === undefined || player.world_y === undefined) continue;
+          if (player.world_x === 0 && player.world_y === 0) continue;
+          
           const px = centerX + (player.world_x - viewCenter.x) * scale;
           const py = centerY + (player.world_y - viewCenter.y) * scale;
           const distance = Math.sqrt(Math.pow(x - px, 2) + Math.pow(y - py, 2));
@@ -395,17 +401,21 @@ function Map() {
 
       if (clickedPlayer) {
         if (clickedPlayer.id === user?.id) {
+          // Clicked on yourself - deselect
           setSelectedPlayer(null);
           setActionMode(null);
         } else {
+          // Clicked on another player - select them
           setSelectedPlayer(clickedPlayer);
           setActionMode(null);
+          setTargetCoords(null);
         }
       } else if (actionMode === 'move') {
+        // In move mode - set target
         setTargetCoords({ x: Math.round(worldX), y: Math.round(worldY) });
       } else {
+        // Clicked on empty space - deselect
         setSelectedPlayer(null);
-        setActionMode(null);
       }
     } catch (error) {
       console.error('Error in handleCanvasClick:', error);
@@ -681,22 +691,48 @@ function Map() {
           </div>
         </div>
 
-        <div className="terrain-legend">
-          <div className="legend-item">
-            <div className="legend-color plains"></div>
-            <span>Wiese</span>
+        <div className="map-sidebar">
+          <div className="terrain-legend">
+            <div className="legend-item">
+              <div className="legend-color plains"></div>
+              <span>Wiese</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color forest"></div>
+              <span>Wald</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color water"></div>
+              <span>Wasser</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color mountain"></div>
+              <span>Berg</span>
+            </div>
           </div>
-          <div className="legend-item">
-            <div className="legend-color forest"></div>
-            <span>Wald</span>
-          </div>
-          <div className="legend-item">
-            <div className="legend-color water"></div>
-            <span>Wasser</span>
-          </div>
-          <div className="legend-item">
-            <div className="legend-color mountain"></div>
-            <span>Berg</span>
+
+          {/* Nearby Players List */}
+          <div className="nearby-players">
+            <h4>👥 Spieler in der Nähe</h4>
+            {nearbyPlayers.length === 0 ? (
+              <p className="no-players">Keine Spieler in der Nähe</p>
+            ) : (
+              <ul className="players-list">
+                {nearbyPlayers.map(player => (
+                  <li 
+                    key={player.id} 
+                    className={`player-list-item ${selectedPlayer?.id === player.id ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedPlayer(player);
+                      setActionMode(null);
+                    }}
+                  >
+                    <span className="player-name">{player.username}</span>
+                    <span className="player-distance">{Math.round(player.distance)} Einheiten</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
