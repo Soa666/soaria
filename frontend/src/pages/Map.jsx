@@ -759,11 +759,32 @@ function Map() {
           </div>
         )}
 
-        {actionMode === 'move' && !selectedPlayer && (
-          <div className="move-hint">
-            <p>Klicke auf die Karte, um ein Ziel zu wählen</p>
-            {targetCoords && (
-              <p>Ziel: ({targetCoords.x}, {targetCoords.y})</p>
+        {actionMode === 'move' && (
+          <div className="move-panel">
+            <h3>🚶 Bewegen</h3>
+            {!targetCoords ? (
+              <p>Klicke auf die Karte, um ein Ziel zu wählen</p>
+            ) : (
+              <>
+                <p>Ziel: ({targetCoords.x}, {targetCoords.y})</p>
+                {user?.world_x !== undefined && user?.world_y !== undefined && (
+                  <p>Entfernung: {Math.round(Math.sqrt(
+                    Math.pow(targetCoords.x - (user.world_x || 0), 2) +
+                    Math.pow(targetCoords.y - (user.world_y || 0), 2)
+                  ))} Einheiten</p>
+                )}
+                <div className="move-actions">
+                  <button className="btn btn-primary" onClick={handleMove}>
+                    ✓ Hierhin bewegen
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => {
+                    setTargetCoords(null);
+                    setActionMode(null);
+                  }}>
+                    ✗ Abbrechen
+                  </button>
+                </div>
+              </>
             )}
           </div>
         )}
