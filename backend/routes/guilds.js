@@ -104,6 +104,87 @@ router.get('/:guildId', authenticateToken, async (req, res) => {
   }
 });
 
+// Guild creation requirements (can be modified)
+const GUILD_CREATION_REQUIREMENTS = {
+  resources: [
+    { itemName: 'holz', quantity: 100 },
+    { itemName: 'stein', quantity: 50 },
+  ],
+  minBuildings: 2,  // At least 2 buildings built
+  minAccountAgeDays: 1, // Account must be at least 1 day old
+};
+
+// Get guild creation requirements (public)
+router.get('/requirements/create', authenticateToken, async (req, res) => {
+  try {
+    // Get item display names
+    const requirements = [];
+    for (const req_item of GUILD_CREATION_REQUIREMENTS.resources) {
+      const item = await db.get('SELECT id, display_name FROM items WHERE name = ?', [req_item.itemName]);
+      if (item) {
+        requirements.push({
+          item_id: item.id,
+          item_name: item.display_name,
+          quantity: req_item.quantity
+        });
+      }
+    }
+
+    // Check user's current status
+    const userId = req.user.id;
+    
+    // Check resources
+    const userResources = [];
+    for (const req_item of GUILD_CREATION_REQUIREMENTS.resources) {
+      const item = await db.get('SELECT id, display_name FROM items WHERE name = ?', [req_item.itemName]);
+      if (item) {
+        const inventory = await db.get(
+          'SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ?',
+          [userId, item.id]
+        );
+        userResources.push({
+          item_name: item.display_name,
+          required: req_item.quantity,
+          current: inventory?.quantity || 0,
+          fulfilled: (inventory?.quantity || 0) >= req_item.quantity
+        });
+      }
+    }
+
+    // Check buildings
+    const buildingsCount = await db.get(
+      'SELECT COUNT(*) as count FROM user_buildings WHERE user_id = ?',
+      [userId]
+    );
+
+    // Check account age
+    const user = await db.get('SELECT created_at FROM users WHERE id = ?', [userId]);
+    const accountAgeDays = user ? Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+    res.json({
+      requirements: {
+        resources: userResources,
+        minBuildings: {
+          required: GUILD_CREATION_REQUIREMENTS.minBuildings,
+          current: buildingsCount?.count || 0,
+          fulfilled: (buildingsCount?.count || 0) >= GUILD_CREATION_REQUIREMENTS.minBuildings
+        },
+        minAccountAge: {
+          required: GUILD_CREATION_REQUIREMENTS.minAccountAgeDays,
+          current: accountAgeDays,
+          fulfilled: accountAgeDays >= GUILD_CREATION_REQUIREMENTS.minAccountAgeDays
+        }
+      },
+      canCreate: userResources.every(r => r.fulfilled) && 
+                 (buildingsCount?.count || 0) >= GUILD_CREATION_REQUIREMENTS.minBuildings &&
+                 accountAgeDays >= GUILD_CREATION_REQUIREMENTS.minAccountAgeDays
+    });
+  } catch (error) {
+    console.error('Get guild requirements error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // Create a new guild
 router.post('/', authenticateToken, async (req, res) => {
   try {
@@ -115,6 +196,10 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (tag.length > 5) {
       return res.status(400).json({ error: 'Tag darf maximal 5 Zeichen haben' });
+    }
+
+    if (name.length < 3 || name.length > 30) {
+      return res.status(400).json({ error: 'Gildenname muss zwischen 3 und 30 Zeichen lang sein' });
     }
 
     // Check if user is already in a guild
@@ -135,6 +220,62 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (existingGuild) {
       return res.status(400).json({ error: 'Name oder Tag bereits vergeben' });
+    }
+
+    // === CHECK REQUIREMENTS ===
+    
+    // Check account age
+    const user = await db.get('SELECT created_at FROM users WHERE id = ?', [req.user.id]);
+    const accountAgeDays = user ? Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    if (accountAgeDays < GUILD_CREATION_REQUIREMENTS.minAccountAgeDays) {
+      return res.status(400).json({ 
+        error: `Dein Account muss mindestens ${GUILD_CREATION_REQUIREMENTS.minAccountAgeDays} Tag(e) alt sein` 
+      });
+    }
+
+    // Check buildings
+    const buildingsCount = await db.get(
+      'SELECT COUNT(*) as count FROM user_buildings WHERE user_id = ?',
+      [req.user.id]
+    );
+    if ((buildingsCount?.count || 0) < GUILD_CREATION_REQUIREMENTS.minBuildings) {
+      return res.status(400).json({ 
+        error: `Du brauchst mindestens ${GUILD_CREATION_REQUIREMENTS.minBuildings} Gebäude` 
+      });
+    }
+
+    // Check and deduct resources
+    for (const reqItem of GUILD_CREATION_REQUIREMENTS.resources) {
+      const item = await db.get('SELECT id, display_name FROM items WHERE name = ?', [reqItem.itemName]);
+      if (!item) continue;
+
+      const inventory = await db.get(
+        'SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ?',
+        [req.user.id, item.id]
+      );
+
+      if (!inventory || inventory.quantity < reqItem.quantity) {
+        return res.status(400).json({ 
+          error: `Du brauchst mindestens ${reqItem.quantity}x ${item.display_name}` 
+        });
+      }
+    }
+
+    // Deduct resources
+    for (const reqItem of GUILD_CREATION_REQUIREMENTS.resources) {
+      const item = await db.get('SELECT id FROM items WHERE name = ?', [reqItem.itemName]);
+      if (!item) continue;
+
+      await db.run(
+        'UPDATE user_inventory SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?',
+        [reqItem.quantity, req.user.id, item.id]
+      );
+
+      // Remove if quantity is 0
+      await db.run(
+        'DELETE FROM user_inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0',
+        [req.user.id, item.id]
+      );
     }
 
     // Create guild

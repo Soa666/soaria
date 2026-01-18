@@ -22,7 +22,9 @@ router.get('/', authenticateToken, async (req, res) => {
       FROM users u
       LEFT JOIN guild_members gm ON u.id = gm.user_id
       LEFT JOIN guilds g ON gm.guild_id = g.id
-      WHERE u.is_activated = 1
+      WHERE u.is_activated = 1 
+        AND u.username != 'System'
+        AND u.email NOT LIKE '%@soaria.local'
       ORDER BY u.username
     `);
 

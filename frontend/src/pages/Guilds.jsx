@@ -14,6 +14,7 @@ function Guilds() {
   const [createForm, setCreateForm] = useState({ name: '', tag: '', description: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [guildRequirements, setGuildRequirements] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -21,14 +22,16 @@ function Guilds() {
 
   const fetchData = async () => {
     try {
-      const [guildsRes, myGuildRes, applicationsRes] = await Promise.all([
+      const [guildsRes, myGuildRes, applicationsRes, requirementsRes] = await Promise.all([
         api.get('/guilds'),
         api.get('/guilds/my/guild'),
-        api.get('/guilds/my/applications')
+        api.get('/guilds/my/applications'),
+        api.get('/guilds/requirements/create')
       ]);
       setGuilds(guildsRes.data.guilds || []);
       setMyGuild(myGuildRes.data.guild);
       setMyApplications(applicationsRes.data.applications || []);
+      setGuildRequirements(requirementsRes.data);
     } catch (error) {
       console.error('Fehler beim Laden:', error);
     } finally {
@@ -151,42 +154,97 @@ function Guilds() {
 
         {/* Create Guild Form */}
         {showCreateForm && !myGuild && (
-          <form className="create-guild-form" onSubmit={handleCreateGuild}>
-            <h3>Neue Gilde gründen</h3>
-            <div className="form-group">
-              <label>Gildenname</label>
-              <input
-                type="text"
-                value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                placeholder="z.B. Die Drachenwächter"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Tag (max. 5 Zeichen)</label>
-              <input
-                type="text"
-                value={createForm.tag}
-                onChange={(e) => setCreateForm({ ...createForm, tag: e.target.value.toUpperCase().slice(0, 5) })}
-                placeholder="z.B. DW"
-                maxLength={5}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Beschreibung (optional)</label>
-              <textarea
-                value={createForm.description}
-                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                placeholder="Beschreibe deine Gilde..."
-                rows={3}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary">
-              Gilde gründen
-            </button>
-          </form>
+          <div className="create-guild-section">
+            {/* Requirements Display */}
+            {guildRequirements && (
+              <div className="guild-requirements">
+                <h4>📋 Voraussetzungen zum Gründen</h4>
+                
+                <div className="requirements-list">
+                  {/* Resources */}
+                  <div className="requirement-category">
+                    <h5>🎒 Benötigte Ressourcen (werden abgezogen)</h5>
+                    {guildRequirements.requirements.resources.map((res, idx) => (
+                      <div key={idx} className={`requirement-item ${res.fulfilled ? 'fulfilled' : 'missing'}`}>
+                        <span>{res.item_name}</span>
+                        <span className="requirement-values">
+                          {res.current} / {res.required}
+                          {res.fulfilled ? ' ✓' : ' ✗'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Buildings */}
+                  <div className={`requirement-item ${guildRequirements.requirements.minBuildings.fulfilled ? 'fulfilled' : 'missing'}`}>
+                    <span>🏠 Gebäude gebaut</span>
+                    <span className="requirement-values">
+                      {guildRequirements.requirements.minBuildings.current} / {guildRequirements.requirements.minBuildings.required}
+                      {guildRequirements.requirements.minBuildings.fulfilled ? ' ✓' : ' ✗'}
+                    </span>
+                  </div>
+
+                  {/* Account Age */}
+                  <div className={`requirement-item ${guildRequirements.requirements.minAccountAge.fulfilled ? 'fulfilled' : 'missing'}`}>
+                    <span>📅 Account-Alter (Tage)</span>
+                    <span className="requirement-values">
+                      {guildRequirements.requirements.minAccountAge.current} / {guildRequirements.requirements.minAccountAge.required}
+                      {guildRequirements.requirements.minAccountAge.fulfilled ? ' ✓' : ' ✗'}
+                    </span>
+                  </div>
+                </div>
+
+                {!guildRequirements.canCreate && (
+                  <div className="requirements-warning">
+                    ⚠️ Du erfüllst noch nicht alle Voraussetzungen
+                  </div>
+                )}
+              </div>
+            )}
+
+            <form className="create-guild-form" onSubmit={handleCreateGuild}>
+              <h3>Neue Gilde gründen</h3>
+              <div className="form-group">
+                <label>Gildenname (3-30 Zeichen)</label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  placeholder="z.B. Die Drachenwächter"
+                  minLength={3}
+                  maxLength={30}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Tag (max. 5 Zeichen)</label>
+                <input
+                  type="text"
+                  value={createForm.tag}
+                  onChange={(e) => setCreateForm({ ...createForm, tag: e.target.value.toUpperCase().slice(0, 5) })}
+                  placeholder="z.B. DW"
+                  maxLength={5}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Beschreibung (optional)</label>
+                <textarea
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                  placeholder="Beschreibe deine Gilde..."
+                  rows={3}
+                />
+              </div>
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={guildRequirements && !guildRequirements.canCreate}
+              >
+                🏰 Gilde gründen
+              </button>
+            </form>
+          </div>
         )}
 
         {/* Search */}
