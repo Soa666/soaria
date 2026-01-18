@@ -351,6 +351,71 @@ export async function initDatabase() {
   // Insert default buildings
   await insertDefaultBuildings();
 
+  // Guilds table (Gilden)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS guilds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      tag TEXT UNIQUE NOT NULL,
+      description TEXT,
+      leader_id INTEGER NOT NULL,
+      icon_path TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (leader_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Guild members (Gildenmitglieder)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS guild_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      role TEXT DEFAULT 'member' CHECK(role IN ('leader', 'officer', 'member')),
+      joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id)
+    )
+  `);
+
+  // Guild applications (Gildenbewerbungen)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS guild_applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      message TEXT,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'rejected')),
+      reviewed_by INTEGER,
+      reviewed_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+      UNIQUE(guild_id, user_id)
+    )
+  `);
+
+  // Guild pacts (Nichtangriffspakte zwischen Gilden)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS guild_pacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_1_id INTEGER NOT NULL,
+      guild_2_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'active', 'rejected', 'cancelled')),
+      requested_by INTEGER NOT NULL,
+      responded_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      responded_at DATETIME,
+      FOREIGN KEY (guild_1_id) REFERENCES guilds(id) ON DELETE CASCADE,
+      FOREIGN KEY (guild_2_id) REFERENCES guilds(id) ON DELETE CASCADE,
+      FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (responded_by) REFERENCES users(id) ON DELETE SET NULL,
+      UNIQUE(guild_1_id, guild_2_id)
+    )
+  `);
+
   // Email templates table
   await db.run(`
     CREATE TABLE IF NOT EXISTS email_templates (

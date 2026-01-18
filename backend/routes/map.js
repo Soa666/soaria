@@ -179,6 +179,37 @@ router.post('/attack', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Ziel ist zu weit entfernt (Max: 100 Einheiten)' });
     }
 
+    // Check for guild pact (non-aggression pact)
+    const attackerGuild = await db.get(
+      'SELECT guild_id FROM guild_members WHERE user_id = ?',
+      [req.user.id]
+    );
+    const targetGuild = await db.get(
+      'SELECT guild_id FROM guild_members WHERE user_id = ?',
+      [target_user_id]
+    );
+
+    // If both are in guilds, check for pact
+    if (attackerGuild && targetGuild) {
+      // Same guild - can't attack
+      if (attackerGuild.guild_id === targetGuild.guild_id) {
+        return res.status(400).json({ error: 'Du kannst keine Gildenmitglieder angreifen!' });
+      }
+
+      // Check for active pact between guilds
+      const pact = await db.get(`
+        SELECT id FROM guild_pacts 
+        WHERE ((guild_1_id = ? AND guild_2_id = ?) OR (guild_1_id = ? AND guild_2_id = ?))
+          AND status = 'active'
+      `, [attackerGuild.guild_id, targetGuild.guild_id, targetGuild.guild_id, attackerGuild.guild_id]);
+
+      if (pact) {
+        return res.status(400).json({ 
+          error: 'Ein Nichtangriffspakt verhindert den Angriff! Eure Gilden haben einen aktiven Pakt.' 
+        });
+      }
+    }
+
     // Simple attack system - steal random items
     const targetInventory = await db.all(`
       SELECT ui.item_id, ui.quantity, i.display_name, i.name

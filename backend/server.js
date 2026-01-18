@@ -14,6 +14,8 @@ import filesRoutes from './routes/files.js';
 import buildingsRoutes from './routes/buildings.js';
 import buildingsAdminRoutes from './routes/buildingsAdmin.js';
 import mapRoutes from './routes/map.js';
+import guildsRoutes from './routes/guilds.js';
+import playersRoutes from './routes/players.js';
 
 dotenv.config();
 
@@ -45,6 +47,8 @@ app.use('/api/files', filesRoutes);
 app.use('/api/buildings', buildingsRoutes);
 app.use('/api/admin/buildings', buildingsAdminRoutes);
 app.use('/api/map', mapRoutes);
+app.use('/api/guilds', guildsRoutes);
+app.use('/api/players', playersRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

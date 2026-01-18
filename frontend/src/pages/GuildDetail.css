@@ -1,0 +1,359 @@
+.guild-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #5a4a2a;
+}
+
+.guild-info h1 {
+  margin: 0 0 0.5rem 0;
+}
+
+.guild-info .guild-tag {
+  color: #d4af37;
+}
+
+.guild-info .guild-description {
+  color: #a89060;
+  margin: 0.5rem 0;
+}
+
+.guild-stats {
+  display: flex;
+  gap: 1.5rem;
+  color: #8b7a5a;
+  font-size: 0.9rem;
+}
+
+.guild-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Tabs */
+.guild-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #5a4a2a;
+  padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  color: #8b7a5a;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s;
+  font-size: 0.95rem;
+}
+
+.tab:hover {
+  color: #d4af37;
+}
+
+.tab.active {
+  color: #d4af37;
+  border-bottom-color: #d4af37;
+}
+
+.tab .badge {
+  background: #ff5722;
+  color: white;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+.tab-content {
+  min-height: 300px;
+}
+
+/* Members */
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.member-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(30, 20, 40, 0.5);
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+}
+
+.member-card.role-leader {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.member-card.role-officer {
+  border-color: #8b6914;
+}
+
+.member-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #5a4a2a;
+  flex-shrink: 0;
+}
+
+.avatar-sprite {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.member-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.member-name {
+  color: #e8dcc0;
+  font-weight: 600;
+}
+
+.member-role {
+  font-size: 0.85rem;
+}
+
+.member-role.role-leader {
+  color: #d4af37;
+}
+
+.member-role.role-officer {
+  color: #a67c00;
+}
+
+.member-role.role-member {
+  color: #8b7a5a;
+}
+
+.member-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Pacts */
+.pacts-section h3 {
+  color: #d4af37;
+  margin: 1.5rem 0 1rem 0;
+}
+
+.pacts-section h3:first-child {
+  margin-top: 0;
+}
+
+.incoming-pacts {
+  background: rgba(255, 152, 0, 0.1);
+  border: 2px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.incoming-pacts h3 {
+  color: #ff9800;
+  margin: 0 0 1rem 0;
+}
+
+.pact-request {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  flex-wrap: wrap;
+}
+
+.requested-by {
+  color: #8b7a5a;
+  font-size: 0.85rem;
+}
+
+.pact-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.pacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pact-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(76, 175, 80, 0.1);
+  border: 2px solid rgba(76, 175, 80, 0.3);
+  border-radius: 8px;
+}
+
+.pact-guild {
+  flex: 1;
+  color: #e8dcc0;
+}
+
+.pact-status {
+  color: #4caf50;
+}
+
+.no-pacts {
+  color: #8b7a5a;
+  font-style: italic;
+}
+
+.request-pact {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #5a4a2a;
+}
+
+.guilds-for-pact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pact-target {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(30, 20, 40, 0.5);
+  border-radius: 6px;
+}
+
+/* Applications */
+.applications-section h3 {
+  color: #d4af37;
+  margin: 0 0 1rem 0;
+}
+
+.no-applications {
+  color: #8b7a5a;
+  font-style: italic;
+}
+
+.applications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.application-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(30, 20, 40, 0.5);
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.applicant-info {
+  flex: 1;
+}
+
+.applicant-name {
+  display: block;
+  color: #e8dcc0;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.applicant-date {
+  display: block;
+  color: #8b7a5a;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.applicant-message {
+  color: #a89060;
+  font-style: italic;
+  margin: 0.5rem 0 0 0;
+}
+
+.application-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Management */
+.management-section h3 {
+  color: #d4af37;
+  margin: 0 0 0.5rem 0;
+}
+
+.warning-text {
+  color: #ff9800;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.transfer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.transfer-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(30, 20, 40, 0.5);
+  border-radius: 6px;
+}
+
+/* Buttons */
+.btn-success {
+  background: linear-gradient(145deg, #4caf50, #388e3c);
+  color: white;
+}
+
+.btn-success:hover {
+  background: linear-gradient(145deg, #66bb6a, #43a047);
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 2rem;
+  color: #8b7a5a;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: #d4af37;
+}

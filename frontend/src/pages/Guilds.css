@@ -1,0 +1,240 @@
+.my-guild-box {
+  background: linear-gradient(145deg, rgba(212, 175, 55, 0.1), rgba(139, 105, 20, 0.1));
+  border: 2px solid #8b6914;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.my-guild-box h3 {
+  margin: 0 0 0.5rem 0;
+  color: #d4af37;
+  font-size: 0.9rem;
+}
+
+.my-guild-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #e8dcc0;
+  text-decoration: none;
+  font-size: 1.1rem;
+}
+
+.my-guild-link:hover {
+  color: #d4af37;
+}
+
+.no-guild-box {
+  background: rgba(30, 20, 40, 0.5);
+  border: 2px dashed #5a4a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.no-guild-box p {
+  margin: 0 0 1rem 0;
+  color: #8b7a5a;
+}
+
+.pending-applications {
+  background: rgba(255, 152, 0, 0.1);
+  border: 2px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pending-applications h3 {
+  margin: 0 0 0.75rem 0;
+  color: #ff9800;
+  font-size: 0.9rem;
+}
+
+.application-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 152, 0, 0.2);
+}
+
+.application-item:last-child {
+  border-bottom: none;
+}
+
+.status-pending {
+  color: #ff9800;
+  font-size: 0.85rem;
+}
+
+.create-guild-form {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.9), rgba(20, 15, 30, 0.9));
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.create-guild-form h3 {
+  margin: 0 0 1rem 0;
+  color: #d4af37;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #a89060;
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 2px solid #5a4a2a;
+  border-radius: 6px;
+  background: rgba(20, 15, 30, 0.8);
+  color: #e8dcc0;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #d4af37;
+}
+
+.search-bar {
+  margin-bottom: 1.5rem;
+}
+
+.search-bar input {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  background: rgba(20, 15, 30, 0.8);
+  color: #e8dcc0;
+}
+
+.search-bar input::placeholder {
+  color: #8b7a5a;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: #d4af37;
+}
+
+.guilds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.guild-card {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.9), rgba(20, 15, 30, 0.9));
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.3s;
+}
+
+.guild-card:hover {
+  border-color: #8b6914;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.guild-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.guild-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  font-size: 1.1rem;
+}
+
+.guild-title:hover .guild-name {
+  color: #d4af37;
+}
+
+.guild-tag {
+  color: #d4af37;
+  font-weight: bold;
+}
+
+.guild-name {
+  color: #e8dcc0;
+  transition: color 0.3s;
+}
+
+.member-count {
+  color: #8b7a5a;
+  font-size: 0.9rem;
+}
+
+.guild-description {
+  color: #a89060;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  line-height: 1.4;
+}
+
+.guild-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(90, 74, 42, 0.5);
+}
+
+.guild-leader {
+  color: #8b7a5a;
+  font-size: 0.85rem;
+}
+
+.already-applied {
+  color: #ff9800;
+  font-size: 0.85rem;
+}
+
+.role-badge {
+  background: rgba(212, 175, 55, 0.2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #d4af37;
+}
+
+.no-results {
+  text-align: center;
+  padding: 2rem;
+  color: #8b7a5a;
+  font-style: italic;
+}
+
+.btn-primary {
+  background: linear-gradient(145deg, #8b6914, #a67c00);
+  color: #1a1a2e;
+  font-weight: bold;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(145deg, #a67c00, #d4af37);
+}

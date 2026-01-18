@@ -13,6 +13,9 @@ import Admin from './pages/Admin';
 import Grundstueck from './pages/Grundstueck';
 import Map from './pages/Map';
 import Activate from './pages/Activate';
+import Players from './pages/Players';
+import Guilds from './pages/Guilds';
+import GuildDetail from './pages/GuildDetail';
 import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
@@ -108,6 +111,30 @@ function AppRoutes() {
               <ErrorBoundary>
                 <Map />
               </ErrorBoundary>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/players"
+          element={
+            <ProtectedRoute>
+              <Players />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/guilds"
+          element={
+            <ProtectedRoute>
+              <Guilds />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/guilds/:guildId"
+          element={
+            <ProtectedRoute>
+              <GuildDetail />
             </ProtectedRoute>
           }
         />
