@@ -413,22 +413,142 @@ router.get('/recipes', authenticateToken, async (req, res) => {
   }
 });
 
-// Craft equipment
+// Helper: Check if user is at home
+async function isUserAtHome(userId) {
+  const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
+  const homeX = user.home_x ?? 0;
+  const homeY = user.home_y ?? 0;
+  const distance = Math.sqrt(
+    Math.pow((user.world_x || 0) - homeX, 2) + 
+    Math.pow((user.world_y || 0) - homeY, 2)
+  );
+  return distance <= 50;
+}
+
+// Helper: Calculate quality based on profession level and forge level
+function calculateQuality(professionLevel, forgeLevel) {
+  const skillBonus = professionLevel * 5;
+  const forgeBonus = forgeLevel * 10;
+  const totalBonus = skillBonus + forgeBonus;
+  
+  const roll = Math.random() * 100;
+  
+  if (roll < 2 + totalBonus * 0.02) return 'legendary';
+  else if (roll < 8 + totalBonus * 0.1) return 'masterwork';
+  else if (roll < 20 + totalBonus * 0.2) return 'excellent';
+  else if (roll < 40 + totalBonus * 0.3) return 'good';
+  else if (roll < 70) return 'normal';
+  else return 'poor';
+}
+
+// Get active crafting job
+router.get('/crafting', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const job = await db.get(`
+      SELECT 
+        cj.*,
+        er.experience_reward,
+        er.profession,
+        et.display_name,
+        et.image_path,
+        et.slot
+      FROM crafting_jobs cj
+      JOIN equipment_recipes er ON cj.recipe_id = er.id
+      JOIN equipment_types et ON er.equipment_type_id = et.id
+      WHERE cj.user_id = ? AND cj.is_completed = 0
+    `, [userId]);
+    
+    if (!job) {
+      return res.json({ crafting: null });
+    }
+    
+    // Check if user is at home to determine pause state
+    const atHome = await isUserAtHome(userId);
+    const now = new Date();
+    
+    if (job.paused_at && atHome) {
+      // User returned home - resume crafting
+      const remainingMs = job.remaining_seconds * 1000;
+      const newFinishAt = new Date(now.getTime() + remainingMs);
+      
+      await db.run(`
+        UPDATE crafting_jobs 
+        SET paused_at = NULL, remaining_seconds = NULL, finish_at = ?
+        WHERE id = ?
+      `, [newFinishAt.toISOString(), job.id]);
+      
+      job.paused_at = null;
+      job.finish_at = newFinishAt.toISOString();
+    } else if (!job.paused_at && !atHome) {
+      // User left home - pause crafting
+      const finishAt = new Date(job.finish_at);
+      const remainingMs = Math.max(0, finishAt.getTime() - now.getTime());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      
+      await db.run(`
+        UPDATE crafting_jobs 
+        SET paused_at = ?, remaining_seconds = ?
+        WHERE id = ?
+      `, [now.toISOString(), remainingSeconds, job.id]);
+      
+      job.paused_at = now.toISOString();
+      job.remaining_seconds = remainingSeconds;
+    }
+    
+    // Calculate remaining time
+    let remainingSeconds;
+    if (job.paused_at) {
+      remainingSeconds = job.remaining_seconds;
+    } else {
+      const finishAt = new Date(job.finish_at);
+      remainingSeconds = Math.max(0, Math.ceil((finishAt.getTime() - now.getTime()) / 1000));
+    }
+    
+    // Check if finished
+    if (remainingSeconds <= 0 && !job.paused_at) {
+      return res.json({ 
+        crafting: { ...job, is_ready: true, remaining_seconds: 0 }
+      });
+    }
+    
+    res.json({ 
+      crafting: {
+        ...job,
+        remaining_seconds: remainingSeconds,
+        is_paused: !!job.paused_at,
+        is_ready: false
+      }
+    });
+  } catch (error) {
+    console.error('Get crafting job error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Start crafting (creates a timed job)
 router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const { recipeId } = req.params;
 
-    // Check if player is at home
-    const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
-    const homeX = user.home_x ?? 0;
-    const homeY = user.home_y ?? 0;
-    const distance = Math.sqrt(
-      Math.pow((user.world_x || 0) - homeX, 2) + 
-      Math.pow((user.world_y || 0) - homeY, 2)
+    // Check if already crafting
+    const existingJob = await db.get(
+      'SELECT id FROM crafting_jobs WHERE user_id = ? AND is_completed = 0',
+      [userId]
     );
     
-    if (distance > 50) {
+    if (existingJob) {
+      return res.status(400).json({ 
+        error: 'Du stellst bereits etwas her! Warte bis es fertig ist.',
+        alreadyCrafting: true
+      });
+    }
+
+    // Check if player is at home
+    const atHome = await isUserAtHome(userId);
+    if (!atHome) {
       return res.status(400).json({ 
         error: 'Du musst zu Hause sein um Ausrüstung zu schmieden!',
         notAtHome: true
@@ -454,7 +574,6 @@ router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
     );
 
     if (!professionStats) {
-      // Create profession stats if not exist
       await db.run(`
         INSERT INTO profession_stats (user_id, profession, level, experience)
         VALUES (?, ?, 1, 0)
@@ -467,15 +586,6 @@ router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
         error: `Du brauchst ${recipe.profession === 'blacksmith' ? 'Schmied' : recipe.profession} Level ${recipe.required_profession_level}` 
       });
     }
-
-    // Get user's forge level for quality bonus
-    const forge = await db.get(`
-      SELECT ub.level 
-      FROM user_buildings ub
-      JOIN buildings b ON ub.building_id = b.id
-      WHERE ub.user_id = ? AND b.name = 'schmiede'
-    `, [userId]);
-    const forgeLevel = forge?.level || 1;
 
     // Check materials
     const materials = await db.all(`
@@ -504,38 +614,105 @@ router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
         UPDATE user_inventory SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?
       `, [mat.quantity, userId, mat.item_id]);
     }
-
-    // Clean up empty inventory slots
     await db.run('DELETE FROM user_inventory WHERE quantity <= 0');
 
-    // Calculate quality based on profession level and forge level
-    // Higher skill = better chance for higher quality
-    const skillBonus = professionStats.level * 5; // 5% per profession level
-    const forgeBonus = forgeLevel * 10; // 10% per forge level
-    const totalBonus = skillBonus + forgeBonus;
+    // Get forge level for quality calculation
+    const forge = await db.get(`
+      SELECT ub.level 
+      FROM user_buildings ub
+      JOIN buildings b ON ub.building_id = b.id
+      WHERE ub.user_id = ? AND b.name = 'schmiede'
+    `, [userId]);
+    const forgeLevel = forge?.level || 1;
+
+    // Pre-calculate quality (determined at start)
+    const quality = calculateQuality(professionStats.level, forgeLevel);
+
+    // Calculate craft time (base time from recipe, reduced by profession level)
+    const baseCraftTime = recipe.craft_time || 60; // seconds
+    const timeReduction = Math.min(0.5, professionStats.level * 0.02); // Up to 50% reduction
+    const actualCraftTime = Math.ceil(baseCraftTime * (1 - timeReduction));
+
+    const now = new Date();
+    const finishAt = new Date(now.getTime() + actualCraftTime * 1000);
+
+    // Create crafting job
+    await db.run(`
+      INSERT INTO crafting_jobs (user_id, recipe_id, quality, started_at, finish_at)
+      VALUES (?, ?, ?, ?, ?)
+    `, [userId, recipeId, quality, now.toISOString(), finishAt.toISOString()]);
+
+    res.json({
+      message: `Herstellung von ${recipe.display_name} gestartet!`,
+      craft_time: actualCraftTime,
+      finish_at: finishAt.toISOString(),
+      quality_preview: QUALITY_NAMES[quality] // Show quality preview
+    });
+  } catch (error) {
+    console.error('Start craft error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Starten der Herstellung' });
+  }
+});
+
+// Collect finished crafted item
+router.post('/craft/collect', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Get the active job
+    const job = await db.get(`
+      SELECT 
+        cj.*,
+        er.experience_reward,
+        er.profession,
+        er.equipment_type_id,
+        et.display_name
+      FROM crafting_jobs cj
+      JOIN equipment_recipes er ON cj.recipe_id = er.id
+      JOIN equipment_types et ON er.equipment_type_id = et.id
+      WHERE cj.user_id = ? AND cj.is_completed = 0
+    `, [userId]);
+
+    if (!job) {
+      return res.status(404).json({ error: 'Kein aktiver Herstellungsauftrag' });
+    }
+
+    // Check if finished (and not paused)
+    if (job.paused_at) {
+      return res.status(400).json({ 
+        error: 'Herstellung ist pausiert. Geh nach Hause um fortzufahren!',
+        isPaused: true
+      });
+    }
+
+    const now = new Date();
+    const finishAt = new Date(job.finish_at);
     
-    const roll = Math.random() * 100;
-    let quality = 'normal';
-    
-    // Quality chances (base + bonus)
-    if (roll < 2 + totalBonus * 0.02) quality = 'legendary';      // ~2% base
-    else if (roll < 8 + totalBonus * 0.1) quality = 'masterwork'; // ~8% base
-    else if (roll < 20 + totalBonus * 0.2) quality = 'excellent'; // ~20% base
-    else if (roll < 40 + totalBonus * 0.3) quality = 'good';      // ~40% base
-    else if (roll < 70) quality = 'normal';                        // ~30% base
-    else quality = 'poor';                                         // ~30% base (decreases with skill)
+    if (now < finishAt) {
+      const remainingSeconds = Math.ceil((finishAt.getTime() - now.getTime()) / 1000);
+      return res.status(400).json({ 
+        error: `Noch nicht fertig! Noch ${remainingSeconds} Sekunden.`,
+        notReady: true,
+        remaining_seconds: remainingSeconds
+      });
+    }
 
     // Create the equipment
     await db.run(`
       INSERT INTO user_equipment (user_id, equipment_type_id, quality, quality_bonus)
       VALUES (?, ?, ?, ?)
-    `, [userId, recipe.equipment_type_id, quality, QUALITY_MULTIPLIERS[quality]]);
+    `, [userId, job.equipment_type_id, job.quality, QUALITY_MULTIPLIERS[job.quality]]);
 
     // Award profession experience
-    let newExp = professionStats.experience + recipe.experience_reward;
-    let newLevel = professionStats.level;
+    let professionStats = await db.get(
+      'SELECT * FROM profession_stats WHERE user_id = ? AND profession = ?',
+      [userId, job.profession]
+    );
+
+    let newExp = (professionStats?.experience || 0) + job.experience_reward;
+    let newLevel = professionStats?.level || 1;
     let leveledUp = false;
-    const expForNextLevel = professionStats.level * 100;
+    const expForNextLevel = newLevel * 100;
 
     if (newExp >= expForNextLevel) {
       newLevel++;
@@ -545,22 +722,52 @@ router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
 
     await db.run(`
       UPDATE profession_stats SET level = ?, experience = ? WHERE user_id = ? AND profession = ?
-    `, [newLevel, newExp, userId, recipe.profession]);
+    `, [newLevel, newExp, userId, job.profession]);
+
+    // Mark job as completed
+    await db.run('UPDATE crafting_jobs SET is_completed = 1 WHERE id = ?', [job.id]);
 
     res.json({
-      message: `${recipe.display_name} (${QUALITY_NAMES[quality]}) hergestellt!`,
-      quality,
-      quality_name: QUALITY_NAMES[quality],
-      quality_color: QUALITY_COLORS[quality],
-      quality_multiplier: QUALITY_MULTIPLIERS[quality],
-      experience_gained: recipe.experience_reward,
+      message: `${job.display_name} (${QUALITY_NAMES[job.quality]}) hergestellt!`,
+      quality: job.quality,
+      quality_name: QUALITY_NAMES[job.quality],
+      quality_color: QUALITY_COLORS[job.quality],
+      experience_gained: job.experience_reward,
       profession_level: newLevel,
       profession_exp: newExp,
       leveled_up: leveledUp
     });
   } catch (error) {
-    console.error('Craft equipment error:', error);
-    res.status(500).json({ error: 'Serverfehler beim Herstellen' });
+    console.error('Collect craft error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Abholen' });
+  }
+});
+
+// Cancel crafting (lose materials)
+router.delete('/craft/cancel', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const job = await db.get(`
+      SELECT cj.*, et.display_name
+      FROM crafting_jobs cj
+      JOIN equipment_recipes er ON cj.recipe_id = er.id
+      JOIN equipment_types et ON er.equipment_type_id = et.id
+      WHERE cj.user_id = ? AND cj.is_completed = 0
+    `, [userId]);
+
+    if (!job) {
+      return res.status(404).json({ error: 'Kein aktiver Herstellungsauftrag' });
+    }
+
+    await db.run('DELETE FROM crafting_jobs WHERE id = ?', [job.id]);
+
+    res.json({ 
+      message: `Herstellung von ${job.display_name} abgebrochen. Materialien sind verloren!` 
+    });
+  } catch (error) {
+    console.error('Cancel craft error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Abbrechen' });
   }
 });
 

@@ -34,6 +34,8 @@ function Grundstueck() {
   const [showSmithyView, setShowSmithyView] = useState(false);
   const [smithyTab, setSmithyTab] = useState('weapon');
   const [craftingMessage, setCraftingMessage] = useState(null);
+  const [craftingJob, setCraftingJob] = useState(null);
+  const [craftingTimeLeft, setCraftingTimeLeft] = useState(0);
 
   useEffect(() => {
     fetchBuildings();
@@ -44,8 +46,12 @@ function Grundstueck() {
     fetchPlayerStats();
     fetchEquipmentRecipes();
     fetchProfessions();
+    fetchCraftingJob();
     // Poll job status every 5 seconds
-    const interval = setInterval(fetchJobStatus, 5000);
+    const interval = setInterval(() => {
+      fetchJobStatus();
+      fetchCraftingJob();
+    }, 5000);
     
     return () => {
       clearInterval(interval);
@@ -118,9 +124,51 @@ function Grundstueck() {
     }
   };
 
-  const craftEquipment = async (recipeId) => {
+  const fetchCraftingJob = async () => {
+    try {
+      const response = await api.get('/equipment/crafting');
+      setCraftingJob(response.data.crafting);
+      if (response.data.crafting) {
+        setCraftingTimeLeft(response.data.crafting.remaining_seconds || 0);
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden des Crafting-Status:', error);
+    }
+  };
+
+  // Countdown timer for crafting
+  useEffect(() => {
+    if (craftingJob && !craftingJob.is_paused && !craftingJob.is_ready && craftingTimeLeft > 0) {
+      const timer = setInterval(() => {
+        setCraftingTimeLeft(prev => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [craftingJob, craftingTimeLeft]);
+
+  const startCrafting = async (recipeId) => {
     try {
       const response = await api.post(`/equipment/craft/${recipeId}`);
+      setCraftingMessage({
+        type: 'success',
+        text: response.data.message
+      });
+      fetchCraftingJob();
+      fetchInventory();
+      fetchEquipmentRecipes();
+      setTimeout(() => setCraftingMessage(null), 3000);
+    } catch (error) {
+      setCraftingMessage({
+        type: 'error',
+        text: error.response?.data?.error || 'Fehler beim Starten'
+      });
+      setTimeout(() => setCraftingMessage(null), 4000);
+    }
+  };
+
+  const collectCrafting = async () => {
+    try {
+      const response = await api.post('/equipment/craft/collect');
       setCraftingMessage({
         type: 'success',
         text: response.data.message,
@@ -129,6 +177,8 @@ function Grundstueck() {
         leveled_up: response.data.leveled_up,
         new_level: response.data.profession_level
       });
+      setCraftingJob(null);
+      fetchCraftingJob();
       fetchInventory();
       fetchEquipmentRecipes();
       fetchProfessions();
@@ -136,10 +186,34 @@ function Grundstueck() {
     } catch (error) {
       setCraftingMessage({
         type: 'error',
-        text: error.response?.data?.error || 'Fehler beim Herstellen'
+        text: error.response?.data?.error || 'Fehler beim Abholen'
       });
       setTimeout(() => setCraftingMessage(null), 4000);
     }
+  };
+
+  const cancelCrafting = async () => {
+    if (!window.confirm('Herstellung wirklich abbrechen? Die Materialien gehen verloren!')) return;
+    try {
+      await api.delete('/equipment/craft/cancel');
+      setCraftingJob(null);
+      setCraftingMessage({
+        type: 'info',
+        text: 'Herstellung abgebrochen'
+      });
+      setTimeout(() => setCraftingMessage(null), 3000);
+    } catch (error) {
+      setCraftingMessage({
+        type: 'error',
+        text: error.response?.data?.error || 'Fehler beim Abbrechen'
+      });
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const canCraftRecipe = (recipe) => {
@@ -322,7 +396,47 @@ function Grundstueck() {
             </div>
           )}
 
-          {!isAtHome && (
+          {/* Active Crafting Job */}
+          {craftingJob && (
+            <div className={`crafting-job-status ${craftingJob.is_paused ? 'paused' : craftingJob.is_ready || craftingTimeLeft <= 0 ? 'ready' : 'active'}`}>
+              <div className="crafting-job-header">
+                <span className="crafting-icon">{craftingJob.is_paused ? '⏸️' : craftingJob.is_ready || craftingTimeLeft <= 0 ? '✅' : '⚒️'}</span>
+                <span className="crafting-item-name">{craftingJob.display_name}</span>
+              </div>
+              
+              {craftingJob.is_paused ? (
+                <div className="crafting-paused">
+                  <p>⚠️ Herstellung pausiert! Geh nach Hause um fortzufahren.</p>
+                  <p className="paused-time">Verbleibend: {formatTime(craftingJob.remaining_seconds)}</p>
+                </div>
+              ) : craftingJob.is_ready || craftingTimeLeft <= 0 ? (
+                <div className="crafting-ready">
+                  <p>🎉 Fertig! Klicke um abzuholen.</p>
+                  <button className="btn btn-collect" onClick={collectCrafting}>
+                    ✨ Abholen
+                  </button>
+                </div>
+              ) : (
+                <div className="crafting-progress">
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill"
+                      style={{ 
+                        width: `${Math.max(0, 100 - (craftingTimeLeft / ((new Date(craftingJob.finish_at) - new Date(craftingJob.started_at)) / 1000)) * 100)}%` 
+                      }}
+                    />
+                  </div>
+                  <span className="time-left">⏱️ {formatTime(craftingTimeLeft)}</span>
+                </div>
+              )}
+              
+              <button className="btn btn-cancel-craft" onClick={cancelCrafting}>
+                ✖️ Abbrechen
+              </button>
+            </div>
+          )}
+
+          {!isAtHome && !craftingJob && (
             <div className="smithy-warning">
               ⚠️ Du musst zu Hause sein um zu schmieden! <Link to="/map">Zur Karte</Link>
             </div>
@@ -395,13 +509,18 @@ function Grundstueck() {
                         </div>
                       </div>
                       
-                      <button 
-                        className="btn btn-craft"
-                        onClick={() => craftEquipment(recipe.id)}
-                        disabled={!canCraft || !isAtHome}
-                      >
-                        {!isAtHome ? '🏠' : canCraft ? '⚒️ Herstellen' : '❌'}
-                      </button>
+                      <div className="recipe-craft-area">
+                        {recipe.craft_time && (
+                          <span className="craft-time">⏱️ {formatTime(recipe.craft_time || 60)}</span>
+                        )}
+                        <button 
+                          className="btn btn-craft"
+                          onClick={() => startCrafting(recipe.id)}
+                          disabled={!canCraft || !isAtHome || !!craftingJob}
+                        >
+                          {craftingJob ? '⏳' : !isAtHome ? '🏠' : canCraft ? '⚒️ Herstellen' : '❌'}
+                        </button>
+                      </div>
                     </div>
                   );
                 })

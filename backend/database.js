@@ -750,7 +750,32 @@ export async function initDatabase() {
       profession TEXT NOT NULL,
       required_profession_level INTEGER DEFAULT 1,
       experience_reward INTEGER DEFAULT 10,
+      craft_time INTEGER DEFAULT 60,
       FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Add craft_time column if not exists
+  try {
+    await db.run('ALTER TABLE equipment_recipes ADD COLUMN craft_time INTEGER DEFAULT 60');
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Active crafting jobs
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS crafting_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      recipe_id INTEGER NOT NULL,
+      quality TEXT DEFAULT 'normal',
+      started_at DATETIME NOT NULL,
+      finish_at DATETIME NOT NULL,
+      paused_at DATETIME,
+      remaining_seconds INTEGER,
+      is_completed INTEGER DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (recipe_id) REFERENCES equipment_recipes(id) ON DELETE CASCADE
     )
   `);
 
@@ -1171,10 +1196,13 @@ async function insertDefaultEquipment() {
     const existingRecipe = await db.get('SELECT id FROM equipment_recipes WHERE equipment_type_id = ?', [equipment.id]);
     if (existingRecipe) continue;
 
+    // Craft time based on item rarity/level (in seconds)
+    const craftTime = Math.max(30, recipe.level * 15 + (recipe.exp / 2));
+    
     const recipeResult = await db.run(`
-      INSERT INTO equipment_recipes (equipment_type_id, profession, required_profession_level, experience_reward)
-      VALUES (?, ?, ?, ?)
-    `, [equipment.id, recipe.profession, recipe.level, recipe.exp]);
+      INSERT INTO equipment_recipes (equipment_type_id, profession, required_profession_level, experience_reward, craft_time)
+      VALUES (?, ?, ?, ?, ?)
+    `, [equipment.id, recipe.profession, recipe.level, recipe.exp, craftTime]);
 
     // Add materials
     for (const mat of recipe.materials) {

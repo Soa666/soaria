@@ -849,6 +849,158 @@
   margin-left: 0.5rem;
 }
 
+/* Crafting Job Status */
+.crafting-job-status {
+  padding: 1.25rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.crafting-job-status.active {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.1));
+  border: 2px solid #3498db;
+  animation: craftingPulse 2s ease-in-out infinite;
+}
+
+.crafting-job-status.paused {
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.2), rgba(211, 84, 0, 0.1));
+  border: 2px solid #f39c12;
+}
+
+.crafting-job-status.ready {
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.2), rgba(30, 132, 73, 0.1));
+  border: 2px solid #27ae60;
+  animation: readyGlow 1s ease-in-out infinite;
+}
+
+@keyframes craftingPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(52, 152, 219, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(52, 152, 219, 0.6); }
+}
+
+@keyframes readyGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(39, 174, 96, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(39, 174, 96, 0.8); }
+}
+
+.crafting-job-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.crafting-icon {
+  font-size: 1.5rem;
+}
+
+.crafting-item-name {
+  color: #d4af37;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.crafting-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.crafting-progress .progress-bar {
+  flex: 1;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #5a4a2a;
+}
+
+.crafting-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #2ecc71);
+  transition: width 1s linear;
+}
+
+.crafting-progress .time-left {
+  color: #e8dcc0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  min-width: 70px;
+}
+
+.crafting-paused {
+  text-align: center;
+}
+
+.crafting-paused p {
+  color: #f39c12;
+  margin: 0.5rem 0;
+}
+
+.crafting-paused .paused-time {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.crafting-ready {
+  text-align: center;
+}
+
+.crafting-ready p {
+  color: #2ecc71;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.btn-collect {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(145deg, #27ae60, #1e8449);
+  border: 2px solid #27ae60;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-collect:hover {
+  background: linear-gradient(145deg, #2ecc71, #27ae60);
+  transform: scale(1.05);
+}
+
+.btn-cancel-craft {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.4rem 0.8rem;
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel-craft:hover {
+  background: rgba(231, 76, 60, 0.4);
+}
+
+/* Recipe Craft Area */
+.recipe-craft-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.craft-time {
+  font-size: 0.8rem;
+  color: #8b7a5a;
+}
+
 /* Smithy Tabs */
 .smithy-tabs {
   display: flex;
