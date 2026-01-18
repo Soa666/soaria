@@ -567,84 +567,144 @@ function Grundstueck() {
     );
   }
 
+  const getBuildingIcon = (name) => {
+    const icons = {
+      'huette': '🏠',
+      'werkbank': '🔨',
+      'schmiede': '⚒️',
+      'saegewerk': '🪚',
+      'brunnen': '💧',
+      'lager': '📦'
+    };
+    return icons[name] || '🏗️';
+  };
+
   return (
     <div className="grundstueck-page">
-      <div className="card">
-        <div className="grundstueck-header">
-          <h2>🏡 Mein Grundstück</h2>
-          <div className="grundstueck-stats">
-            <div className="gs-stat">
-              <div className="gs-stat-value">{myBuildings.length}</div>
-              <div className="gs-stat-label">Gebäude</div>
-            </div>
-            <div className="gs-stat">
-              <div className="gs-stat-value">{workbench?.level || 1}</div>
-              <div className="gs-stat-label">Werkbank Lv.</div>
-            </div>
+      {/* Header */}
+      <div className="grundstueck-header">
+        <h2>🏡 Mein Grundstück</h2>
+        <div className="grundstueck-stats">
+          <div className="gs-stat">
+            <div className="gs-stat-value">{myBuildings.length}</div>
+            <div className="gs-stat-label">Gebäude</div>
+          </div>
+          <div className="gs-stat">
+            <div className="gs-stat-value">{workbench?.level || 1}</div>
+            <div className="gs-stat-label">Werkbank</div>
+          </div>
+          <div className="gs-stat">
+            <div className="gs-stat-value">{getForgeLevel()}</div>
+            <div className="gs-stat-label">Schmiede</div>
           </div>
         </div>
-        
-        {message && (
-          <div className={message.includes('Fehler') ? 'error' : 'success'}>
-            {message}
-          </div>
-        )}
+      </div>
 
-        {/* Health Recovery Panel */}
-        {playerStats && playerStats.current_health < playerStats.max_health && (
-          <div className={`health-recovery-panel ${!isAtHome ? 'away-from-home' : ''}`}>
-            <div className="health-info">
-              <span className="health-icon">❤️</span>
-              <div className="health-bar-container">
-                <div className="health-bar-bg">
-                  <div 
-                    className="health-bar-fill" 
-                    style={{ width: `${(playerStats.current_health / playerStats.max_health) * 100}%` }}
-                  />
+      {/* Message Toast */}
+      {message && (
+        <div className={`message-toast ${message.includes('Fehler') ? 'error' : 'success'}`}>
+          {message}
+        </div>
+      )}
+
+      <div className="grundstueck-content">
+        {/* Left Side - Buildings Grid */}
+        <div className="buildings-section">
+          <h3>🏗️ Gebäude</h3>
+          <div className="buildings-grid">
+            {buildings.map((building) => {
+              const built = builtMap.get(building.id);
+              const isBuilt = building.is_built || built;
+              const isSelected = selectedBuilding?.id === building.id;
+              
+              return (
+                <div
+                  key={building.id}
+                  className={`building-card ${isBuilt ? 'built' : 'unbuilt'} ${isSelected ? 'selected' : ''}`}
+                  onClick={() => setSelectedBuilding(building)}
+                >
+                  <div className="building-icon">
+                    {getBuildingIcon(building.name)}
+                  </div>
+                  <div className="building-name">{building.display_name}</div>
+                  {isBuilt && built?.level > 0 && (
+                    <div className="building-level-badge">Lv. {built.level}</div>
+                  )}
+                  {!isBuilt && (
+                    <div className="building-status">Nicht gebaut</div>
+                  )}
+                  {isBuilt && (
+                    <div className="building-status built-status">✓ Gebaut</div>
+                  )}
                 </div>
-                <span className="health-text">{playerStats.current_health} / {playerStats.max_health} HP</span>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Side - Info Panels */}
+        <div className="info-section">
+          {/* Health Panel */}
+          {playerStats && (
+            <div className="info-panel health-panel">
+              <h4>❤️ Gesundheit</h4>
+              <div className="health-display">
+                <span className="health-icon-large">💖</span>
+                <div className="health-bar-wrapper">
+                  <div className="health-bar">
+                    <div 
+                      className="health-bar-fill" 
+                      style={{ width: `${(playerStats.current_health / playerStats.max_health) * 100}%` }}
+                    />
+                    <span className="health-bar-text">
+                      {playerStats.current_health} / {playerStats.max_health}
+                    </span>
+                  </div>
+                </div>
               </div>
-              {isAtHome ? (
-                <button className="btn-heal" onClick={handleHeal}>
-                  💊 Heilen (+25 HP)
-                </button>
-              ) : (
-                <div className="heal-unavailable">
-                  <span>🚶 Du bist unterwegs</span>
-                  <Link to="/map" className="btn-return-home">Zur Karte</Link>
-                </div>
+              {playerStats.current_health < playerStats.max_health && (
+                isAtHome ? (
+                  <button className="btn-heal" onClick={handleHeal}>
+                    💊 Heilen (+25 HP)
+                  </button>
+                ) : (
+                  <div className="heal-unavailable-msg">
+                    🚶 Du bist unterwegs
+                    <Link to="/map">Zur Karte</Link>
+                  </div>
+                )
               )}
             </div>
-            {!isAtHome && (
-              <p className="away-notice">Du musst zu Hause sein um dich zu heilen. Nutze die Karte um nach Hause zu reisen.</p>
-            )}
-          </div>
-        )}
+          )}
 
-        {jobStatus && (
-          <div className="job-status-banner">
-            <div className="job-status-content">
-              <h3>
-                {jobStatus.is_paused ? '⏸️' : jobStatus.job_type === 'build' ? '🏗️' : '⬆️'} 
-                {jobStatus.job_type === 'build' ? ' Bau' : ' Upgrade'}
-                {jobStatus.is_paused ? ' (Pausiert)' : ' in Arbeit'}
-              </h3>
-              <p>{jobStatus.building_name}</p>
+          {/* Job Status Panel */}
+          {jobStatus && (
+            <div className={`info-panel job-panel ${jobStatus.is_paused ? 'paused' : ''} ${jobStatus.is_completed ? 'ready' : ''}`}>
+              <h4>
+                {jobStatus.is_paused ? '⏸️' : jobStatus.is_completed ? '✅' : '🏗️'} 
+                {' '}{jobStatus.job_type === 'build' ? 'Bau' : 'Upgrade'}
+              </h4>
+              <div className="job-info">
+                <span className="job-icon">
+                  {getBuildingIcon(jobStatus.building_name?.toLowerCase())}
+                </span>
+                <div className="job-details">
+                  <h5>{jobStatus.building_name}</h5>
+                  <p>{jobStatus.job_type === 'build' ? 'Wird gebaut...' : `Upgrade auf Lv. ${jobStatus.target_level}`}</p>
+                </div>
+              </div>
+              
               {jobStatus.is_paused ? (
-                <div className="job-paused">
-                  <p className="pause-notice">⚠️ Pausiert - Geh nach Hause um fortzufahren!</p>
-                  <p>Verbleibend: {formatTime(jobStatus.time_remaining_seconds || 0)}</p>
+                <div className="job-paused-notice">
+                  ⚠️ Pausiert - Geh nach Hause!
+                  <div className="job-time">{formatTime(jobStatus.remaining_seconds || 0)}</div>
                 </div>
               ) : jobStatus.is_completed ? (
-                <div>
-                  <p className="job-completed">✅ Fertig!</p>
-                  <button className="btn btn-primary" onClick={claimJob}>
-                    Abholen
-                  </button>
-                </div>
+                <button className="btn-claim" onClick={claimJob}>
+                  ✨ Fertig! Abholen
+                </button>
               ) : (
-                <div>
-                  <p>Verbleibende Zeit: {formatTime(jobStatus.time_remaining_seconds || 0)}</p>
+                <div className="job-progress">
                   <div className="progress-bar">
                     <div 
                       className="progress-fill"
@@ -653,194 +713,129 @@ function Grundstueck() {
                       }}
                     />
                   </div>
+                  <div className="job-time">⏱️ {formatTime(jobStatus.time_remaining_seconds || 0)}</div>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="plot-container">
-          <div 
-            className="plot" 
-            style={{ 
-              width: `${maxX}px`, 
-              height: `${maxY}px`,
-              minWidth: '400px',
-              minHeight: '400px'
-            }}
-          >
-            {buildings.map((building) => {
-              const built = builtMap.get(building.id);
-              const isBuilt = building.is_built || built;
+          {/* Building Details Panel */}
+          {selectedBuilding && (
+            <div className="info-panel details-panel">
+              <h4>{getBuildingIcon(selectedBuilding.name)} {selectedBuilding.display_name}</h4>
+              <p className="details-description">{selectedBuilding.description}</p>
               
-              return (
-                <div
-                  key={building.id}
-                  className={`building ${isBuilt ? 'built' : 'unbuilt'}`}
-                  style={{
-                    left: `${building.position_x}px`,
-                    top: `${building.position_y}px`,
-                    width: `${building.size_width}px`,
-                    height: `${building.size_height}px`,
-                  }}
-                  onClick={() => setSelectedBuilding(building)}
-                  title={building.display_name}
-                >
-                  <div className="building-content">
-                    {isBuilt ? (
-                      <>
-                        <div className="building-icon">
-                          {building.name === 'werkbank' ? '🔨' : 
-                           building.name === 'schmiede' ? '⚒️' :
-                           building.name === 'saegewerk' ? '🪚' :
-                           building.name === 'brunnen' ? '💧' :
-                           building.name === 'lager' ? '📦' : '🏠'}
-                        </div>
-                        <div className="building-name">{building.display_name}</div>
-                        {built && built.level > 1 && (
-                          <div className="building-level">Lv.{built.level}</div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="building-placeholder">❓</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {selectedBuilding && (
-          <div className="building-details">
-            <h3>{selectedBuilding.display_name}</h3>
-            <p>{selectedBuilding.description}</p>
-            
-            {/* Werkbank-spezifische Funktionalität */}
-            {selectedBuilding.name === 'werkbank' && selectedBuilding.is_built && workbench && (
-              <div className="workbench-in-building">
-                <div className="workbench-info">
-                  <h4>🔨 Werkbank Level {workbench.level}</h4>
-                  <p>Höhere Werkbank-Levels ermöglichen das Craften von besseren Items.</p>
-                </div>
-                
-                <div className="workbench-actions">
-                  <Link to="/crafting" className="btn btn-primary">
-                    ⚒️ Crafting öffnen
-                  </Link>
-                  
-                  <div className="upgrade-section">
-                    <h5>Werkbank upgraden</h5>
-                    <p>Kosten: 10x Stein</p>
-                    {inventory.find(inv => inv.name === 'stein')?.quantity >= 10 ? (
-                      <button className="btn btn-secondary" onClick={upgradeWorkbench}>
-                        ⬆️ Upgraden
-                      </button>
-                    ) : (
-                      <p className="insufficient">Nicht genug Steine (benötigt: 10)</p>
-                    )}
-                  </div>
-                </div>
+              <div className="details-status">
+                <span className="status-icon">{selectedBuilding.is_built ? '✅' : '🔒'}</span>
+                <span className={`status-text ${selectedBuilding.is_built ? 'built' : ''}`}>
+                  {selectedBuilding.is_built 
+                    ? `Gebaut (Lv. ${builtMap.get(selectedBuilding.id)?.level || 1} / ${selectedBuilding.max_level || 5})`
+                    : 'Nicht gebaut'
+                  }
+                </span>
               </div>
-            )}
 
-            {/* Schmiede-spezifische Funktionalität */}
-            {selectedBuilding.name === 'schmiede' && selectedBuilding.is_built && (
-              <div className="smithy-in-building">
-                <div className="smithy-info">
-                  <h4>⚒️ Schmiede Level {getForgeLevel()}</h4>
-                  <p>Stelle Waffen und Rüstungen her.</p>
-                  <div className="profession-display">
-                    <span>🔨 Schmied Level: {getProfessionLevel('blacksmith')}</span>
-                  </div>
+              {/* Requirements for unbuilt */}
+              {!selectedBuilding.is_built && selectedBuilding.requirements?.length > 0 && (
+                <div className="requirements-list">
+                  <h5>📦 Benötigte Ressourcen:</h5>
+                  {selectedBuilding.requirements.map((req, idx) => (
+                    <div 
+                      key={idx}
+                      className={`requirement-row ${req.user_quantity >= req.quantity ? 'has' : 'missing'}`}
+                    >
+                      <span className="req-name">{req.display_name}</span>
+                      <span className={`req-amount ${req.user_quantity >= req.quantity ? 'has' : 'missing'}`}>
+                        {req.user_quantity} / {req.quantity}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                
-                <button 
-                  className="btn btn-primary smithy-open-btn"
-                  onClick={() => { setShowSmithyView(true); setSelectedBuilding(null); }}
-                >
-                  ⚔️ Schmiede öffnen
-                </button>
-              </div>
-            )}
-            
-            {selectedBuilding.is_built ? (
-              <div>
-                <p>Status: <strong>Gebaut</strong></p>
-                {builtMap.get(selectedBuilding.id) && (
+              )}
+
+              <div className="details-actions">
+                {/* Build Button */}
+                {!selectedBuilding.is_built && (
+                  <button
+                    className="btn-build-main"
+                    onClick={() => buildBuilding(selectedBuilding.id)}
+                    disabled={!canBuild(selectedBuilding) || !isAtHome || jobStatus}
+                  >
+                    {!isAtHome ? '🏠 Nicht zu Hause' : 
+                     jobStatus ? '⏳ Anderer Job aktiv' :
+                     canBuild(selectedBuilding) ? '🔨 Bauen' : '❌ Ressourcen fehlen'}
+                  </button>
+                )}
+
+                {/* Upgrade Button */}
+                {selectedBuilding.is_built && selectedBuilding.name !== 'werkbank' && (
+                  builtMap.get(selectedBuilding.id)?.level >= (selectedBuilding.max_level || 5) ? (
+                    <div className="max-level-notice">🏆 Max Level erreicht!</div>
+                  ) : (
+                    <button 
+                      className="btn-upgrade-main"
+                      onClick={() => upgradeBuilding(selectedBuilding.id)}
+                      disabled={!isAtHome || jobStatus}
+                    >
+                      {!isAtHome ? '🏠 Nicht zu Hause' :
+                       jobStatus ? '⏳ Anderer Job aktiv' :
+                       `⬆️ Auf Lv. ${(builtMap.get(selectedBuilding.id)?.level || 1) + 1} upgraden`}
+                    </button>
+                  )
+                )}
+
+                {/* Werkbank Specific */}
+                {selectedBuilding.name === 'werkbank' && selectedBuilding.is_built && (
                   <>
-                    <p>Level: <strong>{builtMap.get(selectedBuilding.id).level}</strong> / {selectedBuilding.max_level || 5}</p>
-                    {selectedBuilding.name !== 'werkbank' && (
-                      <>
-                        {builtMap.get(selectedBuilding.id).level >= (selectedBuilding.max_level || 5) ? (
-                          <p className="error">Maximales Level erreicht!</p>
-                        ) : (
-                          <button 
-                            className="btn btn-secondary"
-                            onClick={() => upgradeBuilding(selectedBuilding.id)}
-                          >
-                            Aufwerten (kostet Ressourcen)
-                          </button>
-                        )}
-                      </>
+                    <Link to="/crafting" className="btn-open-crafting">
+                      🔧 Crafting öffnen
+                    </Link>
+                    {inventory.find(inv => inv.name === 'stein')?.quantity >= 10 && (
+                      <button className="btn-upgrade-main" onClick={upgradeWorkbench}>
+                        ⬆️ Upgraden (10 Steine)
+                      </button>
                     )}
                   </>
                 )}
-              </div>
-            ) : (
-              <div>
-                <p>Status: <strong>Nicht gebaut</strong></p>
-                {selectedBuilding.requirements && selectedBuilding.requirements.length > 0 && (
-                  <div className="building-requirements">
-                    <h4>Benötigte Ressourcen:</h4>
-                    <ul>
-                      {selectedBuilding.requirements.map((req, idx) => (
-                        <li 
-                          key={idx}
-                          className={req.user_quantity >= req.quantity ? 'sufficient' : 'insufficient'}
-                        >
-                          {req.display_name}: {req.user_quantity} / {req.quantity}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+
+                {/* Schmiede Specific */}
+                {selectedBuilding.name === 'schmiede' && selectedBuilding.is_built && (
+                  <button 
+                    className="btn-open-smithy"
+                    onClick={() => { setShowSmithyView(true); setSelectedBuilding(null); }}
+                  >
+                    ⚔️ Schmiede öffnen
+                  </button>
                 )}
-                <button
-                  className="btn btn-primary"
-                  onClick={() => buildBuilding(selectedBuilding.id)}
-                  disabled={!canBuild(selectedBuilding)}
-                >
-                  {canBuild(selectedBuilding) ? 'Bauen' : 'Ressourcen fehlen'}
-                </button>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        <div className="available-buildings">
-          <h3>Verfügbare Gebäude</h3>
-          <div className="buildings-list">
-            {buildings.map((building) => (
-              <div 
-                key={building.id} 
-                className={`building-card ${building.is_built ? 'built' : ''}`}
-                onClick={() => setSelectedBuilding(building)}
-              >
-                <div className="building-card-icon">
-                  {building.is_built ? '✅' : '🏗️'}
-                </div>
-                <div className="building-card-info">
-                  <h4>{building.display_name}</h4>
-                  <p>{building.description}</p>
-                  {building.is_built && (
-                    <span className="built-badge">Gebaut</span>
-                  )}
-                </div>
+          {/* Quick Actions when no building selected */}
+          {!selectedBuilding && (
+            <div className="info-panel">
+              <h4>💡 Schnellzugriff</h4>
+              <div className="details-actions">
+                {myBuildings.find(b => b.name === 'schmiede') && (
+                  <button 
+                    className="btn-open-smithy"
+                    onClick={() => setShowSmithyView(true)}
+                  >
+                    ⚔️ Schmiede öffnen
+                  </button>
+                )}
+                {myBuildings.find(b => b.name === 'werkbank') && (
+                  <Link to="/crafting" className="btn-open-crafting">
+                    🔧 Crafting öffnen
+                  </Link>
+                )}
+                <Link to="/map" className="btn-open-crafting" style={{ background: 'linear-gradient(180deg, #3498db, #2980b9)' }}>
+                  🗺️ Zur Karte
+                </Link>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
-
       </div>
     </div>
   );
