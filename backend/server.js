@@ -38,6 +38,7 @@ const __dirname = path.dirname(__filename);
 app.use('/items', express.static(path.join(__dirname, '../items')));
 app.use('/chars', express.static(path.join(__dirname, '../chars')));
 app.use('/buildings', express.static(path.join(__dirname, '../buildings')));
+app.use('/world', express.static(path.join(__dirname, '../world')));
 
 // Routes
 app.use('/api/auth', authRoutes);

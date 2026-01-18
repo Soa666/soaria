@@ -283,6 +283,12 @@
   color: #e8dcc0;
 }
 
+.terrain-legend h4 {
+  margin: 0 0 0.5rem 0;
+  color: #d4af37;
+  font-size: 0.9rem;
+}
+
 .legend-color {
   width: 16px;
   height: 16px;
@@ -290,10 +296,17 @@
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.legend-color.plains { background: #4a6b3a; }
+.legend-color.grass { background: #4a6b3a; }
 .legend-color.forest { background: #2d4a2d; }
 .legend-color.water { background: #4a90c2; }
-.legend-color.mountain { background: #6b6b6b; }
+.legend-color.cliff { background: #6b6b6b; }
+.legend-color.path { background: #a08060; }
+
+.tileset-warning {
+  color: #f39c12;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
 
 /* Move Panel */
 .move-panel {

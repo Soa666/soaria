@@ -4,25 +4,91 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './Map.css';
 
+// Tileset configuration
+const TILE_SIZE = 16; // Original tile size in tileset
+const TILESET_COLUMNS = 27;
+const TILESET_URL = '/world/punyworld-overworld-tileset.png';
+
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
 }
 
-// Generate terrain features based on coordinates
-function getTerrainAt(worldX, worldY) {
-  const seed = worldX * 10000 + worldY;
-  const rand = seededRandom(seed);
+// Improved noise function for smoother terrain
+function noise2D(x, y, seed = 0) {
+  const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+// Multi-octave noise for more natural terrain
+function terrainNoise(x, y, octaves = 4) {
+  let value = 0;
+  let amplitude = 1;
+  let frequency = 1;
+  let maxValue = 0;
   
-  // Water (rivers/lakes) - about 5%
-  if (rand < 0.05) return 'water';
-  // Mountains - about 8%
-  if (rand < 0.13) return 'mountain';
+  for (let i = 0; i < octaves; i++) {
+    value += amplitude * noise2D(x * frequency * 0.1, y * frequency * 0.1, i * 1000);
+    maxValue += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+  
+  return value / maxValue;
+}
+
+// Get tile ID based on terrain type and variation
+function getTileForTerrain(terrain, variation) {
+  // Tile IDs from the tileset (1-indexed like in Tiled)
+  const tiles = {
+    // Grass tiles (row 0-2, various grass types)
+    grass: [1, 2, 3, 28, 29, 30, 55, 56, 57],
+    // Dirt/sand tiles
+    dirt: [4, 5, 6, 31, 32, 58, 59],
+    // Water tiles (animated, row 10+)
+    water: [271, 272, 273, 298, 299, 300],
+    // Deep water
+    deepWater: [287, 288, 289, 314, 315, 316],
+    // Forest/trees
+    forest: [190, 191, 192, 217, 218, 219, 244, 245, 246],
+    // Trees on grass
+    trees: [147, 148, 149, 174, 175, 176],
+    // Cliff/mountain
+    cliff: [109, 110, 111, 136, 137, 138, 163, 164, 165],
+    // Flowers/details
+    flowers: [113, 114, 117, 118],
+    // Path
+    path: [85, 86, 87, 88]
+  };
+  
+  const tileSet = tiles[terrain] || tiles.grass;
+  const index = Math.floor(variation * tileSet.length) % tileSet.length;
+  return tileSet[index];
+}
+
+// Generate terrain type based on noise
+function getTerrainAt(worldX, worldY) {
+  const n = terrainNoise(worldX, worldY);
+  const n2 = terrainNoise(worldX + 500, worldY + 500);
+  
+  // Water (rivers/lakes) - about 8%
+  if (n < 0.15) {
+    if (n < 0.08) return 'deepWater';
+    return 'water';
+  }
+  // Mountains/cliffs - about 10%
+  if (n > 0.85) return 'cliff';
   // Forest - about 25%
-  if (rand < 0.38) return 'forest';
-  // Plains - rest
-  return 'plains';
+  if (n2 > 0.6 && n > 0.3) return 'forest';
+  // Trees scattered
+  if (n2 > 0.75 && n > 0.4) return 'trees';
+  // Dirt paths
+  if (n > 0.45 && n < 0.5 && n2 > 0.4 && n2 < 0.6) return 'path';
+  // Flowers
+  if (n2 > 0.85 && n > 0.5) return 'flowers';
+  // Plains/grass - rest
+  return 'grass';
 }
 
 function Map() {
@@ -47,6 +113,24 @@ function Map() {
   const [playerStats, setPlayerStats] = useState(null);
   const [combatResult, setCombatResult] = useState(null);
   const [npcShopData, setNpcShopData] = useState(null);
+  const [tilesetImage, setTilesetImage] = useState(null);
+  const [tilesetLoaded, setTilesetLoaded] = useState(false);
+
+  // Load tileset image
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      setTilesetImage(img);
+      setTilesetLoaded(true);
+      console.log('Tileset loaded:', img.width, 'x', img.height);
+    };
+    img.onerror = (e) => {
+      console.error('Failed to load tileset:', e);
+      setTilesetLoaded(false);
+    };
+    img.src = TILESET_URL;
+  }, []);
 
   useEffect(() => {
     fetchPlayers();
@@ -79,7 +163,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, targetCoords, actionMode, playerImages]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, targetCoords, actionMode, playerImages, tilesetLoaded]);
 
   const fetchPlayers = async () => {
     try {
@@ -132,6 +216,22 @@ function Map() {
     }
   };
 
+  // Helper to draw a tile from the tileset
+  const drawTile = (ctx, tileId, destX, destY, destSize) => {
+    if (!tilesetImage || !tilesetLoaded || tileId < 1) return;
+    
+    // Tiled uses 1-indexed tile IDs, convert to 0-indexed
+    const id = tileId - 1;
+    const srcX = (id % TILESET_COLUMNS) * TILE_SIZE;
+    const srcY = Math.floor(id / TILESET_COLUMNS) * TILE_SIZE;
+    
+    ctx.drawImage(
+      tilesetImage,
+      srcX, srcY, TILE_SIZE, TILE_SIZE,
+      destX, destY, destSize, destSize
+    );
+  };
+
   const drawMap = () => {
     try {
       const canvas = canvasRef.current;
@@ -143,109 +243,97 @@ function Map() {
       const width = canvas.width || 1000;
       const height = canvas.height || 700;
 
-      // Calculate scale
+      // Calculate scale - each world unit = 1 pixel at zoom 1
       const scale = Math.max(0.1, Math.min(3, zoom));
       const centerX = width / 2;
       const centerY = height / 2;
 
-      // Clear canvas with base grass color
-      ctx.fillStyle = '#3d5c3d';
+      // Clear canvas with base color
+      ctx.fillStyle = '#2d4a2d';
       ctx.fillRect(0, 0, width, height);
 
-      // Draw terrain tiles
-      const tileSize = 40 * scale;
+      // Tile size in world units (each tile covers 16x16 world units)
+      const worldTileSize = TILE_SIZE;
+      // Rendered tile size on screen
+      const renderTileSize = worldTileSize * scale;
+      
+      // Calculate visible area in world coordinates
       const startWorldX = viewCenter.x - (centerX / scale);
       const startWorldY = viewCenter.y - (centerY / scale);
-      const tilesX = Math.ceil(width / tileSize) + 2;
-      const tilesY = Math.ceil(height / tileSize) + 2;
+      const endWorldX = viewCenter.x + (centerX / scale);
+      const endWorldY = viewCenter.y + (centerY / scale);
+      
+      // Calculate tile range
+      const startTileX = Math.floor(startWorldX / worldTileSize) - 1;
+      const startTileY = Math.floor(startWorldY / worldTileSize) - 1;
+      const endTileX = Math.ceil(endWorldX / worldTileSize) + 1;
+      const endTileY = Math.ceil(endWorldY / worldTileSize) + 1;
 
-      for (let tx = -1; tx < tilesX; tx++) {
-        for (let ty = -1; ty < tilesY; ty++) {
-          const worldTileX = Math.floor(startWorldX / 40) + tx;
-          const worldTileY = Math.floor(startWorldY / 40) + ty;
-          const terrain = getTerrainAt(worldTileX, worldTileY);
+      // Enable image smoothing for better tile scaling
+      ctx.imageSmoothingEnabled = false; // Pixelated look for retro style
+
+      // Draw terrain tiles
+      for (let tileX = startTileX; tileX <= endTileX; tileX++) {
+        for (let tileY = startTileY; tileY <= endTileY; tileY++) {
+          const terrain = getTerrainAt(tileX, tileY);
+          const variation = seededRandom(tileX * 7919 + tileY * 7927);
           
-          const screenX = (worldTileX * 40 - viewCenter.x) * scale + centerX;
-          const screenY = (worldTileY * 40 - viewCenter.y) * scale + centerY;
+          // Calculate screen position
+          const screenX = centerX + (tileX * worldTileSize - viewCenter.x) * scale;
+          const screenY = centerY + (tileY * worldTileSize - viewCenter.y) * scale;
+          
+          // Skip tiles outside visible area
+          if (screenX + renderTileSize < 0 || screenX > width ||
+              screenY + renderTileSize < 0 || screenY > height) {
+            continue;
+          }
 
-          // Draw terrain
-          switch (terrain) {
-            case 'water':
-              ctx.fillStyle = '#4a90c2';
-              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
-              // Water sparkle
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-              ctx.beginPath();
-              ctx.arc(screenX + tileSize * 0.3, screenY + tileSize * 0.3, tileSize * 0.1, 0, Math.PI * 2);
-              ctx.fill();
-              break;
-            case 'mountain':
-              ctx.fillStyle = '#6b6b6b';
-              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
-              // Mountain peak
-              ctx.fillStyle = '#888';
-              ctx.beginPath();
-              ctx.moveTo(screenX + tileSize * 0.5, screenY + tileSize * 0.2);
-              ctx.lineTo(screenX + tileSize * 0.2, screenY + tileSize * 0.8);
-              ctx.lineTo(screenX + tileSize * 0.8, screenY + tileSize * 0.8);
-              ctx.closePath();
-              ctx.fill();
-              // Snow cap
-              ctx.fillStyle = '#fff';
-              ctx.beginPath();
-              ctx.moveTo(screenX + tileSize * 0.5, screenY + tileSize * 0.2);
-              ctx.lineTo(screenX + tileSize * 0.35, screenY + tileSize * 0.4);
-              ctx.lineTo(screenX + tileSize * 0.65, screenY + tileSize * 0.4);
-              ctx.closePath();
-              ctx.fill();
-              break;
-            case 'forest':
-              ctx.fillStyle = '#2d4a2d';
-              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
-              // Tree
-              ctx.fillStyle = '#1a3a1a';
-              ctx.beginPath();
-              ctx.moveTo(screenX + tileSize * 0.5, screenY + tileSize * 0.15);
-              ctx.lineTo(screenX + tileSize * 0.2, screenY + tileSize * 0.7);
-              ctx.lineTo(screenX + tileSize * 0.8, screenY + tileSize * 0.7);
-              ctx.closePath();
-              ctx.fill();
-              // Tree trunk
-              ctx.fillStyle = '#5d4037';
-              ctx.fillRect(screenX + tileSize * 0.4, screenY + tileSize * 0.7, tileSize * 0.2, tileSize * 0.25);
-              break;
-            default: // plains
-              ctx.fillStyle = '#4a6b3a';
-              ctx.fillRect(screenX, screenY, tileSize + 1, tileSize + 1);
-              // Grass detail
-              if (seededRandom(worldTileX * 1000 + worldTileY + 1) > 0.7) {
-                ctx.fillStyle = '#5a7b4a';
-                ctx.fillRect(screenX + tileSize * 0.3, screenY + tileSize * 0.3, tileSize * 0.1, tileSize * 0.2);
-                ctx.fillRect(screenX + tileSize * 0.6, screenY + tileSize * 0.5, tileSize * 0.1, tileSize * 0.15);
-              }
-              break;
+          if (tilesetImage && tilesetLoaded) {
+            // Draw from tileset
+            const tileId = getTileForTerrain(terrain, variation);
+            drawTile(ctx, tileId, screenX, screenY, renderTileSize + 0.5); // +0.5 to avoid gaps
+          } else {
+            // Fallback: colored rectangles
+            const colors = {
+              grass: '#4a6b3a',
+              dirt: '#8b7355',
+              water: '#4a90c2',
+              deepWater: '#2a5080',
+              forest: '#2d4a2d',
+              trees: '#3d5c3d',
+              cliff: '#6b6b6b',
+              flowers: '#4a6b3a',
+              path: '#a08060'
+            };
+            ctx.fillStyle = colors[terrain] || colors.grass;
+            ctx.fillRect(screenX, screenY, renderTileSize + 1, renderTileSize + 1);
           }
         }
       }
 
-      // Draw subtle grid
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
-      ctx.lineWidth = 1;
-      const gridSize = 40 * scale;
-      const offsetX = ((viewCenter.x % 40) || 0) * scale;
-      const offsetY = ((viewCenter.y % 40) || 0) * scale;
-
-      for (let x = -offsetX; x < width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let y = -offsetY; y < height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+      // Draw coordinate grid for larger areas
+      if (zoom < 0.5) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        const majorGridSize = 100 * scale;
+        
+        const gridStartX = Math.floor(startWorldX / 100) * 100;
+        const gridStartY = Math.floor(startWorldY / 100) * 100;
+        
+        for (let gx = gridStartX; gx <= endWorldX; gx += 100) {
+          const sx = centerX + (gx - viewCenter.x) * scale;
+          ctx.beginPath();
+          ctx.moveTo(sx, 0);
+          ctx.lineTo(sx, height);
+          ctx.stroke();
+        }
+        for (let gy = gridStartY; gy <= endWorldY; gy += 100) {
+          const sy = centerY + (gy - viewCenter.y) * scale;
+          ctx.beginPath();
+          ctx.moveTo(0, sy);
+          ctx.lineTo(width, sy);
+          ctx.stroke();
+        }
       }
 
       // Draw players
@@ -954,8 +1042,9 @@ function Map() {
 
         <div className="map-sidebar">
           <div className="terrain-legend">
+            <h4>🗺️ Terrain</h4>
             <div className="legend-item">
-              <div className="legend-color plains"></div>
+              <div className="legend-color grass"></div>
               <span>Wiese</span>
             </div>
             <div className="legend-item">
@@ -967,9 +1056,16 @@ function Map() {
               <span>Wasser</span>
             </div>
             <div className="legend-item">
-              <div className="legend-color mountain"></div>
-              <span>Berg</span>
+              <div className="legend-color cliff"></div>
+              <span>Klippen</span>
             </div>
+            <div className="legend-item">
+              <div className="legend-color path"></div>
+              <span>Pfad</span>
+            </div>
+            {!tilesetLoaded && (
+              <p className="tileset-warning">⚠️ Tileset lädt...</p>
+            )}
           </div>
 
           {/* Nearby Players List */}
