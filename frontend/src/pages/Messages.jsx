@@ -99,6 +99,11 @@ function Messages() {
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   
+  // Autocomplete state
+  const [userSuggestions, setUserSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  
   // Report state
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -118,6 +123,51 @@ function Messages() {
   useEffect(() => {
     fetchMessages();
   }, [activeTab]);
+
+  // Search users for autocomplete
+  const searchUsers = async (query) => {
+    if (!query || query.length < 1) {
+      setUserSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    setSearchingUsers(true);
+    try {
+      const response = await fetch(`/api/messages/search-users?q=${encodeURIComponent(query)}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserSuggestions(data.users || []);
+        setShowSuggestions(data.users && data.users.length > 0);
+      }
+    } catch (err) {
+      console.error('Error searching users:', err);
+    } finally {
+      setSearchingUsers(false);
+    }
+  };
+
+  // Debounce user search
+  useEffect(() => {
+    if (replyTo) return; // Don't search when replying
+    
+    const timer = setTimeout(() => {
+      searchUsers(recipient);
+    }, 200);
+    
+    return () => clearTimeout(timer);
+  }, [recipient, replyTo]);
+
+  const selectUser = (user) => {
+    setRecipient(user.username);
+    setShowSuggestions(false);
+    setUserSuggestions([]);
+  };
 
   const fetchMessages = async () => {
     setLoading(true);
@@ -522,16 +572,43 @@ function Messages() {
               <button className="btn-close" onClick={() => setShowCompose(false)}>×</button>
             </div>
             <form onSubmit={sendMessage}>
-              <div className="form-group">
+              <div className="form-group recipient-field">
                 <label>An:</label>
-                <input
-                  type="text"
-                  value={recipient}
-                  onChange={e => setRecipient(e.target.value)}
-                  placeholder="Spielername"
-                  required
-                  disabled={!!replyTo}
-                />
+                <div className="recipient-input-wrapper">
+                  <input
+                    type="text"
+                    value={recipient}
+                    onChange={e => setRecipient(e.target.value)}
+                    onFocus={() => recipient.length >= 1 && userSuggestions.length > 0 && setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    placeholder="Spielername eingeben..."
+                    required
+                    disabled={!!replyTo}
+                    autoComplete="off"
+                  />
+                  {searchingUsers && <span className="search-indicator">🔍</span>}
+                  
+                  {showSuggestions && userSuggestions.length > 0 && (
+                    <div className="user-suggestions">
+                      {userSuggestions.map(user => (
+                        <div 
+                          key={user.id} 
+                          className="suggestion-item"
+                          onMouseDown={() => selectUser(user)}
+                        >
+                          <div className="suggestion-avatar">
+                            {user.avatar_path ? (
+                              <img src={`/chars/${user.avatar_path}`} alt="" />
+                            ) : (
+                              <span>👤</span>
+                            )}
+                          </div>
+                          <span className="suggestion-name">{user.username}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="form-group">
                 <label>Betreff:</label>

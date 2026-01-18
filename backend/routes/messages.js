@@ -131,6 +131,34 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
   }
 });
 
+// Search users for autocomplete
+router.get('/search-users', authenticateToken, async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.length < 1) {
+      return res.json({ users: [] });
+    }
+    
+    // Search users by username (case-insensitive), exclude self and System user
+    const users = await db.all(`
+      SELECT id, username, avatar_path 
+      FROM users 
+      WHERE LOWER(username) LIKE LOWER(?) 
+        AND id != ? 
+        AND username != 'System'
+        AND is_activated = 1
+      ORDER BY username
+      LIMIT 10
+    `, [`${q}%`, req.user.id]);
+    
+    res.json({ users });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ error: 'Fehler bei der Suche' });
+  }
+});
+
 // Get single message
 router.get('/:messageId', authenticateToken, async (req, res) => {
   try {
