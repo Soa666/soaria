@@ -1276,21 +1276,7 @@ function Map() {
     }
   };
 
-  const handleHeal = async () => {
-    try {
-      const response = await api.post('/combat/heal', { location: 'grundstueck' });
-      setMessage(response.data.message);
-      fetchPlayerStats();
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      if (error.response?.data?.notAtHome) {
-        setMessage(`🏠 Du musst erst nach Hause reisen! (Entfernung: ${error.response.data.distance} Einheiten)`);
-      } else {
-        setMessage(error.response?.data?.error || 'Heilungsfehler');
-      }
-      setTimeout(() => setMessage(''), 5000);
-    }
-  };
+  // Healing is now automatic when at home (checked server-side)
 
   const handleAttack = async () => {
     if (!selectedPlayer) {
@@ -1693,7 +1679,7 @@ function Map() {
               <span className="stat-label">❤️ HP:</span>
               <span className="stat-value">{playerStats.current_health}/{playerStats.max_health}</span>
               {playerStats.current_health < playerStats.max_health && (
-                <button className="btn-heal-small" onClick={handleHeal}>💊</button>
+                <span className="heal-hint" title="Geh nach Hause um zu heilen">🏠</span>
               )}
             </div>
             <div className="stat-item">

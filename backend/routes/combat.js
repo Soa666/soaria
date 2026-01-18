@@ -336,74 +336,7 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
   }
 });
 
-// Heal player (only works at home/Grundstück - 25 HP per use, no cooldown)
-router.post('/heal', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { location } = req.body; // 'grundstueck', 'guild', 'hospital' etc.
-
-    // Validate healing location
-    const validLocations = ['grundstueck', 'guild', 'hospital'];
-    if (!location || !validLocations.includes(location)) {
-      return res.status(400).json({ error: 'Du kannst dich nur an bestimmten Orten heilen (Grundstück, Gilde, etc.)' });
-    }
-
-    // Get user's current position and home coordinates
-    const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
-    if (!user) {
-      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
-    }
-
-    // Check if player is actually at the healing location
-    if (location === 'grundstueck') {
-      const homeX = user.home_x ?? 0;
-      const homeY = user.home_y ?? 0;
-      const distance = Math.sqrt(
-        Math.pow((user.world_x || 0) - homeX, 2) + 
-        Math.pow((user.world_y || 0) - homeY, 2)
-      );
-      
-      if (distance > 50) {
-        return res.status(400).json({ 
-          error: 'Du bist zu weit von deinem Grundstück entfernt! Reise erst nach Hause.',
-          notAtHome: true,
-          distance: Math.round(distance)
-        });
-      }
-    }
-    // TODO: Add checks for guild hall and hospital locations
-
-    const stats = await db.get('SELECT * FROM player_stats WHERE user_id = ?', [userId]);
-    if (!stats) {
-      return res.status(404).json({ error: 'Keine Spielerstatistiken gefunden' });
-    }
-
-    if (stats.current_health >= stats.max_health) {
-      return res.json({ 
-        message: 'Du hast bereits volle HP!', 
-        currentHealth: stats.current_health, 
-        maxHealth: stats.max_health 
-      });
-    }
-
-    // Heal 25 HP (flat amount)
-    const healAmount = 25;
-    const newHealth = Math.min(stats.max_health, stats.current_health + healAmount);
-    const actualHeal = newHealth - stats.current_health;
-
-    await db.run(`UPDATE player_stats SET current_health = ? WHERE user_id = ?`, [newHealth, userId]);
-
-    res.json({
-      message: `Du hast dich um ${actualHeal} HP erholt!`,
-      currentHealth: newHealth,
-      maxHealth: stats.max_health,
-      healAmount: actualHeal
-    });
-  } catch (error) {
-    console.error('Heal error:', error);
-    res.status(500).json({ error: 'Serverfehler beim Heilen' });
-  }
-});
+// Note: Healing is now automatic when player is at home (checked in /npcs/player/stats)
 
 // Get combat history
 router.get('/history', authenticateToken, async (req, res) => {

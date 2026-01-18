@@ -250,17 +250,6 @@ function Grundstueck() {
     }
   }, [user?.world_x, user?.world_y, user?.home_x, user?.home_y]);
 
-  const handleHeal = async () => {
-    try {
-      const response = await api.post('/combat/heal', { location: 'grundstueck' });
-      setMessage(response.data.message);
-      fetchPlayerStats();
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      setMessage(error.response?.data?.error || 'Fehler beim Heilen');
-      setTimeout(() => setMessage(''), 3000);
-    }
-  };
 
   const fetchInventory = async () => {
     try {
@@ -644,39 +633,6 @@ function Grundstueck() {
 
         {/* Right Side - Info Panels */}
         <div className="info-section">
-          {/* Health Panel */}
-          {playerStats && (
-            <div className="info-panel health-panel">
-              <h4>❤️ Gesundheit</h4>
-              <div className="health-display">
-                <span className="health-icon-large">💖</span>
-                <div className="health-bar-wrapper">
-                  <div className="health-bar">
-                    <div 
-                      className="health-bar-fill" 
-                      style={{ width: `${(playerStats.current_health / playerStats.max_health) * 100}%` }}
-                    />
-                    <span className="health-bar-text">
-                      {playerStats.current_health} / {playerStats.max_health}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {playerStats.current_health < playerStats.max_health && (
-                isAtHome ? (
-                  <button className="btn-heal" onClick={handleHeal}>
-                    💊 Heilen (+25 HP)
-                  </button>
-                ) : (
-                  <div className="heal-unavailable-msg">
-                    🚶 Du bist unterwegs
-                    <Link to="/map">Zur Karte</Link>
-                  </div>
-                )
-              )}
-            </div>
-          )}
-
           {/* Job Status Panel */}
           {jobStatus && (
             <div className={`info-panel job-panel ${jobStatus.is_paused ? 'paused' : ''} ${jobStatus.is_completed ? 'ready' : ''}`}>

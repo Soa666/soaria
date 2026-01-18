@@ -352,7 +352,23 @@ router.get('/player/stats', authenticateToken, async (req, res) => {
       stats = await db.get('SELECT * FROM player_stats WHERE user_id = ?', [userId]);
     }
 
-    const user = await db.get('SELECT gold FROM users WHERE id = ?', [userId]);
+    const user = await db.get('SELECT gold, world_x, world_y, home_x, home_y FROM users WHERE id = ?', [userId]);
+
+    // Auto-heal to 100% if player is at home
+    if (stats.current_health < stats.max_health) {
+      const homeX = user.home_x ?? 0;
+      const homeY = user.home_y ?? 0;
+      const distance = Math.sqrt(
+        Math.pow((user.world_x || 0) - homeX, 2) + 
+        Math.pow((user.world_y || 0) - homeY, 2)
+      );
+      
+      if (distance <= 50) {
+        // Player is at home - heal to full
+        await db.run('UPDATE player_stats SET current_health = max_health WHERE user_id = ?', [userId]);
+        stats.current_health = stats.max_health;
+      }
+    }
 
     res.json({ stats: { ...stats, gold: user.gold } });
   } catch (error) {
