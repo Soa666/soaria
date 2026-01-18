@@ -4,6 +4,36 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Maximum interaction distance
+const MAX_INTERACTION_DISTANCE = 100;
+
+// Helper to calculate distance between two points
+function getDistance(x1, y1, x2, y2) {
+  return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+
+// Helper to check if player is near an NPC
+async function checkPlayerNearNpc(userId, npcId) {
+  const user = await db.get('SELECT world_x, world_y FROM users WHERE id = ?', [userId]);
+  const npc = await db.get('SELECT world_x, world_y FROM world_npcs WHERE id = ?', [npcId]);
+  
+  if (!user || !npc) {
+    return { isNear: false, error: 'Spieler oder NPC nicht gefunden' };
+  }
+  
+  const distance = getDistance(user.world_x, user.world_y, npc.world_x, npc.world_y);
+  
+  if (distance > MAX_INTERACTION_DISTANCE) {
+    return { 
+      isNear: false, 
+      error: `Du bist zu weit entfernt! (Entfernung: ${Math.round(distance)}, Maximum: ${MAX_INTERACTION_DISTANCE})`,
+      distance 
+    };
+  }
+  
+  return { isNear: true, distance };
+}
+
 // Get all world NPCs (for map display)
 router.get('/world', authenticateToken, async (req, res) => {
   try {
@@ -94,6 +124,12 @@ router.get('/:npcId', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'NPC nicht gefunden' });
     }
 
+    // Check distance to NPC
+    const proximityCheck = await checkPlayerNearNpc(req.user.id, npcId);
+    if (!proximityCheck.isNear) {
+      return res.status(400).json({ error: proximityCheck.error, tooFar: true });
+    }
+
     // If it's a merchant, get shop items
     let shopItems = [];
     if (npc.npc_type_id) {
@@ -152,6 +188,12 @@ router.post('/:npcId/buy', authenticateToken, async (req, res) => {
 
     if (!itemId || !quantity || quantity < 1) {
       return res.status(400).json({ error: 'Ungültige Anfrage' });
+    }
+
+    // Check distance to NPC first
+    const proximityCheck = await checkPlayerNearNpc(userId, npcId);
+    if (!proximityCheck.isNear) {
+      return res.status(400).json({ error: proximityCheck.error, tooFar: true });
     }
 
     // Get NPC and check if it's a merchant
@@ -227,6 +269,12 @@ router.post('/:npcId/sell', authenticateToken, async (req, res) => {
 
     if (!itemId || !quantity || quantity < 1) {
       return res.status(400).json({ error: 'Ungültige Anfrage' });
+    }
+
+    // Check distance to NPC first
+    const proximityCheck = await checkPlayerNearNpc(userId, npcId);
+    if (!proximityCheck.isNear) {
+      return res.status(400).json({ error: proximityCheck.error, tooFar: true });
     }
 
     // Get NPC and check if it's a merchant

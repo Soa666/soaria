@@ -831,6 +831,12 @@ function Map() {
       }
     } catch (error) {
       console.error('Fehler beim Laden der NPC-Details:', error);
+      if (error.response?.data?.tooFar) {
+        setMessage(error.response.data.error);
+        setTimeout(() => setMessage(''), 3000);
+        setSelectedNpc(null);
+        setNpcShopData(null);
+      }
     }
   };
 
@@ -839,20 +845,6 @@ function Map() {
       setMessage('Wähle ein Monster zum Angreifen');
       setTimeout(() => setMessage(''), 3000);
       return;
-    }
-
-    // Check distance
-    if (user?.world_x !== undefined && user?.world_y !== undefined) {
-      const distance = Math.sqrt(
-        Math.pow((user.world_x || 0) - (selectedNpc.world_x || 0), 2) +
-        Math.pow((user.world_y || 0) - (selectedNpc.world_y || 0), 2)
-      );
-      
-      if (distance > 100) {
-        setMessage(`Zu weit entfernt! Distanz: ${Math.round(distance)} (max: 100)`);
-        setTimeout(() => setMessage(''), 3000);
-        return;
-      }
     }
 
     try {
@@ -869,6 +861,9 @@ function Map() {
       setTimeout(() => setMessage(''), 5000);
     } catch (error) {
       setMessage(error.response?.data?.error || 'Kampffehler');
+      if (error.response?.data?.tooFar) {
+        setSelectedNpc(null);
+      }
       setTimeout(() => setMessage(''), 5000);
     }
   };
@@ -884,6 +879,10 @@ function Map() {
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
       setMessage(error.response?.data?.error || 'Kauffehler');
+      if (error.response?.data?.tooFar) {
+        setSelectedNpc(null);
+        setNpcShopData(null);
+      }
       setTimeout(() => setMessage(''), 3000);
     }
   };
@@ -898,6 +897,10 @@ function Map() {
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
       setMessage(error.response?.data?.error || 'Verkaufsfehler');
+      if (error.response?.data?.tooFar) {
+        setSelectedNpc(null);
+        setNpcShopData(null);
+      }
       setTimeout(() => setMessage(''), 3000);
     }
   };

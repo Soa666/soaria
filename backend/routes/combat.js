@@ -5,6 +5,36 @@ import { sendSystemMessage } from './messages.js';
 
 const router = express.Router();
 
+// Maximum interaction distance for combat
+const MAX_COMBAT_DISTANCE = 100;
+
+// Helper to calculate distance between two points
+function getDistance(x1, y1, x2, y2) {
+  return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+
+// Helper to check if player is near an NPC
+async function checkPlayerNearNpc(userId, npcId) {
+  const user = await db.get('SELECT world_x, world_y FROM users WHERE id = ?', [userId]);
+  const npc = await db.get('SELECT world_x, world_y FROM world_npcs WHERE id = ?', [npcId]);
+  
+  if (!user || !npc) {
+    return { isNear: false, error: 'Spieler oder NPC nicht gefunden' };
+  }
+  
+  const distance = getDistance(user.world_x, user.world_y, npc.world_x, npc.world_y);
+  
+  if (distance > MAX_COMBAT_DISTANCE) {
+    return { 
+      isNear: false, 
+      error: `Du bist zu weit entfernt! (Entfernung: ${Math.round(distance)}, Maximum: ${MAX_COMBAT_DISTANCE})`,
+      distance 
+    };
+  }
+  
+  return { isNear: true, distance };
+}
+
 // Experience needed per level (exponential growth)
 function getExpForLevel(level) {
   return Math.floor(100 * Math.pow(1.5, level - 1));
@@ -66,6 +96,12 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
   try {
     const { npcId } = req.params;
     const userId = req.user.id;
+
+    // Check distance to monster first
+    const proximityCheck = await checkPlayerNearNpc(userId, npcId);
+    if (!proximityCheck.isNear) {
+      return res.status(400).json({ error: proximityCheck.error, tooFar: true });
+    }
 
     // Get monster
     const worldNpc = await db.get(`
