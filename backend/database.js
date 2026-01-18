@@ -580,6 +580,16 @@ export async function initDatabase() {
     )
   `);
 
+  // Add respawn_cooldown column to monster_types
+  try {
+    await db.run(`ALTER TABLE monster_types ADD COLUMN respawn_cooldown INTEGER DEFAULT 10`);
+    // Set default cooldowns: normal monsters 5-10 min, bosses 60 min
+    await db.run(`UPDATE monster_types SET respawn_cooldown = 5 WHERE is_boss = 0 AND respawn_cooldown IS NULL`);
+    await db.run(`UPDATE monster_types SET respawn_cooldown = 60 WHERE is_boss = 1 AND respawn_cooldown IS NULL`);
+  } catch (e) {
+    // Column might already exist
+  }
+
   // Monster loot table (Was Monster droppen können)
   await db.run(`
     CREATE TABLE IF NOT EXISTS monster_loot (
@@ -948,41 +958,138 @@ async function insertDefaultGroups() {
 
 async function insertDefaultMonsters() {
   const monsters = [
-    // Normal monsters
+    // === ANFÄNGER-MONSTER (Level 1-3) - Sehr leicht ===
+    { 
+      name: 'slime', display_name: 'Schleim', description: 'Ein kleiner grüner Schleim. Perfekt für Anfänger!',
+      is_boss: 0, min_level: 1, max_level: 2,
+      base_health: 30, base_attack: 5, base_defense: 1,
+      health_per_level: 8, attack_per_level: 2, defense_per_level: 1,
+      spawn_weight: 200
+    },
+    { 
+      name: 'rat', display_name: 'Ratte', description: 'Eine aggressive Riesenratte',
+      is_boss: 0, min_level: 1, max_level: 2,
+      base_health: 25, base_attack: 6, base_defense: 1,
+      health_per_level: 6, attack_per_level: 2, defense_per_level: 0,
+      spawn_weight: 180
+    },
+    { 
+      name: 'bee', display_name: 'Riesenbiene', description: 'Eine übergroße, wütende Biene',
+      is_boss: 0, min_level: 1, max_level: 3,
+      base_health: 20, base_attack: 8, base_defense: 0,
+      health_per_level: 5, attack_per_level: 2, defense_per_level: 0,
+      spawn_weight: 160
+    },
+    { 
+      name: 'bat', display_name: 'Fledermaus', description: 'Eine bissige Höhlenfledermaus',
+      is_boss: 0, min_level: 1, max_level: 3,
+      base_health: 22, base_attack: 7, base_defense: 1,
+      health_per_level: 5, attack_per_level: 2, defense_per_level: 0,
+      spawn_weight: 150
+    },
+    { 
+      name: 'spider', display_name: 'Spinne', description: 'Eine giftige Waldspinne',
+      is_boss: 0, min_level: 1, max_level: 4,
+      base_health: 35, base_attack: 9, base_defense: 2,
+      health_per_level: 8, attack_per_level: 2, defense_per_level: 1,
+      spawn_weight: 140
+    },
+    { 
+      name: 'snake', display_name: 'Schlange', description: 'Eine giftige Natter',
+      is_boss: 0, min_level: 2, max_level: 4,
+      base_health: 28, base_attack: 10, base_defense: 1,
+      health_per_level: 6, attack_per_level: 3, defense_per_level: 0,
+      spawn_weight: 130
+    },
+    { 
+      name: 'mushroom', display_name: 'Giftpilz', description: 'Ein wandelnder giftiger Pilz',
+      is_boss: 0, min_level: 2, max_level: 4,
+      base_health: 40, base_attack: 7, base_defense: 3,
+      health_per_level: 10, attack_per_level: 2, defense_per_level: 1,
+      spawn_weight: 120
+    },
+    
+    // === NORMALE MONSTER (Level 3-8) ===
     { 
       name: 'wolf', display_name: 'Wolf', description: 'Ein hungriger Wolf',
-      is_boss: 0, min_level: 1, max_level: 5,
+      is_boss: 0, min_level: 3, max_level: 6,
       base_health: 80, base_attack: 12, base_defense: 4,
       health_per_level: 15, attack_per_level: 3, defense_per_level: 1,
       spawn_weight: 100
     },
     { 
       name: 'goblin', display_name: 'Goblin', description: 'Ein hinterlistiger Goblin',
-      is_boss: 0, min_level: 2, max_level: 8,
+      is_boss: 0, min_level: 4, max_level: 8,
       base_health: 60, base_attack: 15, base_defense: 3,
       health_per_level: 12, attack_per_level: 4, defense_per_level: 1,
       spawn_weight: 80
     },
     { 
+      name: 'boar', display_name: 'Wildschwein', description: 'Ein aggressives Wildschwein',
+      is_boss: 0, min_level: 3, max_level: 7,
+      base_health: 90, base_attack: 14, base_defense: 5,
+      health_per_level: 18, attack_per_level: 3, defense_per_level: 2,
+      spawn_weight: 90
+    },
+    { 
+      name: 'bandit', display_name: 'Bandit', description: 'Ein Straßenräuber',
+      is_boss: 0, min_level: 4, max_level: 9,
+      base_health: 70, base_attack: 16, base_defense: 4,
+      health_per_level: 14, attack_per_level: 4, defense_per_level: 1,
+      spawn_weight: 70
+    },
+    
+    // === MITTELSTARKE MONSTER (Level 5-12) ===
+    { 
       name: 'skeleton', display_name: 'Skelett', description: 'Ein untotes Skelett',
-      is_boss: 0, min_level: 3, max_level: 10,
+      is_boss: 0, min_level: 5, max_level: 10,
       base_health: 70, base_attack: 18, base_defense: 6,
       health_per_level: 14, attack_per_level: 4, defense_per_level: 2,
       spawn_weight: 60
     },
     { 
+      name: 'zombie', display_name: 'Zombie', description: 'Ein langsamer, aber zäher Untoter',
+      is_boss: 0, min_level: 5, max_level: 11,
+      base_health: 100, base_attack: 14, base_defense: 4,
+      health_per_level: 20, attack_per_level: 3, defense_per_level: 2,
+      spawn_weight: 55
+    },
+    { 
       name: 'orc', display_name: 'Ork', description: 'Ein brutaler Ork-Krieger',
-      is_boss: 0, min_level: 5, max_level: 15,
+      is_boss: 0, min_level: 6, max_level: 15,
       base_health: 120, base_attack: 22, base_defense: 8,
       health_per_level: 20, attack_per_level: 5, defense_per_level: 3,
       spawn_weight: 40
     },
+    { 
+      name: 'harpy', display_name: 'Harpyie', description: 'Eine fliegende Kreatur mit scharfen Klauen',
+      is_boss: 0, min_level: 6, max_level: 12,
+      base_health: 85, base_attack: 24, base_defense: 5,
+      health_per_level: 15, attack_per_level: 5, defense_per_level: 2,
+      spawn_weight: 45
+    },
+    
+    // === STARKE MONSTER (Level 8-20) ===
     { 
       name: 'troll', display_name: 'Troll', description: 'Ein gewaltiger Höhlentroll',
       is_boss: 0, min_level: 8, max_level: 20,
       base_health: 200, base_attack: 30, base_defense: 15,
       health_per_level: 30, attack_per_level: 6, defense_per_level: 4,
       spawn_weight: 20
+    },
+    { 
+      name: 'ogre', display_name: 'Oger', description: 'Ein massiver, dummer Riese',
+      is_boss: 0, min_level: 10, max_level: 18,
+      base_health: 250, base_attack: 35, base_defense: 12,
+      health_per_level: 35, attack_per_level: 7, defense_per_level: 3,
+      spawn_weight: 15
+    },
+    { 
+      name: 'werewolf', display_name: 'Werwolf', description: 'Ein verfluchter Gestaltwandler',
+      is_boss: 0, min_level: 10, max_level: 18,
+      base_health: 180, base_attack: 40, base_defense: 10,
+      health_per_level: 25, attack_per_level: 8, defense_per_level: 3,
+      spawn_weight: 12
     },
     // Boss monsters
     { 
@@ -1029,20 +1136,46 @@ async function insertDefaultMonsters() {
         // Get items for loot
         const holz = await db.get('SELECT id FROM items WHERE name = ?', ['holz']);
         const stein = await db.get('SELECT id FROM items WHERE name = ?', ['stein']);
+        const lehm = await db.get('SELECT id FROM items WHERE name = ?', ['lehm']);
+        const ast = await db.get('SELECT id FROM items WHERE name = ?', ['ast']);
         const eisenbarren = await db.get('SELECT id FROM items WHERE name = ?', ['eisenbarren']);
         
-        // Different loot based on monster
-        if (monster.name === 'wolf' && holz) {
+        // Loot based on monster type
+        const lootConfig = {
+          // Anfänger-Monster: wenig Gold, einfache Drops
+          'slime': { itemId: lehm?.id, min: 1, max: 2, chance: 0.9, goldMin: 1, goldMax: 5 },
+          'rat': { itemId: ast?.id, min: 1, max: 2, chance: 0.8, goldMin: 1, goldMax: 4 },
+          'bee': { itemId: holz?.id, min: 1, max: 1, chance: 0.7, goldMin: 2, goldMax: 5 },
+          'bat': { itemId: ast?.id, min: 1, max: 2, chance: 0.75, goldMin: 2, goldMax: 6 },
+          'spider': { itemId: ast?.id, min: 1, max: 3, chance: 0.8, goldMin: 3, goldMax: 8 },
+          'snake': { itemId: lehm?.id, min: 1, max: 2, chance: 0.7, goldMin: 3, goldMax: 7 },
+          'mushroom': { itemId: holz?.id, min: 1, max: 2, chance: 0.85, goldMin: 2, goldMax: 6 },
+          
+          // Normale Monster: mehr Gold, bessere Drops
+          'wolf': { itemId: holz?.id, min: 1, max: 3, chance: 0.8, goldMin: 5, goldMax: 15 },
+          'goblin': { itemId: stein?.id, min: 2, max: 5, chance: 0.7, goldMin: 10, goldMax: 30 },
+          'boar': { itemId: holz?.id, min: 2, max: 4, chance: 0.75, goldMin: 8, goldMax: 20 },
+          'bandit': { itemId: stein?.id, min: 1, max: 3, chance: 0.6, goldMin: 15, goldMax: 40 },
+          
+          // Mittelstarke Monster
+          'skeleton': { itemId: stein?.id, min: 2, max: 4, chance: 0.65, goldMin: 15, goldMax: 35 },
+          'zombie': { itemId: lehm?.id, min: 2, max: 5, chance: 0.7, goldMin: 12, goldMax: 30 },
+          'orc': { itemId: eisenbarren?.id, min: 1, max: 2, chance: 0.5, goldMin: 20, goldMax: 50 },
+          'harpy': { itemId: stein?.id, min: 2, max: 4, chance: 0.6, goldMin: 25, goldMax: 55 },
+          
+          // Starke Monster
+          'troll': { itemId: eisenbarren?.id, min: 2, max: 4, chance: 0.6, goldMin: 40, goldMax: 80 },
+          'ogre': { itemId: eisenbarren?.id, min: 3, max: 5, chance: 0.55, goldMin: 50, goldMax: 100 },
+          'werewolf': { itemId: eisenbarren?.id, min: 2, max: 4, chance: 0.65, goldMin: 45, goldMax: 90 },
+        };
+        
+        const loot = lootConfig[monster.name];
+        if (loot && loot.itemId) {
           await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
-            VALUES (?, ?, 1, 3, 0.8, 5, 15)`, [monsterId, holz.id]);
-        } else if (monster.name === 'goblin' && stein) {
-          await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
-            VALUES (?, ?, 2, 5, 0.7, 10, 30)`, [monsterId, stein.id]);
-        } else if (monster.name === 'orc' && eisenbarren) {
-          await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
-            VALUES (?, ?, 1, 2, 0.5, 20, 50)`, [monsterId, eisenbarren.id]);
+            VALUES (?, ?, ?, ?, ?, ?, ?)`, [monsterId, loot.itemId, loot.min, loot.max, loot.chance, loot.goldMin, loot.goldMax]);
         }
-        // Bosses drop more gold
+        
+        // Bosses drop more gold and guaranteed items
         if (monster.is_boss && eisenbarren) {
           await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
             VALUES (?, ?, 5, 15, 1.0, 100, 500)`, [monsterId, eisenbarren.id]);
@@ -1141,9 +1274,11 @@ async function spawnWorldNPCs() {
     existingCoords.push({ world_x: coords.x, world_y: coords.y });
   }
   
-  // Spawn normal monsters (10-15)
+  // Spawn normal monsters - MANY more now! (50-60 monsters)
   const normalMonsters = await db.all('SELECT * FROM monster_types WHERE is_boss = 0');
-  for (let i = 0; i < 12; i++) {
+  const monsterCount = 50; // Much more monsters
+  
+  for (let i = 0; i < monsterCount; i++) {
     // Pick a random monster type weighted by spawn_weight
     const totalWeight = normalMonsters.reduce((sum, m) => sum + m.spawn_weight, 0);
     let randomWeight = Math.random() * totalWeight;
@@ -1161,19 +1296,22 @@ async function spawnWorldNPCs() {
     const level = Math.floor(Math.random() * (selectedMonster.max_level - selectedMonster.min_level + 1)) + selectedMonster.min_level;
     const health = selectedMonster.base_health + (level - 1) * selectedMonster.health_per_level;
     
-    const coords = generateUniqueCoordinates(existingCoords, 80);
+    // Spread monsters further apart
+    const coords = generateUniqueCoordinates(existingCoords, 50);
+    
+    // Use monster type's respawn_cooldown or default based on level
+    const respawnMinutes = selectedMonster.respawn_cooldown || (level <= 3 ? 5 : level <= 6 ? 10 : level <= 10 ? 15 : 20);
+    
     await db.run(`
       INSERT INTO world_npcs (monster_type_id, world_x, world_y, level, current_health, respawn_minutes, is_active)
-      VALUES (?, ?, ?, ?, ?, 10, 1)
-    `, [selectedMonster.id, coords.x, coords.y, level, health]);
+      VALUES (?, ?, ?, ?, ?, ?, 1)
+    `, [selectedMonster.id, coords.x, coords.y, level, health, respawnMinutes]);
     existingCoords.push({ world_x: coords.x, world_y: coords.y });
   }
   
-  // Spawn bosses (2-3, but rare)
+  // Spawn bosses (3-4)
   const bossMonsters = await db.all('SELECT * FROM monster_types WHERE is_boss = 1');
-  for (let i = 0; i < 2; i++) {
-    if (bossMonsters.length === 0) break;
-    
+  for (let i = 0; i < Math.min(4, bossMonsters.length); i++) {
     const boss = bossMonsters[i % bossMonsters.length];
     const coords = generateUniqueCoordinates(existingCoords, 200); // Bosses need more space
     
@@ -1184,7 +1322,7 @@ async function spawnWorldNPCs() {
     existingCoords.push({ world_x: coords.x, world_y: coords.y });
   }
   
-  console.log('[DB] World NPCs spawned successfully');
+  console.log('[DB] World NPCs spawned successfully - ' + monsterCount + ' monsters + ' + Math.min(4, bossMonsters.length) + ' bosses');
 }
 
 async function insertDefaultBuildings() {

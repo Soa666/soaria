@@ -52,22 +52,26 @@ router.post('/monsters', authenticateToken, requirePermission('manage_items'), a
     const { 
       name, display_name, description, is_boss,
       min_level, max_level, base_health, base_attack, base_defense,
-      health_per_level, attack_per_level, defense_per_level, spawn_weight
+      health_per_level, attack_per_level, defense_per_level, spawn_weight, respawn_cooldown
     } = req.body;
 
     if (!name || !display_name) {
       return res.status(400).json({ error: 'Name und Anzeigename erforderlich' });
     }
 
+    // Default respawn cooldown: 5 min for normal, 60 min for bosses
+    const defaultCooldown = is_boss ? 60 : 5;
+
     const result = await db.run(`
       INSERT INTO monster_types 
       (name, display_name, description, is_boss, min_level, max_level, 
-       base_health, base_attack, base_defense, health_per_level, attack_per_level, defense_per_level, spawn_weight)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       base_health, base_attack, base_defense, health_per_level, attack_per_level, defense_per_level, spawn_weight, respawn_cooldown)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, display_name, description || '', is_boss ? 1 : 0,
       min_level || 1, max_level || 5, base_health || 100, base_attack || 10, base_defense || 5,
-      health_per_level || 20, attack_per_level || 3, defense_per_level || 2, spawn_weight || 100
+      health_per_level || 20, attack_per_level || 3, defense_per_level || 2, spawn_weight || 100,
+      respawn_cooldown || defaultCooldown
     ]);
 
     res.json({ message: 'Monster erstellt', id: result.lastID });
@@ -87,19 +91,21 @@ router.put('/monsters/:id', authenticateToken, requirePermission('manage_items')
     const { 
       display_name, description, is_boss,
       min_level, max_level, base_health, base_attack, base_defense,
-      health_per_level, attack_per_level, defense_per_level, spawn_weight
+      health_per_level, attack_per_level, defense_per_level, spawn_weight, respawn_cooldown
     } = req.body;
 
     await db.run(`
       UPDATE monster_types SET
         display_name = ?, description = ?, is_boss = ?,
         min_level = ?, max_level = ?, base_health = ?, base_attack = ?, base_defense = ?,
-        health_per_level = ?, attack_per_level = ?, defense_per_level = ?, spawn_weight = ?
+        health_per_level = ?, attack_per_level = ?, defense_per_level = ?, spawn_weight = ?,
+        respawn_cooldown = ?
       WHERE id = ?
     `, [
       display_name, description, is_boss ? 1 : 0,
       min_level, max_level, base_health, base_attack, base_defense,
-      health_per_level, attack_per_level, defense_per_level, spawn_weight, id
+      health_per_level, attack_per_level, defense_per_level, spawn_weight,
+      respawn_cooldown || (is_boss ? 60 : 5), id
     ]);
 
     res.json({ message: 'Monster aktualisiert' });

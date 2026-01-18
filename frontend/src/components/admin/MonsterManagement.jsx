@@ -26,7 +26,8 @@ function MonsterManagement() {
     health_per_level: 20,
     attack_per_level: 3,
     defense_per_level: 2,
-    spawn_weight: 100
+    spawn_weight: 100,
+    respawn_cooldown: 5
   });
 
   const [lootForm, setLootForm] = useState({
@@ -108,7 +109,8 @@ function MonsterManagement() {
       health_per_level: monster.health_per_level,
       attack_per_level: monster.attack_per_level,
       defense_per_level: monster.defense_per_level,
-      spawn_weight: monster.spawn_weight
+      spawn_weight: monster.spawn_weight,
+      respawn_cooldown: monster.respawn_cooldown || (monster.is_boss ? 60 : 5)
     });
     setSelectedMonster(monster);
     setEditMode(true);
@@ -178,7 +180,8 @@ function MonsterManagement() {
       health_per_level: 20,
       attack_per_level: 3,
       defense_per_level: 2,
-      spawn_weight: 100
+      spawn_weight: 100,
+      respawn_cooldown: 5
     });
     setEditMode(false);
     setSelectedMonster(null);
@@ -260,6 +263,10 @@ function MonsterManagement() {
               <div className="stat">
                 <label>Spawn-Gewicht</label>
                 <span>{selectedMonster.spawn_weight}</span>
+              </div>
+              <div className="stat">
+                <label>Respawn-Zeit</label>
+                <span>{selectedMonster.respawn_cooldown || 5} Min.</span>
               </div>
               <div className="stat">
                 <label>Gespawnt</label>
@@ -418,6 +425,16 @@ function MonsterManagement() {
                     value={form.spawn_weight}
                     onChange={(e) => setForm({...form, spawn_weight: parseInt(e.target.value)})}
                     min="1"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Respawn-Zeit (Min.)</label>
+                  <input
+                    type="number"
+                    value={form.respawn_cooldown}
+                    onChange={(e) => setForm({...form, respawn_cooldown: parseInt(e.target.value)})}
+                    min="1"
+                    placeholder={form.is_boss ? "60" : "5"}
                   />
                 </div>
                 <div className="form-group">

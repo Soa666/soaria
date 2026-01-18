@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initDatabase } from './database.js';
+import db from './database.js';
 import authRoutes from './routes/auth.js';
 import itemRoutes from './routes/items.js';
 import inventoryRoutes from './routes/inventory.js';
@@ -65,11 +66,55 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server läuft' });
 });
 
+// Automatic monster respawn routine
+async function respawnMonsters() {
+  try {
+    // Find all dead monsters that should respawn
+    const deadMonsters = await db.all(`
+      SELECT 
+        wn.id,
+        wn.monster_type_id,
+        wn.respawn_minutes,
+        wn.last_killed_at,
+        mt.base_health,
+        mt.health_per_level,
+        wn.level
+      FROM world_npcs wn
+      JOIN monster_types mt ON wn.monster_type_id = mt.id
+      WHERE wn.is_active = 0 
+        AND wn.last_killed_at IS NOT NULL
+        AND datetime(wn.last_killed_at, '+' || wn.respawn_minutes || ' minutes') <= datetime('now')
+    `);
+
+    for (const monster of deadMonsters) {
+      const maxHealth = monster.base_health + (monster.level - 1) * (monster.health_per_level || 0);
+      await db.run(`
+        UPDATE world_npcs 
+        SET is_active = 1, current_health = ?, last_killed_at = NULL 
+        WHERE id = ?
+      `, [maxHealth, monster.id]);
+    }
+
+    if (deadMonsters.length > 0) {
+      console.log(`[Respawn] ${deadMonsters.length} Monster respawnt`);
+    }
+  } catch (error) {
+    console.error('[Respawn] Fehler:', error);
+  }
+}
+
 // Initialize database and start server
 initDatabase()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server läuft auf Port ${PORT}`);
+      
+      // Start respawn routine - runs every 60 seconds
+      setInterval(respawnMonsters, 60000);
+      console.log('[Respawn] Automatische Respawn-Routine gestartet (alle 60 Sekunden)');
+      
+      // Run once immediately
+      respawnMonsters();
     });
   })
   .catch((error) => {
