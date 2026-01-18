@@ -708,3 +708,249 @@
   color: #ff6b6b;
   font-style: italic;
 }
+
+/* Smithy Panel Styles */
+.smithy-in-building {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(139, 69, 19, 0.1);
+  border: 2px solid #8b4513;
+  border-radius: 8px;
+}
+
+.smithy-info {
+  margin-bottom: 1rem;
+}
+
+.smithy-info h4 {
+  color: #ff8c00;
+  margin: 0 0 0.5rem 0;
+}
+
+.smithy-info p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #e8dcc0;
+}
+
+.profession-display {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #d4af37;
+}
+
+.smithy-open-btn {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.smithy-panel {
+  margin-top: 1rem;
+}
+
+.crafting-message {
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.crafting-message.success {
+  background: rgba(39, 174, 96, 0.2);
+  border: 1px solid #27ae60;
+}
+
+.crafting-message.error {
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+}
+
+.level-up-notice {
+  margin-top: 0.5rem;
+  color: #f1c40f;
+  font-weight: bold;
+}
+
+.recipe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.recipe-card {
+  background: rgba(30, 20, 40, 0.8);
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.recipe-card:hover {
+  border-color: #d4af37;
+}
+
+.recipe-card.unavailable {
+  opacity: 0.6;
+}
+
+.recipe-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.recipe-name {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.recipe-name.rarity-common { color: #ffffff; }
+.recipe-name.rarity-uncommon { color: #1eff00; }
+.recipe-name.rarity-rare { color: #0070dd; }
+.recipe-name.rarity-epic { color: #a335ee; }
+.recipe-name.rarity-legendary { color: #ff8000; }
+
+.recipe-slot {
+  font-size: 0.75rem;
+  color: #8b7a5a;
+  text-transform: capitalize;
+}
+
+.recipe-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #2ecc71;
+  margin-bottom: 0.5rem;
+}
+
+.recipe-materials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.recipe-materials .material {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.recipe-materials .material.has {
+  color: #2ecc71;
+  border: 1px solid #27ae60;
+}
+
+.recipe-materials .material.missing {
+  color: #e74c3c;
+  border: 1px solid #c0392b;
+}
+
+.recipe-requirements {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.recipe-requirements .met {
+  color: #2ecc71;
+}
+
+.recipe-requirements .unmet {
+  color: #e74c3c;
+}
+
+.recipe-requirements .exp-reward {
+  color: #3498db;
+}
+
+.btn-craft {
+  width: 100%;
+  padding: 0.5rem;
+  background: linear-gradient(145deg, #8b4513, #a0522d);
+  border: 1px solid #cd853f;
+  color: white;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.btn-craft:hover:not(:disabled) {
+  background: linear-gradient(145deg, #a0522d, #cd853f);
+}
+
+.btn-craft:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quality-info {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid #5a4a2a;
+}
+
+.quality-info h5 {
+  color: #d4af37;
+  margin: 0 0 0.75rem 0;
+}
+
+.quality-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.quality-list span {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+}
+
+.quality-info p {
+  font-size: 0.85rem;
+  color: #a89070;
+  margin: 0;
+}
+
+/* Workbench in building styles */
+.workbench-in-building {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid #5a4a2a;
+}
+
+.workbench-info h4 {
+  color: #d4af37;
+  margin: 0 0 0.5rem 0;
+}
+
+.workbench-info p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #e8dcc0;
+}
+
+.workbench-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}

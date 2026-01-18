@@ -156,17 +156,45 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Du musst dich erst erholen! Deine HP sind zu niedrig.' });
     }
 
+    // Get equipment bonuses
+    const QUALITY_MULTIPLIERS = {
+      poor: 0.7, normal: 1.0, good: 1.2, excellent: 1.5, masterwork: 1.8, legendary: 2.5
+    };
+    
+    const equippedItems = await db.all(`
+      SELECT ue.quality, et.base_attack, et.base_defense, et.base_health
+      FROM user_equipment ue
+      JOIN equipment_types et ON ue.equipment_type_id = et.id
+      WHERE ue.user_id = ? AND ue.is_equipped = 1
+    `, [userId]);
+
+    let equipmentAttack = 0;
+    let equipmentDefense = 0;
+    let equipmentHealth = 0;
+
+    for (const eq of equippedItems) {
+      const multiplier = QUALITY_MULTIPLIERS[eq.quality] || 1.0;
+      equipmentAttack += Math.floor(eq.base_attack * multiplier);
+      equipmentDefense += Math.floor(eq.base_defense * multiplier);
+      equipmentHealth += Math.floor(eq.base_health * multiplier);
+    }
+
     // Calculate monster stats
     const monsterLevel = worldNpc.level || 1;
     const monsterMaxHealth = worldNpc.base_health + (monsterLevel - 1) * worldNpc.health_per_level;
     const monsterAttack = worldNpc.base_attack + (monsterLevel - 1) * worldNpc.attack_per_level;
     const monsterDefense = worldNpc.base_defense + (monsterLevel - 1) * worldNpc.defense_per_level;
 
+    // Player total stats = base + equipment
+    const playerTotalAttack = playerStats.base_attack + equipmentAttack;
+    const playerTotalDefense = playerStats.base_defense + equipmentDefense;
+    const playerMaxHealthWithEquipment = playerStats.max_health + equipmentHealth;
+
     const attacker = {
-      attack: playerStats.base_attack,
-      defense: playerStats.base_defense,
-      current_health: playerStats.current_health,
-      max_health: playerStats.max_health
+      attack: playerTotalAttack,
+      defense: playerTotalDefense,
+      current_health: Math.min(playerStats.current_health, playerMaxHealthWithEquipment),
+      max_health: playerMaxHealthWithEquipment
     };
 
     const defender = {

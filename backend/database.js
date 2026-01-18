@@ -677,6 +677,78 @@ export async function initDatabase() {
     // Column might already exist
   }
 
+  // Equipment types (Ausrüstungstypen)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS equipment_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      slot TEXT NOT NULL CHECK(slot IN ('weapon', 'head', 'chest', 'legs', 'feet', 'hands', 'shield', 'accessory')),
+      image_path TEXT,
+      base_attack INTEGER DEFAULT 0,
+      base_defense INTEGER DEFAULT 0,
+      base_health INTEGER DEFAULT 0,
+      required_level INTEGER DEFAULT 1,
+      rarity TEXT DEFAULT 'common' CHECK(rarity IN ('common', 'uncommon', 'rare', 'epic', 'legendary')),
+      craftable INTEGER DEFAULT 1,
+      craft_recipe_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // User equipment (besitzte Ausrüstung mit Qualität)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS user_equipment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      equipment_type_id INTEGER NOT NULL,
+      quality TEXT DEFAULT 'normal' CHECK(quality IN ('poor', 'normal', 'good', 'excellent', 'masterwork', 'legendary')),
+      quality_bonus REAL DEFAULT 1.0,
+      is_equipped INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Profession stats (Berufe wie Schmieden)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS profession_stats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      profession TEXT NOT NULL CHECK(profession IN ('blacksmith', 'leatherworker', 'tailor', 'alchemist')),
+      level INTEGER DEFAULT 1,
+      experience INTEGER DEFAULT 0,
+      UNIQUE(user_id, profession),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Equipment crafting recipes
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS equipment_recipes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      equipment_type_id INTEGER NOT NULL,
+      profession TEXT NOT NULL,
+      required_profession_level INTEGER DEFAULT 1,
+      experience_reward INTEGER DEFAULT 10,
+      FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Equipment recipe materials
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS equipment_recipe_materials (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipe_id INTEGER NOT NULL,
+      item_id INTEGER NOT NULL,
+      quantity INTEGER DEFAULT 1,
+      FOREIGN KEY (recipe_id) REFERENCES equipment_recipes(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+    )
+  `);
+
   // Combat log (Kampfprotokoll)
   await db.run(`
     CREATE TABLE IF NOT EXISTS combat_log (
@@ -715,6 +787,9 @@ export async function initDatabase() {
   
   // Insert default NPCs
   await insertDefaultNPCs();
+  
+  // Insert default equipment
+  await insertDefaultEquipment();
   
   // Spawn world NPCs if none exist
   await spawnWorldNPCs();
@@ -795,6 +870,10 @@ async function insertDefaultItems() {
     { name: 'eisenbarren', display_name: 'Eisenbarren', type: 'material', rarity: 'uncommon' },
     { name: 'seil', display_name: 'Seil', type: 'material', rarity: 'common', description: 'Ein robustes Seil aus Pflanzenfasern' },
     { name: 'stoff', display_name: 'Stoff', type: 'material', rarity: 'common', description: 'Gewebter Stoff' },
+    { name: 'kohle', display_name: 'Kohle', type: 'material', rarity: 'uncommon', description: 'Brennbare Kohle zum Schmieden von Stahl' },
+    { name: 'kupfererz', display_name: 'Kupfererz', type: 'resource', rarity: 'common', description: 'Rohes Kupfererz' },
+    { name: 'silbererz', display_name: 'Silbererz', type: 'resource', rarity: 'uncommon', description: 'Glänzendes Silbererz' },
+    { name: 'golderz', display_name: 'Golderz', type: 'resource', rarity: 'rare', description: 'Kostbares Golderz' },
     
     // Tools
     { name: 'spitzhacke_basic', display_name: 'Spitzhacke (Basis)', type: 'tool', rarity: 'common' },
@@ -954,6 +1033,143 @@ async function insertDefaultGroups() {
     INSERT OR IGNORE INTO groups (name, display_name, description)
     VALUES ('user', 'Benutzer', 'Standard-Benutzer ohne spezielle Berechtigungen')
   `);
+}
+
+async function insertDefaultEquipment() {
+  // Quality multipliers:
+  // poor: 0.7, normal: 1.0, good: 1.2, excellent: 1.5, masterwork: 1.8, legendary: 2.5
+
+  const equipment = [
+    // === WEAPONS (Waffen) ===
+    // Anfänger-Waffen
+    { name: 'wooden_sword', display_name: 'Holzschwert', slot: 'weapon', base_attack: 3, base_defense: 0, base_health: 0, required_level: 1, rarity: 'common', description: 'Ein einfaches Schwert aus Holz. Gut für Anfänger.' },
+    { name: 'wooden_club', display_name: 'Holzkeule', slot: 'weapon', base_attack: 4, base_defense: 0, base_health: 0, required_level: 1, rarity: 'common', description: 'Eine grobe Keule aus einem Ast.' },
+    { name: 'stone_dagger', display_name: 'Steindolch', slot: 'weapon', base_attack: 5, base_defense: 0, base_health: 0, required_level: 2, rarity: 'common', description: 'Ein primitiver Dolch aus geschliffenem Stein.' },
+    
+    // Normale Waffen
+    { name: 'iron_sword', display_name: 'Eisenschwert', slot: 'weapon', base_attack: 8, base_defense: 1, base_health: 0, required_level: 5, rarity: 'uncommon', description: 'Ein solides Schwert aus Eisen.' },
+    { name: 'iron_axe', display_name: 'Eisenaxt', slot: 'weapon', base_attack: 10, base_defense: 0, base_health: 0, required_level: 5, rarity: 'uncommon', description: 'Eine schwere Axt aus Eisen.' },
+    { name: 'iron_mace', display_name: 'Eisenstreitkolben', slot: 'weapon', base_attack: 9, base_defense: 2, base_health: 0, required_level: 6, rarity: 'uncommon', description: 'Ein Streitkolben der sowohl Angriff als auch Verteidigung bietet.' },
+    
+    // Fortgeschrittene Waffen
+    { name: 'steel_sword', display_name: 'Stahlschwert', slot: 'weapon', base_attack: 15, base_defense: 2, base_health: 0, required_level: 10, rarity: 'rare', description: 'Ein meisterhaft geschmiedetes Stahlschwert.' },
+    { name: 'battle_axe', display_name: 'Streitaxt', slot: 'weapon', base_attack: 18, base_defense: 0, base_health: 0, required_level: 12, rarity: 'rare', description: 'Eine mächtige Zweihandaxt.' },
+    { name: 'war_hammer', display_name: 'Kriegshammer', slot: 'weapon', base_attack: 20, base_defense: 3, base_health: 10, required_level: 15, rarity: 'epic', description: 'Ein gewaltiger Hammer der Feinde zermalmt.' },
+    
+    // === SHIELDS (Schilde) ===
+    { name: 'wooden_shield', display_name: 'Holzschild', slot: 'shield', base_attack: 0, base_defense: 3, base_health: 5, required_level: 1, rarity: 'common', description: 'Ein einfacher Schild aus Holz.' },
+    { name: 'iron_shield', display_name: 'Eisenschild', slot: 'shield', base_attack: 0, base_defense: 6, base_health: 10, required_level: 5, rarity: 'uncommon', description: 'Ein robuster Schild aus Eisen.' },
+    { name: 'steel_shield', display_name: 'Stahlschild', slot: 'shield', base_attack: 0, base_defense: 10, base_health: 20, required_level: 10, rarity: 'rare', description: 'Ein verstärkter Schild aus gehärtetem Stahl.' },
+    { name: 'tower_shield', display_name: 'Turmschild', slot: 'shield', base_attack: 0, base_defense: 15, base_health: 35, required_level: 15, rarity: 'epic', description: 'Ein massiver Schild der fast den ganzen Körper bedeckt.' },
+    
+    // === HEAD (Helme) ===
+    { name: 'leather_cap', display_name: 'Lederkappe', slot: 'head', base_attack: 0, base_defense: 1, base_health: 5, required_level: 1, rarity: 'common', description: 'Eine einfache Kappe aus Leder.' },
+    { name: 'iron_helmet', display_name: 'Eisenhelm', slot: 'head', base_attack: 0, base_defense: 3, base_health: 10, required_level: 5, rarity: 'uncommon', description: 'Ein solider Helm aus Eisen.' },
+    { name: 'steel_helmet', display_name: 'Stahlhelm', slot: 'head', base_attack: 0, base_defense: 5, base_health: 15, required_level: 10, rarity: 'rare', description: 'Ein geschmiedeter Helm aus Stahl.' },
+    { name: 'knights_helmet', display_name: 'Ritterhelm', slot: 'head', base_attack: 1, base_defense: 8, base_health: 25, required_level: 15, rarity: 'epic', description: 'Der Helm eines wahren Ritters.' },
+    
+    // === CHEST (Brustpanzer) ===
+    { name: 'cloth_shirt', display_name: 'Stoffhemd', slot: 'chest', base_attack: 0, base_defense: 1, base_health: 5, required_level: 1, rarity: 'common', description: 'Ein einfaches Hemd aus Stoff.' },
+    { name: 'leather_armor', display_name: 'Lederrüstung', slot: 'chest', base_attack: 0, base_defense: 3, base_health: 10, required_level: 3, rarity: 'common', description: 'Eine leichte Rüstung aus Leder.' },
+    { name: 'chainmail', display_name: 'Kettenhemd', slot: 'chest', base_attack: 0, base_defense: 6, base_health: 20, required_level: 8, rarity: 'uncommon', description: 'Ein Hemd aus ineinander verflochtenen Metallringen.' },
+    { name: 'iron_chestplate', display_name: 'Eisenbrustpanzer', slot: 'chest', base_attack: 0, base_defense: 10, base_health: 30, required_level: 12, rarity: 'rare', description: 'Ein massiver Brustpanzer aus Eisen.' },
+    { name: 'steel_plate_armor', display_name: 'Stahlplattenrüstung', slot: 'chest', base_attack: 2, base_defense: 15, base_health: 50, required_level: 18, rarity: 'epic', description: 'Eine vollständige Plattenrüstung aus gehärtetem Stahl.' },
+    
+    // === LEGS (Beinschutz) ===
+    { name: 'cloth_pants', display_name: 'Stoffhose', slot: 'legs', base_attack: 0, base_defense: 1, base_health: 3, required_level: 1, rarity: 'common', description: 'Eine einfache Hose aus Stoff.' },
+    { name: 'leather_pants', display_name: 'Lederhose', slot: 'legs', base_attack: 0, base_defense: 2, base_health: 8, required_level: 3, rarity: 'common', description: 'Eine robuste Hose aus Leder.' },
+    { name: 'chainmail_leggings', display_name: 'Kettenbeinlinge', slot: 'legs', base_attack: 0, base_defense: 4, base_health: 15, required_level: 8, rarity: 'uncommon', description: 'Beinschutz aus Kettengeflecht.' },
+    { name: 'iron_greaves', display_name: 'Eisenbeinschienen', slot: 'legs', base_attack: 0, base_defense: 7, base_health: 20, required_level: 12, rarity: 'rare', description: 'Schwere Beinschienen aus Eisen.' },
+    
+    // === FEET (Schuhe) ===
+    { name: 'cloth_shoes', display_name: 'Stoffschuhe', slot: 'feet', base_attack: 0, base_defense: 0, base_health: 2, required_level: 1, rarity: 'common', description: 'Einfache Schuhe aus Stoff.' },
+    { name: 'leather_boots', display_name: 'Lederstiefel', slot: 'feet', base_attack: 0, base_defense: 1, base_health: 5, required_level: 3, rarity: 'common', description: 'Robuste Stiefel aus Leder.' },
+    { name: 'iron_boots', display_name: 'Eisenstiefel', slot: 'feet', base_attack: 0, base_defense: 3, base_health: 10, required_level: 8, rarity: 'uncommon', description: 'Schwere Stiefel aus Eisen.' },
+    { name: 'steel_sabatons', display_name: 'Stahlsabatons', slot: 'feet', base_attack: 1, base_defense: 5, base_health: 15, required_level: 12, rarity: 'rare', description: 'Gepanzerte Stiefel aus Stahl.' },
+    
+    // === HANDS (Handschuhe) ===
+    { name: 'cloth_gloves', display_name: 'Stoffhandschuhe', slot: 'hands', base_attack: 0, base_defense: 0, base_health: 2, required_level: 1, rarity: 'common', description: 'Einfache Handschuhe aus Stoff.' },
+    { name: 'leather_gloves', display_name: 'Lederhandschuhe', slot: 'hands', base_attack: 1, base_defense: 1, base_health: 3, required_level: 3, rarity: 'common', description: 'Handschuhe aus robustem Leder.' },
+    { name: 'iron_gauntlets', display_name: 'Eisenpanzerhandschuhe', slot: 'hands', base_attack: 2, base_defense: 3, base_health: 8, required_level: 8, rarity: 'uncommon', description: 'Gepanzerte Handschuhe aus Eisen.' },
+    { name: 'steel_gauntlets', display_name: 'Stahlpanzerhandschuhe', slot: 'hands', base_attack: 3, base_defense: 5, base_health: 12, required_level: 12, rarity: 'rare', description: 'Meisterlich gefertigte Panzerhandschuhe.' },
+    
+    // === ACCESSORIES (Accessoires) ===
+    { name: 'wooden_amulet', display_name: 'Holzamulett', slot: 'accessory', base_attack: 1, base_defense: 1, base_health: 5, required_level: 1, rarity: 'common', description: 'Ein einfaches Amulett aus geschnitztem Holz.' },
+    { name: 'copper_ring', display_name: 'Kupferring', slot: 'accessory', base_attack: 2, base_defense: 0, base_health: 0, required_level: 3, rarity: 'common', description: 'Ein schlichter Ring aus Kupfer.' },
+    { name: 'silver_ring', display_name: 'Silberring', slot: 'accessory', base_attack: 3, base_defense: 2, base_health: 10, required_level: 8, rarity: 'uncommon', description: 'Ein eleganter Ring aus Silber.' },
+    { name: 'gold_amulet', display_name: 'Goldamulett', slot: 'accessory', base_attack: 5, base_defense: 5, base_health: 20, required_level: 15, rarity: 'rare', description: 'Ein wertvolles Amulett aus purem Gold.' },
+  ];
+
+  for (const eq of equipment) {
+    await db.run(`
+      INSERT OR IGNORE INTO equipment_types (name, display_name, description, slot, base_attack, base_defense, base_health, required_level, rarity)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [eq.name, eq.display_name, eq.description, eq.slot, eq.base_attack, eq.base_defense, eq.base_health, eq.required_level, eq.rarity]);
+  }
+
+  // Create crafting recipes for equipment
+  const recipes = [
+    // Anfänger (Blacksmith Level 1)
+    { equipment: 'wooden_sword', profession: 'blacksmith', level: 1, exp: 5, materials: [{ item: 'holz', qty: 5 }, { item: 'ast', qty: 3 }] },
+    { equipment: 'wooden_club', profession: 'blacksmith', level: 1, exp: 5, materials: [{ item: 'holz', qty: 3 }, { item: 'ast', qty: 5 }] },
+    { equipment: 'wooden_shield', profession: 'blacksmith', level: 1, exp: 8, materials: [{ item: 'holz', qty: 8 }, { item: 'ast', qty: 2 }] },
+    { equipment: 'stone_dagger', profession: 'blacksmith', level: 2, exp: 10, materials: [{ item: 'stein', qty: 5 }, { item: 'holz', qty: 2 }] },
+    
+    // Eisen-Ausrüstung (Blacksmith Level 3-5)
+    { equipment: 'iron_sword', profession: 'blacksmith', level: 3, exp: 25, materials: [{ item: 'eisenbarren', qty: 3 }, { item: 'holz', qty: 2 }] },
+    { equipment: 'iron_axe', profession: 'blacksmith', level: 3, exp: 30, materials: [{ item: 'eisenbarren', qty: 4 }, { item: 'holz', qty: 3 }] },
+    { equipment: 'iron_mace', profession: 'blacksmith', level: 4, exp: 35, materials: [{ item: 'eisenbarren', qty: 5 }, { item: 'holz', qty: 2 }] },
+    { equipment: 'iron_shield', profession: 'blacksmith', level: 4, exp: 40, materials: [{ item: 'eisenbarren', qty: 6 }, { item: 'holz', qty: 4 }] },
+    { equipment: 'iron_helmet', profession: 'blacksmith', level: 3, exp: 30, materials: [{ item: 'eisenbarren', qty: 4 }] },
+    { equipment: 'iron_boots', profession: 'blacksmith', level: 3, exp: 25, materials: [{ item: 'eisenbarren', qty: 3 }] },
+    { equipment: 'iron_gauntlets', profession: 'blacksmith', level: 4, exp: 30, materials: [{ item: 'eisenbarren', qty: 3 }] },
+    { equipment: 'iron_greaves', profession: 'blacksmith', level: 5, exp: 40, materials: [{ item: 'eisenbarren', qty: 5 }] },
+    
+    // Stahl-Ausrüstung (Blacksmith Level 6-10)
+    { equipment: 'steel_sword', profession: 'blacksmith', level: 6, exp: 50, materials: [{ item: 'eisenbarren', qty: 8 }, { item: 'kohle', qty: 5 }] },
+    { equipment: 'steel_shield', profession: 'blacksmith', level: 7, exp: 60, materials: [{ item: 'eisenbarren', qty: 10 }, { item: 'kohle', qty: 6 }] },
+    { equipment: 'steel_helmet', profession: 'blacksmith', level: 6, exp: 55, materials: [{ item: 'eisenbarren', qty: 7 }, { item: 'kohle', qty: 4 }] },
+    { equipment: 'steel_sabatons', profession: 'blacksmith', level: 7, exp: 50, materials: [{ item: 'eisenbarren', qty: 6 }, { item: 'kohle', qty: 3 }] },
+    { equipment: 'steel_gauntlets', profession: 'blacksmith', level: 7, exp: 50, materials: [{ item: 'eisenbarren', qty: 5 }, { item: 'kohle', qty: 3 }] },
+    
+    // Leder-Ausrüstung (Leatherworker)
+    { equipment: 'leather_cap', profession: 'leatherworker', level: 1, exp: 10, materials: [{ item: 'stoff', qty: 3 }] },
+    { equipment: 'leather_armor', profession: 'leatherworker', level: 2, exp: 20, materials: [{ item: 'stoff', qty: 8 }] },
+    { equipment: 'leather_pants', profession: 'leatherworker', level: 2, exp: 15, materials: [{ item: 'stoff', qty: 6 }] },
+    { equipment: 'leather_boots', profession: 'leatherworker', level: 1, exp: 10, materials: [{ item: 'stoff', qty: 4 }] },
+    { equipment: 'leather_gloves', profession: 'leatherworker', level: 1, exp: 8, materials: [{ item: 'stoff', qty: 3 }] },
+    
+    // Stoff-Ausrüstung (Tailor)
+    { equipment: 'cloth_shirt', profession: 'tailor', level: 1, exp: 5, materials: [{ item: 'stoff', qty: 5 }] },
+    { equipment: 'cloth_pants', profession: 'tailor', level: 1, exp: 5, materials: [{ item: 'stoff', qty: 4 }] },
+    { equipment: 'cloth_shoes', profession: 'tailor', level: 1, exp: 3, materials: [{ item: 'stoff', qty: 2 }] },
+    { equipment: 'cloth_gloves', profession: 'tailor', level: 1, exp: 3, materials: [{ item: 'stoff', qty: 2 }] },
+  ];
+
+  for (const recipe of recipes) {
+    const equipment = await db.get('SELECT id FROM equipment_types WHERE name = ?', [recipe.equipment]);
+    if (!equipment) continue;
+
+    // Check if recipe already exists
+    const existingRecipe = await db.get('SELECT id FROM equipment_recipes WHERE equipment_type_id = ?', [equipment.id]);
+    if (existingRecipe) continue;
+
+    const recipeResult = await db.run(`
+      INSERT INTO equipment_recipes (equipment_type_id, profession, required_profession_level, experience_reward)
+      VALUES (?, ?, ?, ?)
+    `, [equipment.id, recipe.profession, recipe.level, recipe.exp]);
+
+    // Add materials
+    for (const mat of recipe.materials) {
+      const item = await db.get('SELECT id FROM items WHERE name = ?', [mat.item]);
+      if (item) {
+        await db.run(`
+          INSERT INTO equipment_recipe_materials (recipe_id, item_id, quantity)
+          VALUES (?, ?, ?)
+        `, [recipeResult.lastID, item.id, mat.qty]);
+      }
+    }
+  }
 }
 
 async function insertDefaultMonsters() {

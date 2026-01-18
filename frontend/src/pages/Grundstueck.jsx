@@ -29,6 +29,10 @@ function Grundstueck() {
   const [inventory, setInventory] = useState([]);
   const [playerStats, setPlayerStats] = useState(null);
   const [isAtHome, setIsAtHome] = useState(false);
+  const [equipmentRecipes, setEquipmentRecipes] = useState([]);
+  const [professions, setProfessions] = useState([]);
+  const [showSmithyPanel, setShowSmithyPanel] = useState(false);
+  const [craftingMessage, setCraftingMessage] = useState(null);
 
   useEffect(() => {
     fetchBuildings();
@@ -37,6 +41,8 @@ function Grundstueck() {
     fetchWorkbench();
     fetchInventory();
     fetchPlayerStats();
+    fetchEquipmentRecipes();
+    fetchProfessions();
     // Poll job status every 5 seconds
     const interval = setInterval(fetchJobStatus, 5000);
     
@@ -91,6 +97,67 @@ function Grundstueck() {
     } catch (error) {
       console.error('Fehler beim Laden der Spielerstatistiken:', error);
     }
+  };
+
+  const fetchEquipmentRecipes = async () => {
+    try {
+      const response = await api.get('/equipment/recipes');
+      setEquipmentRecipes(response.data.recipes || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Ausrüstungsrezepte:', error);
+    }
+  };
+
+  const fetchProfessions = async () => {
+    try {
+      const response = await api.get('/equipment/professions');
+      setProfessions(response.data.professions || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Berufe:', error);
+    }
+  };
+
+  const craftEquipment = async (recipeId) => {
+    try {
+      const response = await api.post(`/equipment/craft/${recipeId}`);
+      setCraftingMessage({
+        type: 'success',
+        text: response.data.message,
+        quality: response.data.quality,
+        quality_color: response.data.quality_color,
+        leveled_up: response.data.leveled_up,
+        new_level: response.data.profession_level
+      });
+      fetchInventory();
+      fetchEquipmentRecipes();
+      fetchProfessions();
+      setTimeout(() => setCraftingMessage(null), 5000);
+    } catch (error) {
+      setCraftingMessage({
+        type: 'error',
+        text: error.response?.data?.error || 'Fehler beim Herstellen'
+      });
+      setTimeout(() => setCraftingMessage(null), 4000);
+    }
+  };
+
+  const canCraftRecipe = (recipe) => {
+    if (!recipe.can_craft) return false;
+    for (const mat of recipe.materials) {
+      const invItem = inventory.find(i => i.item_id === mat.item_id);
+      if (!invItem || invItem.quantity < mat.quantity) return false;
+    }
+    return true;
+  };
+
+  const getForgeLevel = () => {
+    const forge = myBuildings.find(b => b.name === 'schmiede');
+    return forge?.level || 0;
+  };
+
+  const getProfessionLevel = (profession) => {
+    const prof = professions.find(p => p.profession === profession);
+    return prof?.level || 1;
   };
 
   // Check if player is at home (coordinates 0,0 means at home/grundstück)
@@ -376,6 +443,103 @@ function Grundstueck() {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Schmiede-spezifische Funktionalität */}
+            {selectedBuilding.name === 'schmiede' && selectedBuilding.is_built && (
+              <div className="smithy-in-building">
+                <div className="smithy-info">
+                  <h4>⚒️ Schmiede Level {getForgeLevel()}</h4>
+                  <p>Stelle Waffen und Rüstungen her. Höheres Level = bessere Qualitätschance!</p>
+                  <div className="profession-display">
+                    <span>🔨 Schmied Level: {getProfessionLevel('blacksmith')}</span>
+                  </div>
+                </div>
+                
+                <button 
+                  className="btn btn-primary smithy-open-btn"
+                  onClick={() => setShowSmithyPanel(!showSmithyPanel)}
+                >
+                  {showSmithyPanel ? '✕ Schließen' : '⚔️ Ausrüstung herstellen'}
+                </button>
+
+                {showSmithyPanel && (
+                  <div className="smithy-panel">
+                    {craftingMessage && (
+                      <div className={`crafting-message ${craftingMessage.type}`}>
+                        <span style={{ color: craftingMessage.quality_color }}>{craftingMessage.text}</span>
+                        {craftingMessage.leveled_up && (
+                          <div className="level-up-notice">🎉 Schmied Level {craftingMessage.new_level}!</div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="recipe-list">
+                      {equipmentRecipes.filter(r => r.profession === 'blacksmith').map(recipe => {
+                        const canCraft = canCraftRecipe(recipe);
+                        const hasLevel = recipe.can_craft;
+                        
+                        return (
+                          <div key={recipe.id} className={`recipe-card ${!canCraft ? 'unavailable' : ''}`}>
+                            <div className="recipe-header">
+                              <span className={`recipe-name rarity-${recipe.rarity}`}>
+                                {recipe.display_name}
+                              </span>
+                              <span className="recipe-slot">{recipe.slot}</span>
+                            </div>
+                            
+                            <div className="recipe-stats">
+                              {recipe.base_attack > 0 && <span>⚔️ +{recipe.base_attack}</span>}
+                              {recipe.base_defense > 0 && <span>🛡️ +{recipe.base_defense}</span>}
+                              {recipe.base_health > 0 && <span>❤️ +{recipe.base_health}</span>}
+                            </div>
+                            
+                            <div className="recipe-materials">
+                              {recipe.materials.map((mat, idx) => {
+                                const invItem = inventory.find(i => i.item_id === mat.item_id);
+                                const hasEnough = invItem && invItem.quantity >= mat.quantity;
+                                return (
+                                  <span key={idx} className={`material ${hasEnough ? 'has' : 'missing'}`}>
+                                    {mat.item_name}: {invItem?.quantity || 0}/{mat.quantity}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            
+                            <div className="recipe-requirements">
+                              <span className={hasLevel ? 'met' : 'unmet'}>
+                                🔨 Benötigt: Schmied Lv.{recipe.required_profession_level}
+                              </span>
+                              <span className="exp-reward">+{recipe.experience_reward} EP</span>
+                            </div>
+                            
+                            <button 
+                              className="btn btn-craft"
+                              onClick={() => craftEquipment(recipe.id)}
+                              disabled={!canCraft || !isAtHome}
+                            >
+                              {!isAtHome ? '🏠 Nicht zu Hause' : canCraft ? '⚒️ Herstellen' : 'Fehlt Material/Level'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="quality-info">
+                      <h5>📊 Qualitätsstufen</h5>
+                      <div className="quality-list">
+                        <span style={{ color: '#9d9d9d' }}>Minderwertig (70%)</span>
+                        <span style={{ color: '#ffffff' }}>Normal (100%)</span>
+                        <span style={{ color: '#1eff00' }}>Gut (120%)</span>
+                        <span style={{ color: '#0070dd' }}>Ausgezeichnet (150%)</span>
+                        <span style={{ color: '#a335ee' }}>Meisterwerk (180%)</span>
+                        <span style={{ color: '#ff8000' }}>Legendär (250%)</span>
+                      </div>
+                      <p>Höheres Schmied-Level und Schmiede-Level erhöhen die Chance auf bessere Qualität!</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             

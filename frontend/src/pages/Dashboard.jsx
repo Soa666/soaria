@@ -10,6 +10,13 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [combatHistory, setCombatHistory] = useState([]);
+  const [equipped, setEquipped] = useState({});
+  const [equipmentInventory, setEquipmentInventory] = useState([]);
+  const [equipmentTotalStats, setEquipmentTotalStats] = useState({ attack: 0, defense: 0, health: 0 });
+  const [professions, setProfessions] = useState([]);
+  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory', 'equipment', 'professions'
+  const [selectedEquipment, setSelectedEquipment] = useState(null);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -17,19 +24,64 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [statsRes, inventoryRes, combatRes] = await Promise.all([
+      const [statsRes, inventoryRes, combatRes, equippedRes, equipInvRes, profRes] = await Promise.all([
         api.get('/npcs/player/stats'),
         api.get('/inventory'),
-        api.get('/combat/history').catch(() => ({ data: { history: [] } }))
+        api.get('/combat/history').catch(() => ({ data: { history: [] } })),
+        api.get('/equipment/equipped').catch(() => ({ data: { equippedBySlot: {}, totalStats: {} } })),
+        api.get('/equipment/inventory').catch(() => ({ data: { equipment: [] } })),
+        api.get('/equipment/professions').catch(() => ({ data: { professions: [] } }))
       ]);
       
       setPlayerStats(statsRes.data.stats);
       setInventory(inventoryRes.data.inventory || []);
       setCombatHistory(combatRes.data.history?.slice(0, 5) || []);
+      setEquipped(equippedRes.data.equippedBySlot || {});
+      setEquipmentTotalStats(equippedRes.data.totalStats || { attack: 0, defense: 0, health: 0 });
+      setEquipmentInventory(equipInvRes.data.equipment || []);
+      setProfessions(profRes.data.professions || []);
     } catch (error) {
       console.error('Fehler beim Laden:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEquip = async (equipmentId) => {
+    try {
+      const response = await api.post(`/equipment/equip/${equipmentId}`);
+      setMessage(response.data.message);
+      fetchData();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Anlegen');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleUnequip = async (equipmentId) => {
+    try {
+      const response = await api.post(`/equipment/unequip/${equipmentId}`);
+      setMessage(response.data.message);
+      fetchData();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Ablegen');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleSellEquipment = async (equipmentId) => {
+    if (!window.confirm('Ausrüstung wirklich verkaufen?')) return;
+    try {
+      const response = await api.delete(`/equipment/${equipmentId}?sell=true`);
+      setMessage(response.data.message);
+      setSelectedEquipment(null);
+      fetchData();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Verkaufen');
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -60,6 +112,44 @@ function Dashboard() {
       other: '❓'
     };
     return icons[type] || icons.other;
+  };
+
+  const getSlotIcon = (slot) => {
+    const icons = {
+      weapon: '⚔️',
+      shield: '🛡️',
+      head: '🪖',
+      chest: '👕',
+      legs: '👖',
+      feet: '👢',
+      hands: '🧤',
+      accessory: '💍'
+    };
+    return icons[slot] || '❓';
+  };
+
+  const getSlotName = (slot) => {
+    const names = {
+      weapon: 'Waffe',
+      shield: 'Schild',
+      head: 'Kopf',
+      chest: 'Brust',
+      legs: 'Beine',
+      feet: 'Füße',
+      hands: 'Hände',
+      accessory: 'Accessoire'
+    };
+    return names[slot] || slot;
+  };
+
+  const getProfessionIcon = (profession) => {
+    const icons = {
+      blacksmith: '⚒️',
+      leatherworker: '🧵',
+      tailor: '✂️',
+      alchemist: '⚗️'
+    };
+    return icons[profession] || '🔨';
   };
 
   if (loading) {
@@ -147,13 +237,67 @@ function Dashboard() {
           </div>
           <div className="core-stat">
             <div className="core-stat-icon">⚔️</div>
-            <div className="core-stat-value">{playerStats?.base_attack || 10}</div>
+            <div className="core-stat-value">
+              {playerStats?.base_attack || 10}
+              {equipmentTotalStats.attack > 0 && (
+                <span className="equip-bonus">+{equipmentTotalStats.attack}</span>
+              )}
+            </div>
             <div className="core-stat-label">Angriff</div>
           </div>
           <div className="core-stat">
             <div className="core-stat-icon">🛡️</div>
-            <div className="core-stat-value">{playerStats?.base_defense || 5}</div>
+            <div className="core-stat-value">
+              {playerStats?.base_defense || 5}
+              {equipmentTotalStats.defense > 0 && (
+                <span className="equip-bonus">+{equipmentTotalStats.defense}</span>
+              )}
+            </div>
             <div className="core-stat-label">Verteidigung</div>
+          </div>
+          <div className="core-stat">
+            <div className="core-stat-icon">❤️</div>
+            <div className="core-stat-value">
+              {playerStats?.max_health || 100}
+              {equipmentTotalStats.health > 0 && (
+                <span className="equip-bonus">+{equipmentTotalStats.health}</span>
+              )}
+            </div>
+            <div className="core-stat-label">Max HP</div>
+          </div>
+        </div>
+
+        {/* Equipment Slots Visual */}
+        <div className="equipment-slots">
+          <h3>⚔️ Ausrüstung</h3>
+          <div className="equipment-grid">
+            {['head', 'chest', 'weapon', 'shield', 'legs', 'hands', 'feet', 'accessory'].map(slot => (
+              <div 
+                key={slot} 
+                className={`equipment-slot slot-${slot} ${equipped[slot] ? 'equipped' : 'empty'}`}
+                onClick={() => equipped[slot] && setSelectedEquipment(equipped[slot])}
+                title={equipped[slot]?.display_name || getSlotName(slot)}
+              >
+                {equipped[slot] ? (
+                  <>
+                    <div 
+                      className="equip-item-border"
+                      style={{ borderColor: equipped[slot].quality_color }}
+                    >
+                      <span className="equip-item-icon">{getSlotIcon(slot)}</span>
+                    </div>
+                    <span className="equip-item-name" style={{ color: equipped[slot].quality_color }}>
+                      {equipped[slot].display_name}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="slot-icon">{getSlotIcon(slot)}</span>
+                    <span className="slot-name">{getSlotName(slot)}</span>
+                  </>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -185,75 +329,229 @@ function Dashboard() {
 
       {/* Inventory Panel - Right Side */}
       <div className="inventory-panel">
-        <div className="inventory-header">
-          <h2>🎒 Inventar</h2>
-          <div className="inventory-summary">
-            <span>{inventory.reduce((sum, i) => sum + i.quantity, 0)} Items</span>
-            <span>•</span>
-            <span>{inventory.length} Verschiedene</span>
+        {message && (
+          <div className={`message ${message.includes('Fehler') ? 'error' : 'success'}`}>
+            {message}
           </div>
+        )}
+        
+        <div className="inventory-tabs">
+          <button 
+            className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
+            onClick={() => setActiveTab('inventory')}
+          >
+            🎒 Inventar
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'equipment' ? 'active' : ''}`}
+            onClick={() => setActiveTab('equipment')}
+          >
+            ⚔️ Ausrüstung ({equipmentInventory.length})
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'professions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('professions')}
+          >
+            🔨 Berufe
+          </button>
         </div>
 
-        {/* Inventory Tabs by Type */}
-        <div className="inventory-content">
-          {Object.entries(inventoryByType).length === 0 ? (
-            <div className="empty-inventory">
-              <div className="empty-icon">📦</div>
-              <p>Dein Inventar ist leer</p>
-              <a href="/collection" className="btn-collect">⛏️ Ressourcen sammeln</a>
+        {/* Inventory Tab */}
+        {activeTab === 'inventory' && (
+          <>
+            <div className="inventory-header">
+              <h2>🎒 Inventar</h2>
+              <div className="inventory-summary">
+                <span>{inventory.reduce((sum, i) => sum + i.quantity, 0)} Items</span>
+                <span>•</span>
+                <span>{inventory.length} Verschiedene</span>
+              </div>
             </div>
-          ) : (
-            Object.entries(inventoryByType).map(([type, items]) => (
-              <div key={type} className="inventory-section">
-                <h3 className="section-title">
-                  {getTypeIcon(type)} {type.charAt(0).toUpperCase() + type.slice(1)}
-                  <span className="section-count">({items.length})</span>
-                </h3>
-                <div className="inventory-grid">
-                  {items.map((item) => (
-                    <div 
-                      key={item.item_id} 
-                      className={`inventory-slot ${getRarityClass(item.rarity)} ${selectedItem?.item_id === item.item_id ? 'selected' : ''}`}
-                      onClick={() => setSelectedItem(selectedItem?.item_id === item.item_id ? null : item)}
-                      title={item.display_name}
-                    >
-                      <img 
-                        src={getImageUrl(item.image_path)} 
-                        alt={item.display_name}
-                        onError={(e) => { e.target.src = '/placeholder-item.png'; }}
-                      />
-                      <span className="item-quantity">{item.quantity}</span>
-                      <div className="rarity-indicator"></div>
+            <div className="inventory-content">
+              {Object.entries(inventoryByType).length === 0 ? (
+                <div className="empty-inventory">
+                  <div className="empty-icon">📦</div>
+                  <p>Dein Inventar ist leer</p>
+                  <a href="/collection" className="btn-collect">⛏️ Ressourcen sammeln</a>
+                </div>
+              ) : (
+                Object.entries(inventoryByType).map(([type, items]) => (
+                  <div key={type} className="inventory-section">
+                    <h3 className="section-title">
+                      {getTypeIcon(type)} {type.charAt(0).toUpperCase() + type.slice(1)}
+                      <span className="section-count">({items.length})</span>
+                    </h3>
+                    <div className="inventory-grid">
+                      {items.map((item) => (
+                        <div 
+                          key={item.item_id} 
+                          className={`inventory-slot ${getRarityClass(item.rarity)} ${selectedItem?.item_id === item.item_id ? 'selected' : ''}`}
+                          onClick={() => setSelectedItem(selectedItem?.item_id === item.item_id ? null : item)}
+                          title={item.display_name}
+                        >
+                          <img 
+                            src={getImageUrl(item.image_path)} 
+                            alt={item.display_name}
+                            onError={(e) => { e.target.src = '/placeholder-item.png'; }}
+                          />
+                          <span className="item-quantity">{item.quantity}</span>
+                          <div className="rarity-indicator"></div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Item Details Tooltip */}
+            {selectedItem && (
+              <div className="item-details">
+                <div className={`item-details-header ${getRarityClass(selectedItem.rarity)}`}>
+                  <img 
+                    src={getImageUrl(selectedItem.image_path)} 
+                    alt={selectedItem.display_name}
+                    className="item-details-image"
+                  />
+                  <div className="item-details-info">
+                    <h4>{selectedItem.display_name}</h4>
+                    <span className={`item-rarity ${getRarityClass(selectedItem.rarity)}`}>
+                      {selectedItem.rarity || 'common'}
+                    </span>
+                  </div>
+                </div>
+                <div className="item-details-body">
+                  <p className="item-type">{getTypeIcon(selectedItem.type)} {selectedItem.type}</p>
+                  {selectedItem.description && (
+                    <p className="item-description">{selectedItem.description}</p>
+                  )}
+                  <p className="item-owned">Im Besitz: <strong>{selectedItem.quantity}</strong></p>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            )}
+          </>
+        )}
 
-        {/* Item Details Tooltip */}
-        {selectedItem && (
-          <div className="item-details">
-            <div className={`item-details-header ${getRarityClass(selectedItem.rarity)}`}>
-              <img 
-                src={getImageUrl(selectedItem.image_path)} 
-                alt={selectedItem.display_name}
-                className="item-details-image"
-              />
-              <div className="item-details-info">
-                <h4>{selectedItem.display_name}</h4>
-                <span className={`item-rarity ${getRarityClass(selectedItem.rarity)}`}>
-                  {selectedItem.rarity || 'common'}
-                </span>
-              </div>
+        {/* Equipment Tab */}
+        {activeTab === 'equipment' && (
+          <div className="equipment-tab">
+            <div className="inventory-header">
+              <h2>⚔️ Ausrüstung</h2>
+              <a href="/grundstueck" className="btn-craft-link">🔨 Schmiede</a>
             </div>
-            <div className="item-details-body">
-              <p className="item-type">{getTypeIcon(selectedItem.type)} {selectedItem.type}</p>
-              {selectedItem.description && (
-                <p className="item-description">{selectedItem.description}</p>
-              )}
-              <p className="item-owned">Im Besitz: <strong>{selectedItem.quantity}</strong></p>
+            
+            {equipmentInventory.length === 0 ? (
+              <div className="empty-inventory">
+                <div className="empty-icon">⚔️</div>
+                <p>Du hast keine Ausrüstung</p>
+                <a href="/grundstueck" className="btn-collect">🔨 Zur Schmiede</a>
+              </div>
+            ) : (
+              <div className="equipment-list">
+                {equipmentInventory.map(eq => (
+                  <div 
+                    key={eq.id} 
+                    className={`equipment-item ${eq.is_equipped ? 'equipped' : ''}`}
+                    onClick={() => setSelectedEquipment(selectedEquipment?.id === eq.id ? null : eq)}
+                  >
+                    <div className="equip-icon" style={{ borderColor: eq.quality_color }}>
+                      {getSlotIcon(eq.slot)}
+                    </div>
+                    <div className="equip-info">
+                      <span className="equip-name" style={{ color: eq.quality_color }}>
+                        {eq.display_name}
+                      </span>
+                      <span className="equip-quality">{eq.quality_name}</span>
+                      <div className="equip-stats">
+                        {eq.actual_attack > 0 && <span>⚔️ +{eq.actual_attack}</span>}
+                        {eq.actual_defense > 0 && <span>🛡️ +{eq.actual_defense}</span>}
+                        {eq.actual_health > 0 && <span>❤️ +{eq.actual_health}</span>}
+                      </div>
+                    </div>
+                    <div className="equip-actions">
+                      {eq.is_equipped ? (
+                        <button className="btn-unequip" onClick={(e) => { e.stopPropagation(); handleUnequip(eq.id); }}>
+                          Ablegen
+                        </button>
+                      ) : (
+                        <button className="btn-equip" onClick={(e) => { e.stopPropagation(); handleEquip(eq.id); }}>
+                          Anlegen
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Equipment Details */}
+            {selectedEquipment && (
+              <div className="equipment-details">
+                <h4 style={{ color: selectedEquipment.quality_color }}>
+                  {selectedEquipment.display_name}
+                </h4>
+                <p className="equip-detail-quality">{selectedEquipment.quality_name} Qualität</p>
+                <p className="equip-detail-slot">{getSlotIcon(selectedEquipment.slot)} {getSlotName(selectedEquipment.slot)}</p>
+                {selectedEquipment.description && (
+                  <p className="equip-detail-desc">{selectedEquipment.description}</p>
+                )}
+                <div className="equip-detail-stats">
+                  {selectedEquipment.actual_attack > 0 && (
+                    <div className="stat-row">⚔️ Angriff: <span className="stat-bonus">+{selectedEquipment.actual_attack}</span></div>
+                  )}
+                  {selectedEquipment.actual_defense > 0 && (
+                    <div className="stat-row">🛡️ Verteidigung: <span className="stat-bonus">+{selectedEquipment.actual_defense}</span></div>
+                  )}
+                  {selectedEquipment.actual_health > 0 && (
+                    <div className="stat-row">❤️ Max HP: <span className="stat-bonus">+{selectedEquipment.actual_health}</span></div>
+                  )}
+                </div>
+                <div className="equip-detail-actions">
+                  <button 
+                    className="btn-sell" 
+                    onClick={() => handleSellEquipment(selectedEquipment.id)}
+                  >
+                    💰 Verkaufen
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Professions Tab */}
+        {activeTab === 'professions' && (
+          <div className="professions-tab">
+            <div className="inventory-header">
+              <h2>🔨 Berufe</h2>
+            </div>
+            
+            <div className="professions-list">
+              {professions.map(prof => (
+                <div key={prof.profession} className="profession-item">
+                  <div className="profession-icon">{getProfessionIcon(prof.profession)}</div>
+                  <div className="profession-info">
+                    <span className="profession-name">{prof.display_name}</span>
+                    <span className="profession-level">Level {prof.level}</span>
+                    <div className="profession-exp-bar">
+                      <div 
+                        className="profession-exp-fill" 
+                        style={{ width: `${prof.progress_percent}%` }}
+                      />
+                    </div>
+                    <span className="profession-exp-text">
+                      {prof.experience} / {prof.exp_for_next_level} EP
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="profession-info-box">
+              <h4>💡 Berufe leveln</h4>
+              <p>Stelle Ausrüstung in der Schmiede her um Erfahrung zu sammeln.</p>
+              <p>Höheres Berufslevel = bessere Qualitätschance!</p>
+              <a href="/grundstueck" className="btn-craft-link">🔨 Zur Schmiede</a>
             </div>
           </div>
         )}
