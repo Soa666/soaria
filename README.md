@@ -110,3 +110,4 @@ Das System ist darauf ausgelegt, einfach erweitert zu werden:
 - Frontend läuft auf: http://localhost:3000
 
 Viel Spaß beim Spielen! 🎮
+# soaria
