@@ -376,8 +376,9 @@ function Map() {
       const worldX = viewCenter.x + (x - centerX) / scale;
       const worldY = viewCenter.y + (y - centerY) / scale;
 
-      // Check if clicked on a player
+      // Check if clicked on a player (larger click area)
       let clickedPlayer = null;
+      const clickRadius = 25 * Math.min(scale, 1.5); // Larger click area
       if (players && Array.isArray(players)) {
         for (const player of players) {
           if (!player || player.world_x === undefined || player.world_y === undefined) continue;
@@ -385,7 +386,7 @@ function Map() {
           const py = centerY + (player.world_y - viewCenter.y) * scale;
           const distance = Math.sqrt(Math.pow(x - px, 2) + Math.pow(y - py, 2));
         
-          if (distance < 15) {
+          if (distance < clickRadius) {
             clickedPlayer = player;
             break;
           }
@@ -715,46 +716,40 @@ function Map() {
           )}
         </div>
 
-        {selectedPlayer && (
+        {selectedPlayer && selectedPlayer.id !== user?.id && (
           <div className="player-actions">
-            <h3>Spieler: {selectedPlayer.username || 'Unbekannt'}</h3>
+            <h3>👤 {selectedPlayer.username || 'Unbekannt'}</h3>
             <p>Position: ({selectedPlayer.world_x ?? 0}, {selectedPlayer.world_y ?? 0})</p>
             
             {user?.world_x !== undefined && user?.world_y !== undefined && 
              selectedPlayer.world_x !== undefined && selectedPlayer.world_y !== undefined && (
               <p>
-                Entfernung: {Math.round(Math.sqrt(
+                Entfernung: <strong>{Math.round(Math.sqrt(
                   Math.pow((user.world_x || 0) - (selectedPlayer.world_x || 0), 2) +
                   Math.pow((user.world_y || 0) - (selectedPlayer.world_y || 0), 2)
-                ))} Einheiten
+                ))} Einheiten</strong>
               </p>
             )}
 
             <div className="action-buttons">
-              {actionMode === 'move' && targetCoords && (
-                <button className="btn btn-primary" onClick={handleMove}>
-                  🚶 Hierhin bewegen
-                </button>
-              )}
-              
-              {selectedPlayer.id !== user?.id && (
-                <>
-                  <button 
-                    className="btn btn-danger" 
-                    onClick={handleAttack}
-                    disabled={actionMode === 'move'}
-                  >
-                    ⚔️ Angreifen
-                  </button>
-                  <button 
-                    className="btn btn-success" 
-                    onClick={handleTrade}
-                    disabled={actionMode === 'move'}
-                  >
-                    🤝 Handeln
-                  </button>
-                </>
-              )}
+              <button 
+                className="btn btn-danger" 
+                onClick={handleAttack}
+              >
+                ⚔️ Angreifen
+              </button>
+              <button 
+                className="btn btn-success" 
+                onClick={handleTrade}
+              >
+                🤝 Handeln
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setSelectedPlayer(null)}
+              >
+                ✗ Schließen
+              </button>
             </div>
           </div>
         )}
