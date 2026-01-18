@@ -305,32 +305,66 @@ router.post('/:messageId/report', authenticateToken, async (req, res) => {
 // Helper function to send system messages (exported for use in other routes)
 export async function sendSystemMessage(recipientId, subject, content, messageType = 'system', relatedId = null) {
   try {
+    console.log(`[MESSAGE] Sending system message to user ${recipientId}: "${subject}" (type: ${messageType})`);
+    
     // Get or create system user
     let systemUser = await db.get('SELECT id FROM users WHERE username = ?', ['System']);
     
     if (!systemUser) {
-      // Use the recipient as sender for system messages if no system user exists
-      // This is a fallback - ideally create a system user in database init
+      console.log('[MESSAGE] Creating System user...');
+      // Create system user
       const result = await db.run(`
         INSERT OR IGNORE INTO users (username, email, password_hash, role, is_activated)
         VALUES ('System', 'system@soaria.local', 'SYSTEM_NO_LOGIN', 'admin', 1)
       `);
       systemUser = { id: result.lastID || (await db.get('SELECT id FROM users WHERE username = ?', ['System'])).id };
+      console.log(`[MESSAGE] System user created/found with ID: ${systemUser.id}`);
     }
     
     // Convert emojis
     const processedSubject = convertEmojis(subject);
     const processedContent = convertEmojis(content);
     
-    await db.run(`
+    // Validate message type - fallback to 'system' if invalid for older databases
+    const validTypes = ['personal', 'guild_application', 'guild_accepted', 'guild_rejected', 'trade_received', 'trade_sent', 'attack_received', 'attack_sent', 'system'];
+    const finalMessageType = validTypes.includes(messageType) ? messageType : 'system';
+    
+    const result = await db.run(`
       INSERT INTO messages (sender_id, recipient_id, subject, content, is_system, message_type, related_id)
       VALUES (?, ?, ?, ?, 1, ?, ?)
-    `, [systemUser.id, recipientId, processedSubject, processedContent, messageType, relatedId]);
+    `, [systemUser.id, recipientId, processedSubject, processedContent, finalMessageType, relatedId]);
     
+    console.log(`[MESSAGE] Message sent successfully, ID: ${result.lastID}`);
     return true;
   } catch (error) {
-    console.error('Error sending system message:', error);
-    return false;
+    console.error('[MESSAGE] Error sending system message:', error);
+    
+    // Try again with 'system' type as fallback (in case CHECK constraint fails)
+    try {
+      console.log('[MESSAGE] Retrying with system type...');
+      let systemUser = await db.get('SELECT id FROM users WHERE username = ?', ['System']);
+      if (!systemUser) {
+        await db.run(`
+          INSERT OR IGNORE INTO users (username, email, password_hash, role, is_activated)
+          VALUES ('System', 'system@soaria.local', 'SYSTEM_NO_LOGIN', 'admin', 1)
+        `);
+        systemUser = await db.get('SELECT id FROM users WHERE username = ?', ['System']);
+      }
+      
+      const processedSubject = convertEmojis(subject);
+      const processedContent = convertEmojis(content);
+      
+      await db.run(`
+        INSERT INTO messages (sender_id, recipient_id, subject, content, is_system, message_type, related_id)
+        VALUES (?, ?, ?, ?, 1, 'system', ?)
+      `, [systemUser.id, recipientId, processedSubject, processedContent, relatedId]);
+      
+      console.log('[MESSAGE] Fallback message sent successfully');
+      return true;
+    } catch (fallbackError) {
+      console.error('[MESSAGE] Fallback also failed:', fallbackError);
+      return false;
+    }
   }
 }
 

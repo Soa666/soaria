@@ -444,23 +444,64 @@ export async function initDatabase() {
   `);
 
   // Messages table (Nachrichten-System)
-  await db.run(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sender_id INTEGER NOT NULL,
-      recipient_id INTEGER NOT NULL,
-      subject TEXT NOT NULL,
-      content TEXT NOT NULL,
-      is_read INTEGER DEFAULT 0,
-      is_system INTEGER DEFAULT 0,
-      message_type TEXT DEFAULT 'personal' CHECK(message_type IN ('personal', 'guild_application', 'guild_accepted', 'guild_rejected', 'trade_received', 'trade_sent', 'attack_received', 'attack_sent', 'system')),
-      related_id INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      read_at DATETIME,
-      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `);
+  // Check if messages table exists and needs migration
+  const messagesTableInfo = await db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='messages'");
+  
+  if (messagesTableInfo && !messagesTableInfo.sql.includes('attack_received')) {
+    // Old table exists without new message types - migrate it
+    console.log('[DB] Migrating messages table to support new message types...');
+    
+    // Create new table with updated CHECK constraint
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS messages_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        recipient_id INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        is_system INTEGER DEFAULT 0,
+        message_type TEXT DEFAULT 'personal',
+        related_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        read_at DATETIME,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    
+    // Copy data from old table
+    await db.run(`
+      INSERT INTO messages_new (id, sender_id, recipient_id, subject, content, is_read, is_system, message_type, related_id, created_at, read_at)
+      SELECT id, sender_id, recipient_id, subject, content, is_read, is_system, message_type, related_id, created_at, read_at
+      FROM messages
+    `);
+    
+    // Drop old table and rename new one
+    await db.run('DROP TABLE messages');
+    await db.run('ALTER TABLE messages_new RENAME TO messages');
+    
+    console.log('[DB] Messages table migration completed');
+  } else if (!messagesTableInfo) {
+    // Table doesn't exist, create it fresh
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        recipient_id INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        is_system INTEGER DEFAULT 0,
+        message_type TEXT DEFAULT 'personal',
+        related_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        read_at DATETIME,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+  }
 
   // Message reports table (Gemeldete Nachrichten)
   await db.run(`
