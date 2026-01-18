@@ -89,76 +89,76 @@ function isWaterTerrain(terrain) {
 // Generate terrain type based on noise
 function getTerrainAt(worldX, worldY) {
   // Large-scale continent noise (very smooth, large features)
-  const continent = fractalNoise(worldX, worldY, 4, 0.5, 0.003, 0);
+  const continent = fractalNoise(worldX, worldY, 4, 0.5, 0.002, 0);
   
   // Medium-scale elevation
-  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.008, 10000);
+  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.006, 10000);
   
   // Moisture for vegetation
-  const moisture = fractalNoise(worldX, worldY, 4, 0.5, 0.012, 50000);
+  const moisture = fractalNoise(worldX, worldY, 4, 0.5, 0.01, 50000);
   
   // Detail noise
-  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.03, 100000);
+  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.025, 100000);
   
-  // River noise - creates winding rivers
-  const riverBase = fractalNoise(worldX, worldY, 3, 0.6, 0.004, 77777);
-  const riverWind = Math.sin(worldX * 0.005 + riverBase * 4) * 0.5 + 
-                    Math.cos(worldY * 0.005 + riverBase * 4) * 0.5;
-  const riverValue = Math.abs(riverWind + fractalNoise(worldX, worldY, 2, 0.5, 0.01, 88888) * 0.3);
+  // River noise - creates winding rivers (less frequent)
+  const riverBase = fractalNoise(worldX, worldY, 3, 0.6, 0.003, 77777);
+  const riverWind = Math.sin(worldX * 0.004 + riverBase * 3) * 0.5 + 
+                    Math.cos(worldY * 0.004 + riverBase * 3) * 0.5;
+  const riverValue = Math.abs(riverWind + fractalNoise(worldX, worldY, 2, 0.5, 0.008, 88888) * 0.2);
   
-  // Combined height value
-  const height = continent * 0.6 + elevation * 0.4;
+  // Combined height value - bias towards land
+  const height = continent * 0.5 + elevation * 0.5;
   
-  // Ocean (low continent value)
-  if (continent < 0.35) {
-    if (continent < 0.25) return 'deepWater';
+  // Ocean - only at very low continent values (less ocean)
+  if (continent < 0.2) {
+    if (continent < 0.12) return 'deepWater';
     return 'water';
   }
   
-  // Lakes (low spots on land)
-  if (height < 0.38 && continent > 0.35 && continent < 0.45) {
+  // Small lakes - rare
+  if (height < 0.28 && continent > 0.25 && continent < 0.35 && elevation < 0.3) {
     return 'water';
   }
   
-  // Rivers (thin winding paths through land)
-  if (riverValue < 0.08 && height > 0.4 && height < 0.75) {
-    if (riverValue < 0.04) return 'deepWater';
+  // Rivers - thin winding paths (narrower)
+  if (riverValue < 0.04 && height > 0.35 && height < 0.7 && continent > 0.3) {
+    if (riverValue < 0.02) return 'deepWater';
     return 'water';
   }
   
-  // Beach/sand (near water)
-  if (continent > 0.35 && continent < 0.42) {
+  // Beach/sand (narrow strip near water)
+  if (continent > 0.2 && continent < 0.28) {
     return 'sand';
   }
   
   // Mountains/cliffs (high elevation)
-  if (height > 0.75) {
+  if (height > 0.78) {
     return 'cliff';
   }
   
   // Forest (high moisture, medium elevation)
-  if (moisture > 0.55 && height > 0.45 && height < 0.72) {
-    if (moisture > 0.68 && detail > 0.4) return 'forest';
-    if (moisture > 0.58) return 'trees';
+  if (moisture > 0.55 && height > 0.4 && height < 0.75) {
+    if (moisture > 0.7 && detail > 0.4) return 'forest';
+    if (moisture > 0.6) return 'trees';
   }
   
   // Scattered trees
-  if (detail > 0.7 && moisture > 0.45 && height > 0.45) {
+  if (detail > 0.72 && moisture > 0.48 && height > 0.4) {
     return 'trees';
   }
   
   // Paths
-  if (detail > 0.48 && detail < 0.52 && height > 0.42 && height < 0.65) {
+  if (detail > 0.47 && detail < 0.53 && height > 0.38 && height < 0.68) {
     return 'path';
   }
   
   // Flowers
-  if (detail > 0.85 && moisture > 0.4 && height > 0.45) {
+  if (detail > 0.85 && moisture > 0.42 && height > 0.4) {
     return 'flowers';
   }
   
   // Dirt patches
-  if (moisture < 0.35 && height > 0.5 && height < 0.65 && detail > 0.6) {
+  if (moisture < 0.32 && height > 0.45 && height < 0.68 && detail > 0.6) {
     return 'dirt';
   }
   

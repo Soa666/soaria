@@ -162,23 +162,23 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 }
 
 function isWaterAt(worldX, worldY) {
-  const continent = fractalNoise(worldX, worldY, 4, 0.5, 0.003, 0);
-  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.008, 10000);
-  const height = continent * 0.6 + elevation * 0.4;
+  const continent = fractalNoise(worldX, worldY, 4, 0.5, 0.002, 0);
+  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.006, 10000);
+  const height = continent * 0.5 + elevation * 0.5;
   
-  // Ocean
-  if (continent < 0.35) return true;
+  // Ocean - only at very low continent values
+  if (continent < 0.2) return true;
   
-  // Lakes
-  if (height < 0.38 && continent > 0.35 && continent < 0.45) return true;
+  // Small lakes - rare
+  if (height < 0.28 && continent > 0.25 && continent < 0.35 && elevation < 0.3) return true;
   
-  // Rivers
-  const riverBase = fractalNoise(worldX, worldY, 3, 0.6, 0.004, 77777);
-  const riverWind = Math.sin(worldX * 0.005 + riverBase * 4) * 0.5 + 
-                    Math.cos(worldY * 0.005 + riverBase * 4) * 0.5;
-  const riverValue = Math.abs(riverWind + fractalNoise(worldX, worldY, 2, 0.5, 0.01, 88888) * 0.3);
+  // Rivers - thin winding paths
+  const riverBase = fractalNoise(worldX, worldY, 3, 0.6, 0.003, 77777);
+  const riverWind = Math.sin(worldX * 0.004 + riverBase * 3) * 0.5 + 
+                    Math.cos(worldY * 0.004 + riverBase * 3) * 0.5;
+  const riverValue = Math.abs(riverWind + fractalNoise(worldX, worldY, 2, 0.5, 0.008, 88888) * 0.2);
   
-  if (riverValue < 0.08 && height > 0.4 && height < 0.75) return true;
+  if (riverValue < 0.04 && height > 0.35 && height < 0.7 && continent > 0.3) return true;
   
   return false;
 }
