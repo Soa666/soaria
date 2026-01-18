@@ -35,6 +35,64 @@
 
 .time-remaining {
   margin-top: 1.5rem;
+  text-align: center;
+}
+
+.countdown-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: linear-gradient(145deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.1));
+  border: 2px solid #3498db;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.countdown-display.paused {
+  background: linear-gradient(145deg, rgba(243, 156, 18, 0.2), rgba(211, 84, 0, 0.1));
+  border-color: #f39c12;
+}
+
+.countdown-icon {
+  font-size: 1.5rem;
+}
+
+.countdown-time {
+  font-size: 2rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  color: #e8dcc0;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.time-info {
+  color: #8b7a5a;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.paused-banner {
+  background: linear-gradient(145deg, rgba(243, 156, 18, 0.2), rgba(211, 84, 0, 0.1));
+  border: 2px solid #f39c12;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.paused-text {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #f39c12;
+  margin-bottom: 0.5rem;
+}
+
+.paused-info {
+  color: #a89070;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
 }
 
 .progress-bar {

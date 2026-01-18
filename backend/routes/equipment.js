@@ -425,28 +425,40 @@ async function isUserAtHome(userId) {
   return distance <= 50;
 }
 
-// Helper: Check if user has any active job
+// Helper: Check if user has any active job that is NOT ready to collect
 async function hasActiveJob(userId) {
-  // Check collection jobs
+  const now = new Date().toISOString();
+  
+  // Check collection jobs - only if not yet completed
   const collectionJob = await db.get(
-    "SELECT id FROM collection_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
-    [userId]
+    "SELECT id FROM collection_jobs WHERE user_id = ? AND status IN ('active', 'paused') AND completed_at > ?",
+    [userId, now]
   );
   if (collectionJob) return { active: true, type: 'Sammel-Auftrag' };
   
-  // Check building jobs
+  // Check building jobs - only if not yet completed
   const buildingJob = await db.get(
-    "SELECT id FROM building_jobs WHERE user_id = ? AND status IN ('active', 'paused')",
-    [userId]
+    "SELECT id FROM building_jobs WHERE user_id = ? AND status IN ('active', 'paused') AND completed_at > ?",
+    [userId, now]
   );
   if (buildingJob) return { active: true, type: 'Bau-/Upgrade-Auftrag' };
   
-  // Check crafting jobs
+  // Check crafting jobs - only if not yet finished (finish_at in future and not paused)
   const craftingJob = await db.get(
-    "SELECT id FROM crafting_jobs WHERE user_id = ? AND is_completed = 0",
+    "SELECT id, finish_at, paused_at FROM crafting_jobs WHERE user_id = ? AND is_completed = 0",
     [userId]
   );
-  if (craftingJob) return { active: true, type: 'Herstellungs-Auftrag' };
+  if (craftingJob) {
+    // If paused, it's still "active" (blocking)
+    if (craftingJob.paused_at) {
+      return { active: true, type: 'Herstellungs-Auftrag (pausiert)' };
+    }
+    // If not finished yet, it's still "active"
+    if (new Date(craftingJob.finish_at) > new Date()) {
+      return { active: true, type: 'Herstellungs-Auftrag' };
+    }
+    // If finished (finish_at <= now), don't count as active - ready to collect!
+  }
   
   return { active: false };
 }

@@ -18,13 +18,41 @@ function Collection() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [items, setItems] = useState([]);
+  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
     fetchStatus();
-    // Poll status every 10 seconds
-    const interval = setInterval(fetchStatus, 10000);
+    // Poll status every 30 seconds
+    const interval = setInterval(fetchStatus, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Countdown timer - updates every second
+  useEffect(() => {
+    if (status?.active && !status?.is_completed && !status?.is_paused) {
+      // Calculate remaining seconds from server data
+      const completedAt = new Date(status.completed_at);
+      const now = new Date();
+      const remainingMs = completedAt.getTime() - now.getTime();
+      const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+      setCountdown(remainingSecs);
+
+      // Countdown every second
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            fetchStatus(); // Refresh when done
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    } else if (status?.is_paused && status?.remaining_seconds) {
+      setCountdown(status.remaining_seconds);
+    }
+  }, [status?.active, status?.is_completed, status?.is_paused, status?.completed_at]);
 
   const fetchStatus = async () => {
     try {
@@ -82,6 +110,18 @@ function Collection() {
     return `${hours} Stunde${hours > 1 ? 'n' : ''} ${mins} Minute${mins > 1 ? 'n' : ''}`;
   };
 
+  const formatCountdown = (totalSeconds) => {
+    if (totalSeconds <= 0) return '0:00';
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="container">
       <div className="card">
@@ -100,7 +140,16 @@ function Collection() {
               <p><strong>Gestartet:</strong> {new Date(status.started_at).toLocaleString('de-DE')}</p>
               <p><strong>Fertig um:</strong> {new Date(status.completed_at).toLocaleString('de-DE')}</p>
               
-              {status.is_completed ? (
+              {status.is_paused ? (
+                <div className="paused-banner">
+                  <p className="paused-text">⏸️ Sammeln pausiert!</p>
+                  <p className="paused-info">Du bist nicht zu Hause. Kehre zurück um fortzufahren.</p>
+                  <div className="countdown-display paused">
+                    <span className="countdown-icon">⏱️</span>
+                    <span className="countdown-time">{formatCountdown(countdown)}</span>
+                  </div>
+                </div>
+              ) : status.is_completed || countdown <= 0 ? (
                 <div className="completed-banner">
                   <p className="completed-text">✅ Sammel-Auftrag abgeschlossen!</p>
                   <button 
@@ -108,20 +157,24 @@ function Collection() {
                     onClick={claimCollection}
                     disabled={loading}
                   >
-                    {loading ? 'Lädt...' : 'Items abholen'}
+                    {loading ? 'Lädt...' : '✨ Items abholen'}
                   </button>
                 </div>
               ) : (
                 <div className="time-remaining">
-                  <p><strong>Verbleibende Zeit:</strong> {formatTime(status.time_remaining_minutes)}</p>
+                  <div className="countdown-display">
+                    <span className="countdown-icon">⏱️</span>
+                    <span className="countdown-time">{formatCountdown(countdown)}</span>
+                  </div>
                   <div className="progress-bar">
                     <div 
                       className="progress-fill"
                       style={{ 
-                        width: `${((status.duration_minutes - status.time_remaining_minutes) / status.duration_minutes) * 100}%` 
+                        width: `${Math.max(0, 100 - (countdown / (status.duration_minutes * 60)) * 100)}%` 
                       }}
                     ></div>
                   </div>
+                  <p className="time-info">Fertig um {new Date(status.completed_at).toLocaleTimeString('de-DE')}</p>
                 </div>
               )}
             </div>
