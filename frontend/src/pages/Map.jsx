@@ -1250,19 +1250,14 @@ function Map() {
     try {
       const response = await api.get(`/npcs/${npcId}`);
       if (response.data.npc?.npc_type_id) {
-        // It's a merchant
+        // It's a merchant - store shop data
         setNpcShopData(response.data);
       } else {
         setNpcShopData(null);
       }
     } catch (error) {
       console.error('Fehler beim Laden der NPC-Details:', error);
-      if (error.response?.data?.tooFar) {
-        setMessage(error.response.data.error);
-        setTimeout(() => setMessage(''), 3000);
-        setSelectedNpc(null);
-        setNpcShopData(null);
-      }
+      setNpcShopData(null);
     }
   };
 

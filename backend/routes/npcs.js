@@ -124,11 +124,9 @@ router.get('/:npcId', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'NPC nicht gefunden' });
     }
 
-    // Check distance to NPC
-    const proximityCheck = await checkPlayerNearNpc(req.user.id, npcId);
-    if (!proximityCheck.isNear) {
-      return res.status(400).json({ error: proximityCheck.error, tooFar: true });
-    }
+    // Calculate distance (for display purposes, not blocking)
+    const user = await db.get('SELECT world_x, world_y FROM users WHERE id = ?', [req.user.id]);
+    const distance = user ? getDistance(user.world_x, user.world_y, npc.world_x, npc.world_y) : null;
 
     // If it's a merchant, get shop items
     let shopItems = [];
@@ -172,7 +170,13 @@ router.get('/:npcId', authenticateToken, async (req, res) => {
       npc.defense = npc.base_defense + (level - 1) * (npc.defense_per_level || 0);
     }
 
-    res.json({ npc, shopItems, lootTable });
+    res.json({ 
+      npc, 
+      shopItems, 
+      lootTable,
+      distance: distance !== null ? Math.round(distance) : null,
+      canInteract: distance !== null && distance <= MAX_INTERACTION_DISTANCE
+    });
   } catch (error) {
     console.error('Get NPC error:', error);
     res.status(500).json({ error: 'Serverfehler' });
