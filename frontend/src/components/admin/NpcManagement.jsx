@@ -10,6 +10,7 @@ function NpcManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -32,6 +33,20 @@ function NpcManagement() {
     fetchItems();
   }, []);
 
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const fetchNpcs = async () => {
     try {
       const response = await api.get('/admin/npcs/npcs');
@@ -53,6 +68,11 @@ function NpcManagement() {
   };
 
   const selectNpc = async (npc) => {
+    if (selectedNpc?.id === npc.id) {
+      setSelectedNpc(null);
+      setShopItems([]);
+      return;
+    }
     setSelectedNpc(npc);
     try {
       const response = await api.get(`/admin/npcs/npcs/${npc.id}`);
@@ -83,7 +103,8 @@ function NpcManagement() {
     }
   };
 
-  const handleEdit = (npc) => {
+  const handleEdit = (npc, e) => {
+    e?.stopPropagation();
     setForm({
       name: npc.name,
       display_name: npc.display_name,
@@ -95,7 +116,8 @@ function NpcManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = async (npc) => {
+  const handleDelete = async (npc, e) => {
+    e?.stopPropagation();
     if (!window.confirm(`NPC "${npc.display_name}" wirklich löschen?`)) return;
     
     try {
@@ -166,6 +188,20 @@ function NpcManagement() {
     }
   };
 
+  const getNpcTypeName = (type) => {
+    switch (type) {
+      case 'merchant': return 'Händler';
+      case 'quest_giver': return 'Questgeber';
+      case 'trainer': return 'Ausbilder';
+      default: return type;
+    }
+  };
+
+  const filteredNpcs = npcs.filter(npc => 
+    npc.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    npc.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) return <div className="loading">Lade NPCs...</div>;
 
   return (
@@ -186,140 +222,211 @@ function NpcManagement() {
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}
 
-      <div className="npc-content">
-        <div className="npc-list">
-          <h3>NPCs ({npcs.length})</h3>
-          <div className="npc-items">
-            {npcs.map(npc => (
-              <div 
-                key={npc.id} 
-                className={`npc-item ${selectedNpc?.id === npc.id ? 'selected' : ''}`}
-                onClick={() => selectNpc(npc)}
-              >
-                <div className="npc-info">
-                  <span className="npc-name">
-                    {getNpcTypeIcon(npc.npc_type)} {npc.display_name}
-                  </span>
-                  <span className="npc-type">{npc.npc_type}</span>
-                </div>
-                <div className="npc-stats-mini">
-                  <span>📦 {npc.item_count} Items</span>
-                  <span>🗺️ {npc.spawn_count}x gespawnt</span>
-                </div>
-                <div className="npc-actions">
-                  <button onClick={(e) => { e.stopPropagation(); handleEdit(npc); }}>✏️</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(npc); }}>🗑️</button>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Search Bar */}
+      <div className="filter-bar">
+        <div className="search-box">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="NPC suchen..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
+        <div className="npc-count">
+          {filteredNpcs.length} NPC{filteredNpcs.length !== 1 ? 's' : ''} gefunden
+        </div>
+      </div>
 
-        {selectedNpc && (
-          <div className="npc-details">
-            <h3>{getNpcTypeIcon(selectedNpc.npc_type)} {selectedNpc.display_name}</h3>
-            <p className="description">{selectedNpc.description}</p>
-            
-            <div className="shop-section">
-              <h4>💰 Handelswaren</h4>
-              
-              {shopItems.length > 0 ? (
-                <table className="shop-table">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Typ</th>
-                      <th>Kaufpreis</th>
-                      <th>Verkaufspreis</th>
-                      <th>Vorrat</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shopItems.map(item => (
-                      <tr key={item.id}>
-                        <td>{item.item_name}</td>
-                        <td className="item-type">{item.item_type}</td>
-                        <td className="price buy">{item.buy_price ? `${item.buy_price} 💰` : '-'}</td>
-                        <td className="price sell">{item.sell_price ? `${item.sell_price} 💰` : '-'}</td>
-                        <td>{item.stock === -1 ? '∞' : item.stock}</td>
-                        <td>
-                          <button 
-                            className="btn-remove"
-                            onClick={() => handleRemoveItem(item.item_id)}
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="no-items">Keine Handelswaren konfiguriert</p>
-              )}
+      {/* NPC Table */}
+      <div className="npc-table-container">
+        <table className="npc-table">
+          <thead>
+            <tr>
+              <th style={{width: '30px'}}></th>
+              <th>Name</th>
+              <th>Typ</th>
+              <th>Items im Shop</th>
+              <th>Auf Karte</th>
+              <th style={{width: '100px'}}>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredNpcs.map(npc => (
+              <>
+                <tr 
+                  key={npc.id} 
+                  className={`npc-row ${selectedNpc?.id === npc.id ? 'selected' : ''}`}
+                  onClick={() => selectNpc(npc)}
+                >
+                  <td className="type-icon">{getNpcTypeIcon(npc.npc_type)}</td>
+                  <td className="name-cell">
+                    <span className="npc-name">{npc.display_name}</span>
+                    <span className="npc-internal">{npc.name}</span>
+                  </td>
+                  <td>
+                    <span className={`type-badge ${npc.npc_type}`}>
+                      {getNpcTypeName(npc.npc_type)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="item-count">{npc.item_count || 0} Items</span>
+                  </td>
+                  <td>
+                    <span className="spawn-count">{npc.spawn_count || 0}x</span>
+                  </td>
+                  <td className="action-cell">
+                    <button 
+                      className="btn-icon btn-edit" 
+                      onClick={(e) => handleEdit(npc, e)}
+                      title="Bearbeiten"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      className="btn-icon btn-delete" 
+                      onClick={(e) => handleDelete(npc, e)}
+                      title="Löschen"
+                    >
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+                {selectedNpc?.id === npc.id && (
+                  <tr className="shop-row">
+                    <td colSpan="6">
+                      <div className="shop-panel">
+                        <div className="shop-header">
+                          <h4>💰 Handelswaren von {npc.display_name}</h4>
+                        </div>
+                        
+                        {npc.description && (
+                          <p className="npc-description">{npc.description}</p>
+                        )}
 
-              <form className="item-form" onSubmit={handleAddItem}>
-                <h5>Handelsware hinzufügen</h5>
-                <div className="form-row">
-                  <select
-                    value={itemForm.item_id}
-                    onChange={(e) => setItemForm({...itemForm, item_id: e.target.value})}
-                    required
-                  >
-                    <option value="">Item wählen...</option>
-                    {items.map(item => (
-                      <option key={item.id} value={item.id}>
-                        {item.display_name} ({item.type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-row">
-                  <div className="input-group">
-                    <label>Kaufpreis (Spieler kauft)</label>
-                    <input
-                      type="number"
-                      placeholder="z.B. 50"
-                      value={itemForm.buy_price}
-                      onChange={(e) => setItemForm({...itemForm, buy_price: e.target.value})}
-                      min="0"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Verkaufspreis (Spieler verkauft)</label>
-                    <input
-                      type="number"
-                      placeholder="z.B. 15"
-                      value={itemForm.sell_price}
-                      onChange={(e) => setItemForm({...itemForm, sell_price: e.target.value})}
-                      min="0"
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="input-group">
-                    <label>Vorrat (-1 = unendlich)</label>
-                    <input
-                      type="number"
-                      placeholder="-1"
-                      value={itemForm.stock}
-                      onChange={(e) => setItemForm({...itemForm, stock: parseInt(e.target.value)})}
-                      min="-1"
-                    />
-                  </div>
-                  <button type="submit" className="btn-add">+ Hinzufügen</button>
-                </div>
-              </form>
-            </div>
+                        <div className="shop-content">
+                          <div className="shop-list">
+                            {shopItems.length > 0 ? (
+                              <table className="shop-table">
+                                <thead>
+                                  <tr>
+                                    <th>Item</th>
+                                    <th>Typ</th>
+                                    <th>Kaufpreis</th>
+                                    <th>Verkaufspreis</th>
+                                    <th>Vorrat</th>
+                                    <th></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {shopItems.map(item => (
+                                    <tr key={item.id}>
+                                      <td className="item-name">{item.item_name}</td>
+                                      <td className="item-type">{item.item_type}</td>
+                                      <td className="price buy">
+                                        {item.buy_price ? `${item.buy_price} 💰` : <span className="no-price">—</span>}
+                                      </td>
+                                      <td className="price sell">
+                                        {item.sell_price ? `${item.sell_price} 💰` : <span className="no-price">—</span>}
+                                      </td>
+                                      <td className="stock">
+                                        {item.stock === -1 ? <span className="infinite">∞</span> : item.stock}
+                                      </td>
+                                      <td>
+                                        <button 
+                                          className="btn-remove-small"
+                                          onClick={() => handleRemoveItem(item.item_id)}
+                                        >
+                                          ✕
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <p className="no-items">Keine Handelswaren konfiguriert</p>
+                            )}
+                          </div>
+
+                          <div className="item-add-form">
+                            <h5>+ Handelsware hinzufügen</h5>
+                            <form onSubmit={handleAddItem}>
+                              <div className="item-form-grid">
+                                <div className="item-field full">
+                                  <label>Item</label>
+                                  <select
+                                    value={itemForm.item_id}
+                                    onChange={(e) => setItemForm({...itemForm, item_id: e.target.value})}
+                                    required
+                                  >
+                                    <option value="">Wählen...</option>
+                                    {items.map(item => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.display_name} ({item.type})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="item-field">
+                                  <label>Kaufpreis 💰</label>
+                                  <input
+                                    type="number"
+                                    placeholder="z.B. 50"
+                                    value={itemForm.buy_price}
+                                    onChange={(e) => setItemForm({...itemForm, buy_price: e.target.value})}
+                                    min="0"
+                                  />
+                                </div>
+                                <div className="item-field">
+                                  <label>Verkaufspreis 💰</label>
+                                  <input
+                                    type="number"
+                                    placeholder="z.B. 15"
+                                    value={itemForm.sell_price}
+                                    onChange={(e) => setItemForm({...itemForm, sell_price: e.target.value})}
+                                    min="0"
+                                  />
+                                </div>
+                                <div className="item-field">
+                                  <label>Vorrat</label>
+                                  <input
+                                    type="number"
+                                    placeholder="-1 = ∞"
+                                    value={itemForm.stock}
+                                    onChange={(e) => setItemForm({...itemForm, stock: parseInt(e.target.value)})}
+                                    min="-1"
+                                  />
+                                </div>
+                                <button type="submit" className="btn-add-item">+ Hinzufügen</button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
+            ))}
+          </tbody>
+        </table>
+        
+        {filteredNpcs.length === 0 && (
+          <div className="no-results">
+            Keine NPCs gefunden
           </div>
         )}
       </div>
 
+      {/* Modal for creating/editing NPC */}
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>{editMode ? 'NPC bearbeiten' : 'Neuer NPC'}</h3>
+            <div className="modal-header">
+              <h3>{editMode ? '✏️ NPC bearbeiten' : '➕ Neuer NPC'}</h3>
+              <button className="btn-close" onClick={() => setShowForm(false)}>✕</button>
+            </div>
             <form onSubmit={handleSubmit}>
               <div className="form-grid">
                 <div className="form-group">
@@ -366,7 +473,7 @@ function NpcManagement() {
               <div className="form-actions">
                 <button type="button" onClick={() => setShowForm(false)}>Abbrechen</button>
                 <button type="submit" className="btn-primary">
-                  {editMode ? 'Speichern' : 'Erstellen'}
+                  {editMode ? '💾 Speichern' : '✨ Erstellen'}
                 </button>
               </div>
             </form>
