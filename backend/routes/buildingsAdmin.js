@@ -153,6 +153,51 @@ router.delete('/requirements/:requirementId', authenticateToken, requirePermissi
   }
 });
 
+// Create new building
+router.post('/', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { 
+      name,
+      display_name,
+      description,
+      image_path,
+      max_level,
+      build_duration_minutes,
+      upgrade_duration_minutes,
+      unlock_order
+    } = req.body;
+
+    if (!name || !display_name) {
+      return res.status(400).json({ error: 'Name und Anzeigename sind erforderlich' });
+    }
+
+    // Check if name already exists
+    const existing = await db.get('SELECT id FROM buildings WHERE name = ?', [name]);
+    if (existing) {
+      return res.status(400).json({ error: 'Ein Gebäude mit diesem Namen existiert bereits' });
+    }
+
+    const result = await db.run(`
+      INSERT INTO buildings (name, display_name, description, image_path, max_level, build_duration_minutes, upgrade_duration_minutes, unlock_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      name, 
+      display_name, 
+      description || '', 
+      image_path || '', 
+      max_level || 3, 
+      build_duration_minutes || 5, 
+      upgrade_duration_minutes || 3,
+      unlock_order || 99
+    ]);
+
+    res.json({ message: 'Gebäude erfolgreich erstellt', buildingId: result.lastID });
+  } catch (error) {
+    console.error('Create building error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Erstellen des Gebäudes' });
+  }
+});
+
 // Update building (duration, etc.) - MUST be last to avoid route conflicts
 router.put('/:buildingId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {
@@ -162,7 +207,9 @@ router.put('/:buildingId', authenticateToken, requirePermission('manage_items'),
       upgrade_duration_minutes, 
       max_level,
       display_name,
-      description 
+      description,
+      image_path,
+      unlock_order
     } = req.body;
 
     await db.run(`
@@ -172,14 +219,40 @@ router.put('/:buildingId', authenticateToken, requirePermission('manage_items'),
         upgrade_duration_minutes = COALESCE(?, upgrade_duration_minutes),
         max_level = COALESCE(?, max_level),
         display_name = COALESCE(?, display_name),
-        description = COALESCE(?, description)
+        description = COALESCE(?, description),
+        image_path = COALESCE(?, image_path),
+        unlock_order = COALESCE(?, unlock_order)
       WHERE id = ?
-    `, [build_duration_minutes, upgrade_duration_minutes, max_level, display_name, description, buildingId]);
+    `, [build_duration_minutes, upgrade_duration_minutes, max_level, display_name, description, image_path, unlock_order, buildingId]);
 
     res.json({ message: 'Gebäude erfolgreich aktualisiert' });
   } catch (error) {
     console.error('Update building error:', error);
     res.status(500).json({ error: 'Serverfehler beim Aktualisieren' });
+  }
+});
+
+// Delete building
+router.delete('/:buildingId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const buildingId = parseInt(req.params.buildingId);
+
+    // Check if building has user instances
+    const userBuildings = await db.get('SELECT COUNT(*) as count FROM user_buildings WHERE building_id = ?', [buildingId]);
+    if (userBuildings.count > 0) {
+      return res.status(400).json({ error: 'Gebäude kann nicht gelöscht werden, da es von Spielern gebaut wurde' });
+    }
+
+    // Delete requirements first
+    await db.run('DELETE FROM building_requirements WHERE building_id = ?', [buildingId]);
+    
+    // Delete building
+    await db.run('DELETE FROM buildings WHERE id = ?', [buildingId]);
+
+    res.json({ message: 'Gebäude erfolgreich gelöscht' });
+  } catch (error) {
+    console.error('Delete building error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Löschen' });
   }
 });
 

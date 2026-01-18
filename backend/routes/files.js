@@ -128,4 +128,35 @@ router.get('/chars', authenticateToken, async (req, res) => {
   }
 });
 
+// Get list of available building images
+router.get('/buildings', authenticateToken, async (req, res) => {
+  try {
+    const buildingsDir = path.join(__dirname, '../../buildings');
+    console.log(`[FILES] Looking for building images in: ${buildingsDir}`);
+    
+    try {
+      await fs.access(buildingsDir);
+      const files = await fs.readdir(buildingsDir);
+      console.log(`[FILES] Found ${files.length} files in buildings directory`);
+      
+      const imageFiles = files
+        .filter(file => /\.(png|jpg|jpeg|gif|webp)$/i.test(file))
+        .sort()
+        .map(file => ({
+          filename: file,
+          path: file
+        }));
+
+      console.log(`[FILES] Found ${imageFiles.length} building image files`);
+      res.json({ images: imageFiles });
+    } catch (error) {
+      console.error(`[FILES] Error reading buildings directory:`, error.message);
+      res.json({ images: [] });
+    }
+  } catch (error) {
+    console.error('Get building images error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden der Gebäude-Bilder' });
+  }
+});
+
 export default router;
