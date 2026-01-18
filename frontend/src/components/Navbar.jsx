@@ -47,7 +47,7 @@ function Navbar() {
           <Logo size="small" />
         </Link>
         <div className="navbar-links">
-          <Link to="/dashboard">Dashboard</Link>
+          <Link to="/dashboard">Charakter</Link>
           <Link to="/map">Karte</Link>
           <Link to="/grundstueck">Grundstück</Link>
           <Link to="/collection">Sammeln</Link>

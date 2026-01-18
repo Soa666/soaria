@@ -33,15 +33,7 @@ function Dashboard() {
     }
   };
 
-  const handleHeal = async () => {
-    try {
-      const response = await api.post('/combat/heal');
-      alert(response.data.message);
-      fetchData();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Fehler beim Heilen');
-    }
-  };
+  // Healing is only available on Grundstück page, not here
 
   const getExpForLevel = (level) => {
     return Math.floor(100 * Math.pow(1.5, level - 1));
@@ -128,7 +120,7 @@ function Dashboard() {
               />
             </div>
             {hpPercent < 100 && (
-              <button className="heal-btn" onClick={handleHeal}>💊 Heilen</button>
+              <a href="/grundstueck" className="heal-link">💊 Auf Grundstück heilen</a>
             )}
           </div>
 

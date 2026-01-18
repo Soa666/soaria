@@ -25,6 +25,7 @@ function Grundstueck() {
   const [jobStatus, setJobStatus] = useState(null);
   const [workbench, setWorkbench] = useState(null);
   const [inventory, setInventory] = useState([]);
+  const [playerStats, setPlayerStats] = useState(null);
 
   useEffect(() => {
     fetchBuildings();
@@ -32,6 +33,7 @@ function Grundstueck() {
     fetchJobStatus();
     fetchWorkbench();
     fetchInventory();
+    fetchPlayerStats();
     // Poll job status every 5 seconds
     const interval = setInterval(fetchJobStatus, 5000);
     
@@ -76,6 +78,27 @@ function Grundstueck() {
       setWorkbench(response.data.workbench);
     } catch (error) {
       console.error('Fehler beim Laden der Werkbank:', error);
+    }
+  };
+
+  const fetchPlayerStats = async () => {
+    try {
+      const response = await api.get('/npcs/player/stats');
+      setPlayerStats(response.data.stats);
+    } catch (error) {
+      console.error('Fehler beim Laden der Spielerstatistiken:', error);
+    }
+  };
+
+  const handleHeal = async () => {
+    try {
+      const response = await api.post('/combat/heal', { location: 'grundstueck' });
+      setMessage(response.data.message);
+      fetchPlayerStats();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Heilen');
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -176,6 +199,27 @@ function Grundstueck() {
         {message && (
           <div className={message.includes('Fehler') ? 'error' : 'success'}>
             {message}
+          </div>
+        )}
+
+        {/* Health Recovery Panel */}
+        {playerStats && playerStats.current_health < playerStats.max_health && (
+          <div className="health-recovery-panel">
+            <div className="health-info">
+              <span className="health-icon">❤️</span>
+              <div className="health-bar-container">
+                <div className="health-bar-bg">
+                  <div 
+                    className="health-bar-fill" 
+                    style={{ width: `${(playerStats.current_health / playerStats.max_health) * 100}%` }}
+                  />
+                </div>
+                <span className="health-text">{playerStats.current_health} / {playerStats.max_health} HP</span>
+              </div>
+              <button className="btn-heal" onClick={handleHeal}>
+                💊 Heilen (+25 HP)
+              </button>
+            </div>
           </div>
         )}
 

@@ -272,10 +272,17 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
   }
 });
 
-// Heal player (free, but with cooldown)
+// Heal player (only works at home/Grundstück - 25 HP per use, no cooldown)
 router.post('/heal', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const { location } = req.body; // 'grundstueck', 'guild', 'hospital' etc.
+
+    // Validate healing location
+    const validLocations = ['grundstueck', 'guild', 'hospital'];
+    if (!location || !validLocations.includes(location)) {
+      return res.status(400).json({ error: 'Du kannst dich nur an bestimmten Orten heilen (Grundstück, Gilde, etc.)' });
+    }
 
     const stats = await db.get('SELECT * FROM player_stats WHERE user_id = ?', [userId]);
     if (!stats) {
@@ -290,31 +297,12 @@ router.post('/heal', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check cooldown (last_healed_at)
-    if (stats.last_healed_at) {
-      const lastHeal = new Date(stats.last_healed_at);
-      const now = new Date();
-      const cooldownMinutes = 1; // 1 minute cooldown
-      const timeSinceHeal = (now - lastHeal) / 1000 / 60; // in minutes
-      
-      if (timeSinceHeal < cooldownMinutes) {
-        const secondsLeft = Math.ceil((cooldownMinutes - timeSinceHeal) * 60);
-        return res.status(400).json({ 
-          error: `Du musst noch ${secondsLeft} Sekunden warten bevor du dich wieder heilen kannst.` 
-        });
-      }
-    }
-
-    // Heal 25% of max HP (minimum 20 HP)
-    const healAmount = Math.max(20, Math.floor(stats.max_health * 0.25));
+    // Heal 25 HP (flat amount)
+    const healAmount = 25;
     const newHealth = Math.min(stats.max_health, stats.current_health + healAmount);
     const actualHeal = newHealth - stats.current_health;
 
-    await db.run(`
-      UPDATE player_stats 
-      SET current_health = ?, last_healed_at = datetime('now') 
-      WHERE user_id = ?
-    `, [newHealth, userId]);
+    await db.run(`UPDATE player_stats SET current_health = ? WHERE user_id = ?`, [newHealth, userId]);
 
     res.json({
       message: `Du hast dich um ${actualHeal} HP erholt!`,

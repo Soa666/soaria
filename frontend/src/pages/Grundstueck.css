@@ -507,3 +507,79 @@
   color: #ff6b6b;
   font-style: italic;
 }
+
+/* Health Recovery Panel */
+.health-recovery-panel {
+  background: linear-gradient(145deg, rgba(40, 20, 20, 0.9), rgba(60, 30, 30, 0.9));
+  border: 2px solid #c0392b;
+  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 
+    0 4px 15px rgba(192, 57, 43, 0.3),
+    inset 0 0 20px rgba(231, 76, 60, 0.1);
+}
+
+.health-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.health-icon {
+  font-size: 2rem;
+  filter: drop-shadow(0 0 5px rgba(231, 76, 60, 0.5));
+}
+
+.health-bar-container {
+  flex: 1;
+  position: relative;
+}
+
+.health-bar-bg {
+  height: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #5a4a2a;
+}
+
+.health-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c0392b, #e74c3c, #c0392b);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+}
+
+.health-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.btn-heal {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  border: 2px solid #1e8449;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.btn-heal:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+}
+
+.btn-heal:active {
+  transform: scale(0.98);
+}

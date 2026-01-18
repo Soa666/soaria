@@ -127,7 +127,7 @@
   box-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
 }
 
-.heal-btn {
+.heal-link {
   position: absolute;
   right: 0;
   top: 0;
@@ -136,14 +136,15 @@
   color: white;
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 0.75rem;
-  cursor: pointer;
+  font-size: 0.7rem;
+  text-decoration: none;
   transition: all 0.2s;
 }
 
-.heal-btn:hover {
+.heal-link:hover {
   transform: scale(1.05);
   box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+  color: white;
 }
 
 /* Core Stats */
