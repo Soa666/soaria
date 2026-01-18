@@ -103,6 +103,15 @@
   background: linear-gradient(145deg, #e74c3c, #c0392b);
 }
 
+.btn-info {
+  background: linear-gradient(145deg, #2980b9, #3498db);
+  border-color: #2980b9;
+}
+
+.btn-info:hover {
+  background: linear-gradient(145deg, #3498db, #2980b9);
+}
+
 .map-container {
   margin: 2rem 0;
   border: 3px solid #d4af37;

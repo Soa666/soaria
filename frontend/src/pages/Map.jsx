@@ -1083,6 +1083,58 @@ function Map() {
     }
   };
 
+  // Travel to a specific target (NPC, player, or coordinates)
+  const handleTravelTo = async (targetX, targetY, targetName) => {
+    if (travelStatus?.traveling) {
+      setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    try {
+      const response = await api.put('/map/coordinates', {
+        world_x: targetX,
+        world_y: targetY
+      });
+      
+      setMessage(`Du machst dich auf den Weg zu ${targetName}! ${response.data.travelTime}`);
+      setTimeout(() => setMessage(''), 5000);
+      
+      setTravelStatus({
+        traveling: true,
+        from: response.data.from,
+        to: response.data.to,
+        startTime: new Date().toISOString(),
+        endTime: response.data.endTime,
+        travelTime: response.data.travelTime
+      });
+      
+      // Close panels
+      setSelectedNpc(null);
+      setSelectedPlayer(null);
+      setNpcShopData(null);
+    } catch (error) {
+      if (error.response?.data?.needsBoat) {
+        setMessage('🚣 Du brauchst ein Boot um aufs Wasser zu gehen!');
+      } else if (error.response?.data?.alreadyTraveling) {
+        setMessage('Du bist bereits unterwegs!');
+        fetchTravelStatus();
+      } else {
+        setMessage(error.response?.data?.error || 'Fehler beim Starten der Reise');
+      }
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  // Calculate distance to a target
+  const getDistanceTo = (targetX, targetY) => {
+    if (user?.world_x === undefined || user?.world_y === undefined) return null;
+    return Math.round(Math.sqrt(
+      Math.pow((user.world_x || 0) - targetX, 2) +
+      Math.pow((user.world_y || 0) - targetY, 2)
+    ));
+  };
+
   const fetchNpcDetails = async (npcId) => {
     try {
       const response = await api.get(`/npcs/${npcId}`);
@@ -1615,9 +1667,18 @@ function Map() {
                 <button 
                   className="btn btn-danger" 
                   onClick={handleAttackMonster}
-                  disabled={!selectedNpc.is_active}
+                  disabled={!selectedNpc.is_active || getDistanceTo(selectedNpc.world_x, selectedNpc.world_y) > 100}
                 >
                   ⚔️ Angreifen
+                </button>
+              )}
+              {getDistanceTo(selectedNpc.world_x, selectedNpc.world_y) > 50 && (
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => handleTravelTo(selectedNpc.world_x, selectedNpc.world_y, selectedNpc.display_name)}
+                  disabled={travelStatus?.traveling}
+                >
+                  🚶 Dahin bewegen
                 </button>
               )}
               <button 
@@ -1694,17 +1755,28 @@ function Map() {
               <button 
                 className="btn btn-danger" 
                 onClick={handleAttack}
+                disabled={getDistanceTo(selectedPlayer.world_x, selectedPlayer.world_y) > 100}
               >
                 ⚔️ Angreifen
               </button>
               <button 
                 className="btn btn-success" 
                 onClick={handleTrade}
+                disabled={getDistanceTo(selectedPlayer.world_x, selectedPlayer.world_y) > 50}
               >
                 🤝 Handeln
               </button>
+              {getDistanceTo(selectedPlayer.world_x, selectedPlayer.world_y) > 50 && (
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => handleTravelTo(selectedPlayer.world_x, selectedPlayer.world_y, selectedPlayer.username)}
+                  disabled={travelStatus?.traveling}
+                >
+                  🚶 Dahin bewegen
+                </button>
+              )}
               <button 
-                className="btn btn-primary" 
+                className="btn btn-info" 
                 onClick={() => navigate(`/messages?to=${selectedPlayer.username}`)}
               >
                 ✉️ Nachricht
