@@ -182,18 +182,6 @@ function SmtpManagement() {
         <p>Es kann nur eine Konfiguration gleichzeitig aktiv sein.</p>
       </div>
 
-      <div className="test-section">
-        <h4>📬 Test-E-Mail senden</h4>
-        <div className="test-input">
-          <input
-            type="email"
-            placeholder="test@example.com"
-            value={testEmail}
-            onChange={(e) => setTestEmail(e.target.value)}
-          />
-        </div>
-      </div>
-
       <div className="smtp-list">
         {configs.length === 0 ? (
           <div className="no-configs">
@@ -218,14 +206,6 @@ function SmtpManagement() {
                       ✓
                     </button>
                   )}
-                  <button 
-                    className="btn-test"
-                    onClick={() => handleTest(config)}
-                    disabled={testing || !testEmail}
-                    title="Test-E-Mail senden"
-                  >
-                    {testing ? '...' : '📧'}
-                  </button>
                   <button onClick={() => handleEdit(config)} title="Bearbeiten">✏️</button>
                   <button onClick={() => handleDelete(config)} title="Löschen">🗑️</button>
                 </div>
@@ -242,6 +222,24 @@ function SmtpManagement() {
                 <div className="smtp-detail">
                   <span className="label">Absender:</span>
                   <span>{config.from_name} &lt;{config.from_email}&gt;</span>
+                </div>
+                
+                <div className="smtp-test-section">
+                  <div className="test-input-row">
+                    <input
+                      type="email"
+                      placeholder="Test-E-Mail-Adresse eingeben..."
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                    />
+                    <button 
+                      className="btn-send-test"
+                      onClick={() => handleTest(config)}
+                      disabled={testing || !testEmail}
+                    >
+                      {testing ? 'Sende...' : '📧 Test senden'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
