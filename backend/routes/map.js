@@ -221,9 +221,31 @@ router.post('/attack', authenticateToken, async (req, res) => {
       LIMIT 3
     `, [target_user_id]);
 
+    // Get attacker username for messages
+    const attackerUser = await db.get('SELECT username FROM users WHERE id = ?', [req.user.id]);
+    const attackTime = new Date().toLocaleString('de-DE');
+
     if (targetInventory.length === 0) {
+      // Send notification to target (even if no items stolen)
+      await sendSystemMessage(
+        target_user_id,
+        `⚔️ Angriffsversuch!`,
+        `${attackerUser.username} hat versucht dich anzugreifen!\n\n📅 Zeitpunkt: ${attackTime}\n📍 Position des Angreifers: (${attacker.world_x}, ${attacker.world_y})\n\nDu hattest keine Items, die gestohlen werden konnten.`,
+        'attack_received',
+        req.user.id
+      );
+
+      // Send notification to attacker
+      await sendSystemMessage(
+        req.user.id,
+        `⚔️ Angriff fehlgeschlagen`,
+        `Dein Angriff auf ${target.username} war erfolglos!\n\n📅 Zeitpunkt: ${attackTime}\n📍 Position: (${target.world_x}, ${target.world_y})\n\n${target.username} hatte keine Items, die du stehlen konntest.`,
+        'attack_sent',
+        target_user_id
+      );
+
       return res.json({ 
-        message: `Du hast ${target.username} angegriffen, aber er hat keine Items!`,
+        message: `Du hast ${target.username} angegriffen, aber er hatte keine Items!`,
         stolen_items: []
       });
     }
@@ -259,17 +281,25 @@ router.post('/attack', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get attacker username
-    const attackerUser = await db.get('SELECT username FROM users WHERE id = ?', [req.user.id]);
+    // Format stolen items list
+    const stolenItemsList = stolenItems.map(i => `• ${i.quantity}x ${i.name}`).join('\n');
     
-    // Send attack notification to target
-    const stolenItemsList = stolenItems.map(i => `${i.quantity}x ${i.name}`).join(', ');
+    // Send attack notification to TARGET (victim)
     await sendSystemMessage(
       target_user_id,
-      `⚔️ Du wurdest angegriffen!`,
-      `${attackerUser.username} hat dich angegriffen und folgende Items erbeutet:\n\n${stolenItemsList}\n\nPosition des Angreifers: (${attacker.world_x}, ${attacker.world_y})`,
+      `⚔️ Du wurdest überfallen!`,
+      `${attackerUser.username} hat dich angegriffen und beraubt!\n\n📅 Zeitpunkt: ${attackTime}\n📍 Position des Angreifers: (${attacker.world_x}, ${attacker.world_y})\n\n🎒 Gestohlene Items:\n${stolenItemsList}`,
       'attack_received',
       req.user.id
+    );
+
+    // Send attack notification to ATTACKER (confirmation)
+    await sendSystemMessage(
+      req.user.id,
+      `⚔️ Überfall erfolgreich!`,
+      `Dein Angriff auf ${target.username} war erfolgreich!\n\n📅 Zeitpunkt: ${attackTime}\n📍 Position: (${target.world_x}, ${target.world_y})\n\n🎒 Erbeutete Items:\n${stolenItemsList}`,
+      'attack_sent',
+      target_user_id
     );
 
     res.json({
