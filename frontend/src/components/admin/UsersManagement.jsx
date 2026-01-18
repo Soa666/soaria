@@ -53,6 +53,34 @@ function UsersManagement() {
     }
   };
 
+  const resendActivation = async (userId, email) => {
+    try {
+      setMessage(`Sende Aktivierungsmail an ${email}...`);
+      await api.post(`/admin/users/${userId}/resend-activation`);
+      setMessage(`Aktivierungsmail an ${email} gesendet!`);
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Senden der Mail');
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const manualActivate = async (userId, username) => {
+    if (!window.confirm(`Möchtest du "${username}" manuell aktivieren (ohne E-Mail-Bestätigung)?`)) {
+      return;
+    }
+
+    try {
+      await api.post(`/admin/users/${userId}/activate`);
+      setMessage(`${username} wurde manuell aktiviert`);
+      fetchUsers();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Aktivieren');
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Lädt...</div>;
   }
@@ -78,6 +106,7 @@ function UsersManagement() {
             <th>ID</th>
             <th>Benutzername</th>
             <th>E-Mail</th>
+            <th>Status</th>
             <th>Rolle</th>
             <th>Registriert</th>
             <th>Letzter Login</th>
@@ -86,10 +115,17 @@ function UsersManagement() {
         </thead>
         <tbody>
           {users.map((user) => (
-            <tr key={user.id}>
+            <tr key={user.id} className={user.is_activated === 0 ? 'user-inactive' : ''}>
               <td>{user.id}</td>
               <td>{user.username}</td>
               <td>{user.email}</td>
+              <td>
+                {user.is_activated === 1 ? (
+                  <span className="status-badge status-active">✓ Aktiv</span>
+                ) : (
+                  <span className="status-badge status-pending">⏳ Ausstehend</span>
+                )}
+              </td>
               <td>
                 <select
                   value={user.role}
@@ -106,6 +142,24 @@ function UsersManagement() {
               <td>{user.last_login ? new Date(user.last_login).toLocaleString('de-DE') : 'Nie'}</td>
               <td>
                 <div className="actions">
+                  {user.is_activated === 0 && (
+                    <>
+                      <button
+                        onClick={() => resendActivation(user.id, user.email)}
+                        className="btn btn-small"
+                        title="Aktivierungsmail erneut senden"
+                      >
+                        📧 Mail
+                      </button>
+                      <button
+                        onClick={() => manualActivate(user.id, user.username)}
+                        className="btn btn-success btn-small"
+                        title="Manuell aktivieren"
+                      >
+                        ✓ Aktivieren
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => deleteUser(user.id, user.username)}
                     className="btn btn-danger btn-small"

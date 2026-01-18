@@ -14,6 +14,7 @@ router.get('/users', authenticateToken, requirePermission('manage_users'), async
         username,
         email,
         role,
+        is_activated,
         created_at,
         last_login
       FROM users
@@ -23,6 +24,78 @@ router.get('/users', authenticateToken, requirePermission('manage_users'), async
     res.json({ users });
   } catch (error) {
     console.error('Get users error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Resend activation email (requires manage_users permission)
+router.post('/users/:id/resend-activation', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await db.get('SELECT id, username, email, is_activated FROM users WHERE id = ?', [id]);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    
+    if (user.is_activated === 1) {
+      return res.status(400).json({ error: 'Benutzer ist bereits aktiviert' });
+    }
+    
+    // Generate new activation token
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+    
+    // Delete old tokens for this user
+    await db.run('DELETE FROM activation_tokens WHERE user_id = ?', [user.id]);
+    
+    // Save new token
+    await db.run(
+      'INSERT INTO activation_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+      [user.id, token, expiresAt]
+    );
+    
+    // Send email
+    const { sendActivationEmail } = await import('../utils/email.js');
+    const emailSent = await sendActivationEmail(user.email, user.username, token);
+    
+    if (emailSent) {
+      res.json({ message: `Aktivierungsmail an ${user.email} gesendet` });
+    } else {
+      res.status(500).json({ error: 'Fehler beim Senden der E-Mail. Prüfe die SMTP-Konfiguration.' });
+    }
+  } catch (error) {
+    console.error('Resend activation error:', error);
+    res.status(500).json({ error: 'Serverfehler: ' + error.message });
+  }
+});
+
+// Manually activate user (requires manage_users permission)
+router.post('/users/:id/activate', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await db.get('SELECT id, username, is_activated FROM users WHERE id = ?', [id]);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+    
+    if (user.is_activated === 1) {
+      return res.status(400).json({ error: 'Benutzer ist bereits aktiviert' });
+    }
+    
+    // Activate user
+    await db.run('UPDATE users SET is_activated = 1 WHERE id = ?', [id]);
+    
+    // Delete any pending tokens
+    await db.run('DELETE FROM activation_tokens WHERE user_id = ?', [id]);
+    
+    res.json({ message: `Benutzer ${user.username} wurde manuell aktiviert` });
+  } catch (error) {
+    console.error('Manual activate error:', error);
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
