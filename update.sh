@@ -21,6 +21,11 @@ if [ -f ~/Soaria/backend/game.db ]; then
     cp ~/Soaria/backend/game.db ~/soaria_config/game.db
 fi
 
+if [ -f ~/Soaria/ecosystem.config.js ]; then
+    echo "💾 Aktuelle ecosystem.config.js wird gesichert..."
+    cp ~/Soaria/ecosystem.config.js ~/soaria_config/ecosystem.config.js
+fi
+
 # PM2 stoppen
 echo "⏸️  Server wird gestoppt..."
 pm2 stop all
@@ -57,6 +62,11 @@ fi
 if [ -f ~/soaria_config/game.db ]; then
     cp ~/soaria_config/game.db ~/Soaria/backend/game.db
     echo "   ✓ Datenbank wiederhergestellt"
+fi
+
+if [ -f ~/soaria_config/ecosystem.config.js ]; then
+    cp ~/soaria_config/ecosystem.config.js ~/Soaria/ecosystem.config.js
+    echo "   ✓ ecosystem.config.js wiederhergestellt"
 fi
 
 # Dependencies installieren
