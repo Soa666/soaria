@@ -194,7 +194,7 @@ function PlayerProfile() {
               </button>
               <button 
                 className="btn btn-map"
-                onClick={() => navigate('/map')}
+                onClick={() => navigate(`/map?x=${player.world_x}&y=${player.world_y}&player=${player.username}`)}
               >
                 🗺️ Auf Karte zeigen
               </button>

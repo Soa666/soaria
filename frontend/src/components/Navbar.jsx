@@ -64,9 +64,6 @@ function Navbar() {
               {user?.username}
             </Link>
             <span className={`role-badge role-${user?.role}`}>{user?.role}</span>
-            <button onClick={handleLogout} className="btn-logout">
-              Abmelden
-            </button>
           </div>
         </div>
       </div>

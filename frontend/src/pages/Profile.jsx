@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import './Profile.css';
@@ -19,13 +19,19 @@ const getImageUrl = (imagePath) => {
 };
 
 function Profile() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('info');
   const [availableImages, setAvailableImages] = useState([]);
   const [showImageSelector, setShowImageSelector] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -350,6 +356,13 @@ function Profile() {
             </Link>
           </div>
         )}
+
+        {/* Logout Button */}
+        <div className="logout-section">
+          <button onClick={handleLogout} className="btn btn-logout">
+            🚪 Abmelden
+          </button>
+        </div>
       </div>
     </div>
   );

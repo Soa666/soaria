@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './Map.css';
@@ -168,6 +168,7 @@ function getTerrainAt(worldX, worldY) {
 function Map() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [players, setPlayers] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [homes, setHomes] = useState([]);
@@ -196,6 +197,7 @@ function Map() {
   const [npcShopData, setNpcShopData] = useState(null);
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
+  const [highlightedPlayer, setHighlightedPlayer] = useState(null);
 
   // Load tileset image
   useEffect(() => {
@@ -212,6 +214,31 @@ function Map() {
     };
     img.src = TILESET_URL;
   }, []);
+
+  // Handle URL parameters (e.g., from player profile "Show on map")
+  useEffect(() => {
+    const targetX = searchParams.get('x');
+    const targetY = searchParams.get('y');
+    const targetPlayer = searchParams.get('player');
+    
+    if (targetX && targetY) {
+      const x = parseInt(targetX);
+      const y = parseInt(targetY);
+      
+      // Center view on target coordinates
+      setViewCenter({ x, y });
+      
+      // Set message to show who we're looking at
+      if (targetPlayer) {
+        setMessage(`📍 Zeige Position von ${targetPlayer}`);
+        setHighlightedPlayer(targetPlayer);
+        setTimeout(() => setMessage(''), 5000);
+      }
+      
+      // Clear the URL parameters after processing
+      setSearchParams({});
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchPlayers();
