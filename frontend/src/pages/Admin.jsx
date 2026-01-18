@@ -13,14 +13,25 @@ import MonsterManagement from '../components/admin/MonsterManagement';
 import NpcManagement from '../components/admin/NpcManagement';
 import './Admin.css';
 
+const menuItems = [
+  { id: 'items', icon: '📦', label: 'Items', category: 'Spielinhalte' },
+  { id: 'recipes', icon: '📜', label: 'Rezepte', category: 'Spielinhalte' },
+  { id: 'buildings', icon: '🏠', label: 'Gebäude', category: 'Spielinhalte' },
+  { id: 'monsters', icon: '👹', label: 'Monster', category: 'NPCs' },
+  { id: 'npcs', icon: '🏪', label: 'Händler', category: 'NPCs' },
+  { id: 'users', icon: '👥', label: 'Benutzer', category: 'Verwaltung' },
+  { id: 'groups', icon: '🛡️', label: 'Gruppen', category: 'Verwaltung' },
+  { id: 'reports', icon: '🚩', label: 'Meldungen', category: 'Verwaltung' },
+  { id: 'email', icon: '📧', label: 'E-Mail & Webhooks', category: 'System' },
+];
+
 function Admin() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('items');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    // Check if user has admin role or view_admin permission
-    // For now, we check role. Later we can check permissions via API
     if (!user || (user.role !== 'admin' && user.role !== 'mod')) {
       navigate('/dashboard');
     }
@@ -30,68 +41,67 @@ function Admin() {
     return null;
   }
 
-  return (
-    <div className="container">
-      <div className="card">
-        <h1>🔧 Admin-Panel</h1>
-        <p className="admin-subtitle">Soaria - Verwaltung</p>
+  // Group menu items by category
+  const categories = menuItems.reduce((acc, item) => {
+    if (!acc[item.category]) acc[item.category] = [];
+    acc[item.category].push(item);
+    return acc;
+  }, {});
 
-        <div className="admin-tabs">
-          <button
-            className={`admin-tab ${activeTab === 'items' ? 'active' : ''}`}
-            onClick={() => setActiveTab('items')}
+  const activeItem = menuItems.find(item => item.id === activeTab);
+
+  return (
+    <div className="admin-layout">
+      {/* Sidebar */}
+      <aside className={`admin-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <h2>🔧 Admin</h2>
+          <button 
+            className="sidebar-toggle"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           >
-            Items verwalten
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'recipes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('recipes')}
-          >
-            Rezepte verwalten
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            User-Verwaltung
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'groups' ? 'active' : ''}`}
-            onClick={() => setActiveTab('groups')}
-          >
-            Gruppen-Verwaltung
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'buildings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('buildings')}
-          >
-            Gebäude-Verwaltung
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'email' ? 'active' : ''}`}
-            onClick={() => setActiveTab('email')}
-          >
-            📧 E-Mail-Verwaltung
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reports')}
-          >
-            🚩 Meldungen
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'monsters' ? 'active' : ''}`}
-            onClick={() => setActiveTab('monsters')}
-          >
-            👹 Monster
-          </button>
-          <button
-            className={`admin-tab ${activeTab === 'npcs' ? 'active' : ''}`}
-            onClick={() => setActiveTab('npcs')}
-          >
-            🏪 Händler
+            {sidebarCollapsed ? '→' : '←'}
           </button>
         </div>
+        
+        <nav className="sidebar-nav">
+          {Object.entries(categories).map(([category, items]) => (
+            <div key={category} className="nav-category">
+              <div className="category-title">{category}</div>
+              {items.map(item => (
+                <button
+                  key={item.id}
+                  className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(item.id)}
+                  title={item.label}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="admin-user">
+            <span className="admin-avatar">👤</span>
+            <span className="admin-name">{user?.username}</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="admin-main">
+        <header className="admin-header">
+          <h1>
+            <span className="header-icon">{activeItem?.icon}</span>
+            {activeItem?.label}
+          </h1>
+          <div className="header-breadcrumb">
+            Admin / {activeItem?.category} / {activeItem?.label}
+          </div>
+        </header>
 
         <div className="admin-content">
           {activeTab === 'items' && <ItemsManagement />}
@@ -104,7 +114,7 @@ function Admin() {
           {activeTab === 'monsters' && <MonsterManagement />}
           {activeTab === 'npcs' && <NpcManagement />}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
