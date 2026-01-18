@@ -1,10 +1,13 @@
 #!/bin/bash
 
 # Soaria Update Script
-# Verwendung: ./update.sh
+# Verwendung: ~/update.sh
+
+set -e  # Bei Fehlern abbrechen
 
 echo "🔄 Soaria Update wird gestartet..."
 
+# Ins Home-Verzeichnis wechseln (wichtig!)
 cd ~
 
 # Konfigurations-Backup Ordner erstellen (falls nicht vorhanden)
@@ -26,29 +29,30 @@ if [ -f ~/Soaria/ecosystem.config.js ]; then
     cp ~/Soaria/ecosystem.config.js ~/soaria_config/ecosystem.config.js
 fi
 
-# PM2 stoppen
+# PM2 komplett beenden
 echo "⏸️  Server wird gestoppt..."
-pm2 stop all
+pm2 kill 2>/dev/null || true
+sleep 2
 
 # Alten Code löschen
 echo "🗑️  Alter Code wird entfernt..."
-rm -rf Soaria
-rm -f main.zip
+rm -rf ~/Soaria
+rm -f ~/main.zip
 
 # Neuen Code herunterladen
 echo "📥 Neuer Code wird heruntergeladen..."
+cd ~
 wget -q https://github.com/Soa666/soaria/archive/refs/heads/main.zip
 
-if [ ! -f main.zip ]; then
+if [ ! -f ~/main.zip ]; then
     echo "❌ Download fehlgeschlagen!"
-    pm2 start all
     exit 1
 fi
 
 # Entpacken
 echo "📦 Code wird entpackt..."
-unzip -q main.zip
-mv soaria-main Soaria
+unzip -q ~/main.zip
+mv ~/soaria-main ~/Soaria
 
 # Konfiguration wiederherstellen
 echo "📋 Konfiguration wird wiederhergestellt..."
@@ -62,6 +66,8 @@ fi
 if [ -f ~/soaria_config/spiel.db ]; then
     cp ~/soaria_config/spiel.db ~/Soaria/backend/spiel.db
     echo "   ✓ Datenbank wiederhergestellt"
+else
+    echo "   ⚠️  Keine Datenbank gefunden - wird neu erstellt"
 fi
 
 if [ -f ~/soaria_config/ecosystem.config.js ]; then
@@ -80,13 +86,15 @@ cd ~/Soaria/frontend && npm install --silent
 echo "🔨 Frontend wird gebaut..."
 npm run build
 
-# Zurück zum Hauptverzeichnis
+# Zurück ins Soaria-Verzeichnis
 cd ~/Soaria
+
+# Log-Ordner erstellen
+mkdir -p ~/Soaria/logs
+mkdir -p ~/Soaria/frontend/logs
 
 # Server starten
 echo "🚀 Server wird gestartet..."
-pm2 kill 2>/dev/null
-sleep 1
 pm2 start ecosystem.config.js
 
 # Aufräumen
