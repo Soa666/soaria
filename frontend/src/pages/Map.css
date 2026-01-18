@@ -1,64 +1,274 @@
-.map-controls {
+/* Map Wrapper - Contains map and overlays */
+.map-wrapper {
+  position: relative;
+  margin: 1rem 0;
+}
+
+/* Map Overlay Positioning */
+.map-overlay {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.map-overlay > * {
+  pointer-events: auto;
+}
+
+.map-overlay.top-left {
+  top: 10px;
+  left: 10px;
+}
+
+.map-overlay.top-right {
+  top: 10px;
+  right: 10px;
+}
+
+.map-overlay.bottom-left {
+  bottom: 10px;
+  left: 10px;
+}
+
+.map-overlay.bottom-right {
+  bottom: 10px;
+  right: 10px;
+}
+
+.map-overlay.bottom-center {
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.map-overlay.right-center {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Overlay Panel Styling */
+.overlay-panel {
+  background: rgba(20, 15, 30, 0.9);
+  border: 2px solid #5a4a2a;
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Position Info Panel */
+.overlay-panel.position-info {
+  padding: 8px 14px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: linear-gradient(145deg, rgba(30, 20, 40, 0.6), rgba(20, 15, 30, 0.6));
+  gap: 8px;
+}
+
+.coord-label {
+  font-size: 1.1rem;
+}
+
+.coord-value {
+  color: #d4af37;
+  font-weight: bold;
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+/* Action Buttons Panel */
+.overlay-panel.action-buttons {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+}
+
+.overlay-btn {
+  width: 40px;
+  height: 40px;
   border: 2px solid #5a4a2a;
   border-radius: 8px;
-}
-
-.control-group {
+  background: linear-gradient(145deg, rgba(40, 30, 50, 0.9), rgba(25, 18, 35, 0.9));
+  color: #e8dcc0;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
-  gap: 0.5rem;
   align-items: center;
+  justify-content: center;
 }
 
-/* Pan Controls */
-.pan-controls {
+.overlay-btn:hover:not(:disabled) {
+  border-color: #d4af37;
+  background: linear-gradient(145deg, rgba(60, 45, 75, 0.95), rgba(40, 30, 50, 0.95));
+  transform: translateY(-2px);
+}
+
+.overlay-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.overlay-btn.active {
+  border-color: #d4af37;
+  background: linear-gradient(145deg, rgba(74, 44, 26, 0.9), rgba(100, 60, 35, 0.9));
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
+
+/* Zoom Controls */
+.overlay-panel.zoom-controls {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  padding: 8px;
+  gap: 4px;
+}
+
+.zoom-controls .zoom-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+
+.zoom-value {
+  color: #d4af37;
+  font-size: 0.85rem;
+  font-weight: bold;
+  padding: 4px 0;
+}
+
+/* Pan Controls */
+.overlay-panel.pan-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  gap: 3px;
 }
 
 .pan-controls .pan-row {
   display: flex;
-  gap: 2px;
+  gap: 3px;
 }
 
-.pan-btn {
-  width: 32px;
-  height: 32px;
-  padding: 0 !important;
-  font-size: 1.1rem !important;
+.pan-controls .pan-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 1.1rem;
+}
+
+/* Travel Panel */
+.overlay-panel.travel-panel {
+  padding: 12px 16px;
+  min-width: 250px;
+}
+
+.travel-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, rgba(50, 40, 60, 0.8), rgba(30, 20, 40, 0.8));
-  border: 1px solid #5a4a2a;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
-.pan-btn:hover {
-  background: linear-gradient(145deg, rgba(70, 50, 80, 0.9), rgba(50, 40, 60, 0.9));
-  border-color: #8b7a5a;
+.travel-icon {
+  font-size: 1.2rem;
 }
 
-.zoom-slider {
-  margin-left: 0.5rem;
-  width: 150px;
+.travel-label {
+  color: #d4af37;
+  font-weight: bold;
 }
 
-.map-info {
-  color: #8b7a5a;
+.travel-panel .travel-progress-container {
+  height: 8px;
+  background: rgba(40, 30, 50, 0.8);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.travel-panel .travel-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #d4af37, #f0c040);
+  transition: width 0.5s ease;
+}
+
+.travel-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.travel-time {
+  color: #a89070;
   font-size: 0.9rem;
 }
 
-.map-info p {
-  margin: 0.25rem 0;
+.cancel-btn {
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 0.9rem !important;
+  background: rgba(150, 50, 50, 0.6) !important;
+  border-color: #963232 !important;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: rgba(180, 60, 60, 0.8) !important;
+}
+
+/* Nearby Players Panel */
+.overlay-panel.players-panel {
+  padding: 10px;
+  min-width: 120px;
+}
+
+.players-panel .panel-header {
+  color: #d4af37;
+  font-weight: bold;
+  font-size: 0.95rem;
+  text-align: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #4a3a5a;
+  margin-bottom: 6px;
+}
+
+.players-mini-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.players-mini-list li {
+  padding: 5px 8px;
+  color: #a89070;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.players-mini-list li:hover {
+  background: rgba(74, 44, 26, 0.5);
+  color: #e8dcc0;
+}
+
+.players-mini-list li.selected {
+  background: rgba(74, 44, 26, 0.8);
+  color: #d4af37;
+}
+
+.players-mini-list li.more {
+  color: #6b5a4a;
+  font-style: italic;
+  cursor: default;
+}
+
+.players-mini-list li.more:hover {
+  background: transparent;
+  color: #6b5a4a;
 }
 
 /* Travel Warning Dialog */
@@ -221,7 +431,6 @@
 }
 
 .map-container {
-  margin: 2rem 0;
   border: 3px solid #d4af37;
   border-radius: 12px;
   overflow: hidden;
@@ -229,7 +438,6 @@
   box-shadow: 
     0 8px 24px rgba(0, 0, 0, 0.6),
     inset 0 0 40px rgba(212, 175, 55, 0.1);
-  position: relative;
 }
 
 .map-canvas {
@@ -452,51 +660,6 @@
   }
 }
 
-/* Terrain Legend */
-.terrain-legend {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: rgba(30, 20, 40, 0.6);
-  border: 1px solid #5a4a2a;
-  border-radius: 6px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: #e8dcc0;
-}
-
-.terrain-legend h4 {
-  margin: 0 0 0.5rem 0;
-  color: #d4af37;
-  font-size: 0.9rem;
-}
-
-.legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.legend-color.grass { background: #4a6b3a; }
-.legend-color.forest { background: #2d4a2d; }
-.legend-color.water { background: #4a90c2; }
-.legend-color.cliff { background: #6b6b6b; }
-.legend-color.path { background: #a08060; }
-
-.tileset-warning {
-  color: #f39c12;
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
-}
-
 .water-warning {
   color: #3498db;
   background: rgba(52, 152, 219, 0.15);
@@ -530,68 +693,6 @@
   display: flex;
   gap: 0.75rem;
   margin-top: 1rem;
-}
-
-/* Map Sidebar */
-.map-sidebar {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-
-/* Nearby Players */
-.nearby-players {
-  flex: 1;
-  min-width: 200px;
-  padding: 0.75rem;
-  background: rgba(30, 20, 40, 0.6);
-  border: 1px solid #5a4a2a;
-  border-radius: 6px;
-}
-
-.nearby-players h4 {
-  margin: 0 0 0.75rem 0;
-  color: #d4af37;
-  font-size: 0.95rem;
-}
-
-.no-players {
-  color: #8b7a5a;
-  font-style: italic;
-  font-size: 0.85rem;
-  margin: 0;
-}
-
-.players-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.player-list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  margin-bottom: 0.25rem;
-  background: rgba(20, 15, 30, 0.5);
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.player-list-item:hover {
-  background: rgba(212, 175, 55, 0.1);
-  border-color: #8b6914;
-}
-
-.player-list-item.selected {
-  background: rgba(212, 175, 55, 0.2);
-  border-color: #d4af37;
 }
 
 .player-name {

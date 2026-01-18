@@ -1563,142 +1563,8 @@ function Map() {
           </div>
         )}
 
-        <div className="map-controls">
-          <div className="control-group">
-            <button className="btn btn-secondary" onClick={centerOnUser} title="Zentriert die Karte auf deine aktuelle Position">
-              🎯 Zu mir
-            </button>
-            <button 
-              className={`btn ${actionMode === 'move' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => {
-                setActionMode(actionMode === 'move' ? null : 'move');
-                setSelectedPlayer(null);
-              }}
-              disabled={travelStatus?.traveling}
-            >
-              🚶 Bewegen
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleTravelHome}
-              disabled={travelStatus?.traveling || (user?.world_x === 0 && user?.world_y === 0)}
-              title="Reise zurück zu deinem Grundstück (0, 0)"
-            >
-              🏠 Nach Hause
-            </button>
-          </div>
-          
-          <div className="control-group">
-            <label>
-              Zoom: {zoom.toFixed(1)}x
-              <input
-                type="range"
-                min="0.1"
-                max="3"
-                step="0.1"
-                value={zoom}
-                onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="zoom-slider"
-              />
-            </label>
-          </div>
-
-          <div className="control-group pan-controls">
-            <button className="btn btn-small pan-btn" onClick={() => panMap('up')} title="Nach oben">↑</button>
-            <div className="pan-row">
-              <button className="btn btn-small pan-btn" onClick={() => panMap('left')} title="Nach links">←</button>
-              <button className="btn btn-small pan-btn" onClick={() => panMap('right')} title="Nach rechts">→</button>
-            </div>
-            <button className="btn btn-small pan-btn" onClick={() => panMap('down')} title="Nach unten">↓</button>
-          </div>
-
-          <div className="map-info">
-            <p>Deine Position: ({user?.world_x ?? 0}, {user?.world_y ?? 0})</p>
-            <p>Spieler auf Karte: {Array.isArray(players) ? players.length : 0}</p>
-          </div>
-
-          {/* Travel Status Panel */}
-          {travelStatus?.traveling && (
-            <div className="travel-status-panel">
-              <h4>🚶 Unterwegs</h4>
-              <div className="travel-route">
-                <span>Von: ({travelStatus.from?.x}, {travelStatus.from?.y})</span>
-                <span>→</span>
-                <span>Nach: ({travelStatus.to?.x}, {travelStatus.to?.y})</span>
-              </div>
-              <div className="travel-progress-container">
-                <div 
-                  className="travel-progress-bar" 
-                  style={{ width: `${travelStatus.progress || 0}%` }}
-                />
-              </div>
-              <p className="travel-time">
-                ⏱️ Verbleibend: {travelStatus.remainingTime || 'Berechne...'}
-              </p>
-              <button 
-                className="btn btn-danger btn-small"
-                onClick={handleCancelTravel}
-              >
-                ✗ Reise abbrechen
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="map-sidebar">
-          <div className="terrain-legend">
-            <h4>🗺️ Terrain</h4>
-            <div className="legend-item">
-              <div className="legend-color grass"></div>
-              <span>Wiese</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color forest"></div>
-              <span>Wald</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color water"></div>
-              <span>Wasser</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color cliff"></div>
-              <span>Klippen</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color path"></div>
-              <span>Pfad</span>
-            </div>
-            {!tilesetLoaded && (
-              <p className="tileset-warning">⚠️ Tileset lädt...</p>
-            )}
-          </div>
-
-          {/* Nearby Players List */}
-          <div className="nearby-players">
-            <h4>👥 Spieler in der Nähe</h4>
-            {nearbyPlayers.length === 0 ? (
-              <p className="no-players">Keine Spieler in der Nähe</p>
-            ) : (
-              <ul className="players-list">
-                {nearbyPlayers.map(player => (
-                  <li 
-                    key={player.id} 
-                    className={`player-list-item ${selectedPlayer?.id === player.id ? 'selected' : ''}`}
-                    onClick={() => {
-                      setSelectedPlayer(player);
-                      setActionMode(null);
-                    }}
-                  >
-                    <span className="player-name">{player.username}</span>
-                    <span className="player-distance">{Math.round(player.distance)} Einheiten</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        <div className="map-container">
+        <div className="map-wrapper">
+          <div className="map-container">
           <canvas
             ref={canvasRef}
             width={1000}
@@ -1712,6 +1578,123 @@ function Map() {
               <p>Keine Spieler gefunden</p>
             </div>
           )}
+          </div>
+
+          {/* Map Overlay Controls */}
+          {/* Top Left: Position Info */}
+          <div className="map-overlay top-left">
+            <div className="overlay-panel position-info">
+              <span className="coord-label">📍</span>
+              <span className="coord-value">{user?.world_x ?? 0}, {user?.world_y ?? 0}</span>
+            </div>
+          </div>
+
+          {/* Top Right: Action Buttons */}
+          <div className="map-overlay top-right">
+            <div className="overlay-panel action-buttons">
+              <button 
+                className="overlay-btn" 
+                onClick={centerOnUser} 
+                title="Zu meiner Position"
+              >
+                🎯
+              </button>
+              <button 
+                className={`overlay-btn ${actionMode === 'move' ? 'active' : ''}`}
+                onClick={() => {
+                  setActionMode(actionMode === 'move' ? null : 'move');
+                  setSelectedPlayer(null);
+                }}
+                disabled={travelStatus?.traveling}
+                title="Bewegungsmodus"
+              >
+                🚶
+              </button>
+              <button 
+                className="overlay-btn"
+                onClick={handleTravelHome}
+                disabled={travelStatus?.traveling}
+                title="Nach Hause"
+              >
+                🏠
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Left: Zoom Controls */}
+          <div className="map-overlay bottom-left">
+            <div className="overlay-panel zoom-controls">
+              <button className="overlay-btn zoom-btn" onClick={() => setZoom(z => Math.min(3, z + 0.2))}>+</button>
+              <span className="zoom-value">{zoom.toFixed(1)}x</span>
+              <button className="overlay-btn zoom-btn" onClick={() => setZoom(z => Math.max(0.2, z - 0.2))}>−</button>
+            </div>
+          </div>
+
+          {/* Bottom Right: Pan Controls */}
+          <div className="map-overlay bottom-right">
+            <div className="overlay-panel pan-controls">
+              <button className="overlay-btn pan-btn" onClick={() => panMap('up')}>↑</button>
+              <div className="pan-row">
+                <button className="overlay-btn pan-btn" onClick={() => panMap('left')}>←</button>
+                <button className="overlay-btn pan-btn" onClick={() => panMap('right')}>→</button>
+              </div>
+              <button className="overlay-btn pan-btn" onClick={() => panMap('down')}>↓</button>
+            </div>
+          </div>
+
+          {/* Travel Status Overlay */}
+          {travelStatus?.traveling && (
+            <div className="map-overlay bottom-center">
+              <div className="overlay-panel travel-panel">
+                <div className="travel-header">
+                  <span className="travel-icon">🚶</span>
+                  <span className="travel-label">Unterwegs</span>
+                </div>
+                <div className="travel-progress-container">
+                  <div 
+                    className="travel-progress-bar" 
+                    style={{ width: `${travelStatus.progress || 0}%` }}
+                  />
+                </div>
+                <div className="travel-info">
+                  <span className="travel-time">⏱️ {travelStatus.remainingTime || '...'}</span>
+                  <button 
+                    className="overlay-btn cancel-btn"
+                    onClick={handleCancelTravel}
+                    title="Reise abbrechen"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Nearby Players - Collapsible Panel */}
+          <div className="map-overlay right-center">
+            <div className="overlay-panel players-panel">
+              <div className="panel-header">👥 {nearbyPlayers.length}</div>
+              {nearbyPlayers.length > 0 && (
+                <ul className="players-mini-list">
+                  {nearbyPlayers.slice(0, 5).map(player => (
+                    <li 
+                      key={player.id}
+                      className={selectedPlayer?.id === player.id ? 'selected' : ''}
+                      onClick={() => {
+                        setSelectedPlayer(player);
+                        setActionMode(null);
+                      }}
+                    >
+                      {player.username}
+                    </li>
+                  ))}
+                  {nearbyPlayers.length > 5 && (
+                    <li className="more">+{nearbyPlayers.length - 5} mehr</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Player Stats Bar */}
