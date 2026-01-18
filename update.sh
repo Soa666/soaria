@@ -16,9 +16,9 @@ if [ -f ~/Soaria/backend/.env ]; then
     cp ~/Soaria/backend/.env ~/soaria_config/.env
 fi
 
-if [ -f ~/Soaria/backend/game.db ]; then
+if [ -f ~/Soaria/backend/spiel.db ]; then
     echo "💾 Aktuelle Datenbank wird gesichert..."
-    cp ~/Soaria/backend/game.db ~/soaria_config/game.db
+    cp ~/Soaria/backend/spiel.db ~/soaria_config/spiel.db
 fi
 
 if [ -f ~/Soaria/ecosystem.config.js ]; then
@@ -59,8 +59,8 @@ else
     echo "   ⚠️  Keine .env gefunden - bitte manuell erstellen!"
 fi
 
-if [ -f ~/soaria_config/game.db ]; then
-    cp ~/soaria_config/game.db ~/Soaria/backend/game.db
+if [ -f ~/soaria_config/spiel.db ]; then
+    cp ~/soaria_config/spiel.db ~/Soaria/backend/spiel.db
     echo "   ✓ Datenbank wiederhergestellt"
 fi
 
