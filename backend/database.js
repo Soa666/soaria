@@ -548,6 +548,16 @@ export async function initDatabase() {
     // Columns might already exist
   }
 
+  // Add home coordinates to users (Grundstück-Position)
+  try {
+    await db.run(`ALTER TABLE users ADD COLUMN home_x INTEGER`);
+    await db.run(`ALTER TABLE users ADD COLUMN home_y INTEGER`);
+    // Set home position to current world position for existing users who don't have home set
+    await db.run(`UPDATE users SET home_x = world_x, home_y = world_y WHERE home_x IS NULL`);
+  } catch (e) {
+    // Columns might already exist
+  }
+
   // Monster types table (Monster-Typen für Admin-Verwaltung)
   await db.run(`
     CREATE TABLE IF NOT EXISTS monster_types (

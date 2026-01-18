@@ -40,13 +40,15 @@ router.post('/upgrade', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Upgrade-Item und Menge sind erforderlich' });
     }
 
-    // Check if player is at home (0,0) or near home
-    const user = await db.get('SELECT world_x, world_y FROM users WHERE id = ?', [req.user.id]);
+    // Check if player is at home (their Grundstück)
+    const user = await db.get('SELECT world_x, world_y, home_x, home_y FROM users WHERE id = ?', [req.user.id]);
     if (!user) {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
 
-    const distanceFromHome = Math.sqrt(Math.pow(user.world_x, 2) + Math.pow(user.world_y, 2));
+    const homeX = user.home_x ?? user.world_x;
+    const homeY = user.home_y ?? user.world_y;
+    const distanceFromHome = Math.sqrt(Math.pow(user.world_x - homeX, 2) + Math.pow(user.world_y - homeY, 2));
     if (distanceFromHome > 50) {
       return res.status(400).json({ 
         error: 'Du musst zu Hause sein um die Werkbank zu upgraden! Reise zuerst zu deinem Grundstück.',

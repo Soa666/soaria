@@ -14,11 +14,13 @@ router.get('/players', authenticateToken, async (req, res) => {
         username,
         world_x,
         world_y,
+        home_x,
+        home_y,
         avatar_path,
         role,
         created_at
       FROM users
-      WHERE world_x != 0 OR world_y != 0
+      WHERE username != 'System'
       ORDER BY username
     `);
 
@@ -26,6 +28,28 @@ router.get('/players', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Get players error:', error);
     res.status(500).json({ error: 'Serverfehler beim Laden der Spieler' });
+  }
+});
+
+// Get all player homes (for map display of houses)
+router.get('/homes', authenticateToken, async (req, res) => {
+  try {
+    const homes = await db.all(`
+      SELECT 
+        id,
+        username,
+        home_x,
+        home_y
+      FROM users
+      WHERE home_x IS NOT NULL AND home_y IS NOT NULL
+        AND username != 'System'
+      ORDER BY username
+    `);
+
+    res.json({ homes });
+  } catch (error) {
+    console.error('Get homes error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden der Grundstücke' });
   }
 });
 
@@ -405,17 +429,21 @@ router.put('/coordinates', authenticateToken, async (req, res) => {
   }
 });
 
-// Quick travel home (to 0,0) - same rules apply
+// Quick travel home (to player's Grundstück)
 router.post('/travel/home', authenticateToken, async (req, res) => {
   try {
     const user = await db.get(`
-      SELECT world_x, world_y, travel_end_time
+      SELECT world_x, world_y, home_x, home_y, travel_end_time
       FROM users WHERE id = ?
     `, [req.user.id]);
 
     if (!user) {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
+
+    // Get home coordinates (fallback to current position if not set)
+    const homeX = user.home_x ?? user.world_x;
+    const homeY = user.home_y ?? user.world_y;
 
     // Check if already traveling
     if (user.travel_end_time && new Date(user.travel_end_time) > new Date()) {
@@ -426,12 +454,13 @@ router.post('/travel/home', authenticateToken, async (req, res) => {
     }
 
     // Check if already home
-    if (user.world_x === 0 && user.world_y === 0) {
+    const distanceFromHome = Math.sqrt(Math.pow(user.world_x - homeX, 2) + Math.pow(user.world_y - homeY, 2));
+    if (distanceFromHome < 10) {
       return res.status(400).json({ error: 'Du bist bereits zu Hause!' });
     }
 
-    // Calculate travel time to home (0,0)
-    const travelMinutes = calculateTravelTime(user.world_x, user.world_y, 0, 0, false, false);
+    // Calculate travel time to home
+    const travelMinutes = calculateTravelTime(user.world_x, user.world_y, homeX, homeY, false, false);
 
     const now = new Date();
     const endTime = new Date(now.getTime() + travelMinutes * 60000);
@@ -439,22 +468,20 @@ router.post('/travel/home', authenticateToken, async (req, res) => {
     // Set travel destination to home
     await db.run(`
       UPDATE users 
-      SET travel_target_x = 0,
-          travel_target_y = 0,
+      SET travel_target_x = ?,
+          travel_target_y = ?,
           travel_start_time = ?,
           travel_end_time = ?
       WHERE id = ?
-    `, [now.toISOString(), endTime.toISOString(), req.user.id]);
+    `, [homeX, homeY, now.toISOString(), endTime.toISOString(), req.user.id]);
 
-    const distance = Math.round(Math.sqrt(
-      Math.pow(user.world_x, 2) + Math.pow(user.world_y, 2)
-    ));
+    const distance = Math.round(distanceFromHome);
 
     res.json({ 
       message: `Du machst dich auf den Heimweg! Reisezeit: ${formatTravelTime(travelMinutes)}`,
       traveling: true,
       from: { x: user.world_x, y: user.world_y },
-      to: { x: 0, y: 0 },
+      to: { x: homeX, y: homeY },
       distance,
       travelMinutes,
       travelTime: formatTravelTime(travelMinutes),

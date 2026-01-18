@@ -170,6 +170,7 @@ function Map() {
   const navigate = useNavigate();
   const [players, setPlayers] = useState([]);
   const [npcs, setNpcs] = useState([]);
+  const [homes, setHomes] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [selectedNpc, setSelectedNpc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -212,6 +213,7 @@ function Map() {
   useEffect(() => {
     fetchPlayers();
     fetchNpcs();
+    fetchHomes();
     fetchPlayerStats();
     fetchTravelStatus();
     if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
@@ -307,6 +309,15 @@ function Map() {
       console.error('Fehler beim Laden der Spieler:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHomes = async () => {
+    try {
+      const response = await api.get('/map/homes');
+      setHomes(response.data.homes || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Grundstücke:', error);
     }
   };
 
@@ -480,6 +491,69 @@ function Map() {
           ctx.lineTo(width, sy);
           ctx.stroke();
         }
+      }
+
+      // Draw player homes (houses)
+      if (homes && Array.isArray(homes) && homes.length > 0) {
+        homes.forEach((home) => {
+          if (!home || home.home_x === null || home.home_y === null) return;
+          
+          const homeX = home.home_x;
+          const homeY = home.home_y;
+          const x = centerX + (homeX - viewCenter.x) * scale;
+          const y = centerY + (homeY - viewCenter.y) * scale;
+
+          if (x < -50 || x > width + 50 || y < -50 || y > height + 50) return;
+
+          const isCurrentUserHome = user && home.id === user.id;
+          const houseSize = (isCurrentUserHome ? 24 : 18) * Math.min(scale, 1.5);
+
+          // Draw house shadow
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.beginPath();
+          ctx.ellipse(x, y + houseSize * 0.4, houseSize * 0.7, houseSize * 0.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Draw house base
+          ctx.fillStyle = isCurrentUserHome ? '#8B4513' : '#A0522D';
+          ctx.fillRect(x - houseSize * 0.5, y - houseSize * 0.3, houseSize, houseSize * 0.6);
+
+          // Draw roof
+          ctx.fillStyle = isCurrentUserHome ? '#B22222' : '#8B0000';
+          ctx.beginPath();
+          ctx.moveTo(x - houseSize * 0.65, y - houseSize * 0.3);
+          ctx.lineTo(x, y - houseSize * 0.8);
+          ctx.lineTo(x + houseSize * 0.65, y - houseSize * 0.3);
+          ctx.closePath();
+          ctx.fill();
+
+          // Draw door
+          ctx.fillStyle = '#4A3728';
+          ctx.fillRect(x - houseSize * 0.12, y - houseSize * 0.1, houseSize * 0.24, houseSize * 0.4);
+
+          // Draw window
+          ctx.fillStyle = '#87CEEB';
+          ctx.fillRect(x + houseSize * 0.15, y - houseSize * 0.2, houseSize * 0.2, houseSize * 0.2);
+
+          // Glow for current user's home
+          if (isCurrentUserHome) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#d4af37';
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x - houseSize * 0.55, y - houseSize * 0.35, houseSize * 1.1, houseSize * 0.7);
+            ctx.shadowBlur = 0;
+          }
+
+          // Draw owner name
+          ctx.font = `${Math.max(10, 11 * Math.min(scale, 1.2))}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.fillStyle = isCurrentUserHome ? '#d4af37' : '#a89070';
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.lineWidth = 3;
+          ctx.strokeText(home.username, x, y + houseSize * 0.7);
+          ctx.fillText(home.username, x, y + houseSize * 0.7);
+        });
       }
 
       // Draw players

@@ -83,9 +83,10 @@ router.post('/register', async (req, res) => {
     }
 
     // Create user (inactive by default)
+    // Set home_x and home_y to the spawn position (this is where their Grundstück is)
     const result = await db.run(
-      'INSERT INTO users (username, email, password_hash, role, world_x, world_y, is_activated) VALUES (?, ?, ?, ?, ?, ?, 0)',
-      [username, email, passwordHash, 'user', worldX, worldY]
+      'INSERT INTO users (username, email, password_hash, role, world_x, world_y, home_x, home_y, is_activated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)',
+      [username, email, passwordHash, 'user', worldX, worldY, worldX, worldY]
     );
 
     // Create initial workbench
@@ -218,7 +219,7 @@ router.post('/login', async (req, res) => {
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await db.get(
-      'SELECT id, username, email, role, avatar_path, world_x, world_y, is_activated, created_at, last_login FROM users WHERE id = ?',
+      'SELECT id, username, email, role, avatar_path, world_x, world_y, home_x, home_y, is_activated, created_at, last_login FROM users WHERE id = ?',
       [req.user.id]
     );
 
