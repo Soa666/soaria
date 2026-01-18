@@ -1,0 +1,329 @@
+.App {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  color: #e8dcc0;
+  font-family: 'Cinzel', serif;
+  position: relative;
+  z-index: 100;
+  background: transparent;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative;
+  z-index: 10;
+  background: transparent;
+}
+
+/* Fantasy RPG Fenster-Style */
+.card {
+  background: 
+    linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 3px solid #8b6914;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 
+    0 8px 16px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(212, 175, 55, 0.3),
+    0 0 20px rgba(139, 69, 20, 0.2);
+  position: relative;
+  z-index: 10;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(212, 175, 55, 0.03) 2px,
+      rgba(212, 175, 55, 0.03) 4px
+    );
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.card h2 {
+  margin-bottom: 1rem;
+  color: #d4af37;
+  text-shadow: 
+    2px 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(212, 175, 55, 0.5);
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+  padding-bottom: 0.5rem;
+}
+
+/* Fantasy RPG Buttons */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid;
+  border-image: 
+    linear-gradient(135deg, 
+      #8b6914 0%, 
+      #d4af37 50%, 
+      #8b6914 100%
+    ) 1;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+  font-family: 'Cinzel', serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4a2c1a 0%, #6b4423 50%, #4a2c1a 100%);
+  color: #d4af37;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(212, 175, 55, 0.2),
+    0 0 10px rgba(139, 69, 20, 0.3);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #5a3c2a 0%, #7b5433 50%, #5a3c2a 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(212, 175, 55, 0.3),
+    0 0 15px rgba(212, 175, 55, 0.4);
+  color: #f4d03f;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #2a1a3a 0%, #3a2a4a 50%, #2a1a3a 100%);
+  color: #b8860b;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(184, 134, 11, 0.2);
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(135deg, #3a2a4a 0%, #4a3a5a 50%, #3a2a4a 100%);
+  color: #d4af37;
+  box-shadow: 
+    0 6px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(184, 134, 11, 0.3),
+    0 0 15px rgba(75, 0, 130, 0.4);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(20, 15, 30, 0.8);
+  border: 2px solid #5a4a2a;
+  border-radius: 6px;
+  font-size: 1rem;
+  color: #e8dcc0;
+  font-family: 'Cinzel', serif;
+  transition: all 0.3s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #d4af37;
+  box-shadow: 
+    0 0 10px rgba(212, 175, 55, 0.3),
+    inset 0 0 10px rgba(212, 175, 55, 0.1);
+  background: rgba(30, 25, 40, 0.9);
+}
+
+.form-group input::placeholder {
+  color: #8b7a5a;
+}
+
+.error {
+  color: #ff6b6b;
+  background: rgba(139, 0, 0, 0.3);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 2px solid #8b0000;
+  box-shadow: 0 0 10px rgba(139, 0, 0, 0.3);
+}
+
+.success {
+  color: #2ecc71;
+  background: rgba(20, 60, 30, 0.4);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 2px solid #27ae60;
+  box-shadow: 0 0 10px rgba(39, 174, 96, 0.3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.item-card {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.9), rgba(20, 15, 30, 0.9));
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.item-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #d4af37, transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.item-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 8px 16px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(212, 175, 55, 0.3);
+  border-color: #d4af37;
+}
+
+.item-card:hover::before {
+  opacity: 1;
+}
+
+.item-card h3 {
+  color: #d4af37;
+  margin-bottom: 0.5rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.item-card .quantity {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  margin-top: 0.5rem;
+}
+
+.rarity-common { color: #95a5a6; }
+.rarity-uncommon { color: #27ae60; }
+.rarity-rare { color: #3498db; }
+.rarity-epic { color: #9b59b6; }
+.rarity-legendary { color: #f39c12; }
+
+.ingredients {
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.ingredients ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.ingredients li {
+  padding: 0.25rem 0;
+}
+
+.ingredients li.missing {
+  color: #e74c3c;
+}
+
+.item-type {
+  font-size: 0.875rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+.workbench-info {
+  margin-bottom: 2rem;
+}
+
+.upgrade-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e0e0e0;
+}
+
+.profile-info p {
+  margin: 1rem 0;
+  font-size: 1.1rem;
+}
+
+.profile-info .role-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+}

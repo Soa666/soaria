@@ -1,0 +1,114 @@
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: 'Cinzel', serif;
+  user-select: none;
+}
+
+.logo-icon {
+  font-size: 2rem;
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8));
+  animation: logoGlow 3s ease-in-out infinite;
+}
+
+@keyframes logoGlow {
+  0%, 100% {
+    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 5px rgba(212, 175, 55, 0.3));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 15px rgba(212, 175, 55, 0.6));
+    transform: scale(1.05);
+  }
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.logo-main {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #d4af37;
+  text-shadow: 
+    2px 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(212, 175, 55, 0.5),
+    0 0 20px rgba(212, 175, 55, 0.3);
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #d4af37 0%, #f4d03f 50%, #d4af37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: logoShine 4s ease-in-out infinite;
+}
+
+@keyframes logoShine {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.logo-subtitle {
+  font-size: 0.65rem;
+  color: #8b7a5a;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-top: 0.15rem;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Size variants */
+.logo-small .logo-icon {
+  font-size: 1.5rem;
+}
+
+.logo-small .logo-main {
+  font-size: 1.3rem;
+  letter-spacing: 1px;
+}
+
+.logo-small .logo-subtitle {
+  font-size: 0.5rem;
+  letter-spacing: 2px;
+}
+
+.logo-large .logo-icon {
+  font-size: 3rem;
+}
+
+.logo-large .logo-main {
+  font-size: 2.5rem;
+  letter-spacing: 3px;
+}
+
+.logo-large .logo-subtitle {
+  font-size: 0.85rem;
+  letter-spacing: 4px;
+}
+
+.logo-medium .logo-icon {
+  font-size: 2rem;
+}
+
+.logo-medium .logo-main {
+  font-size: 1.8rem;
+}
+
+/* Hover effect */
+.logo:hover .logo-icon {
+  animation: logoGlow 1s ease-in-out infinite;
+}
+
+.logo:hover .logo-main {
+  text-shadow: 
+    2px 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 15px rgba(212, 175, 55, 0.7),
+    0 0 25px rgba(212, 175, 55, 0.5);
+}

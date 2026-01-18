@@ -1,0 +1,177 @@
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+import db from '../database.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory of this file and load .env from backend folder
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// Create transporter (configure with your SMTP settings)
+// Only create transporter if SMTP credentials are provided
+let transporter = null;
+
+if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false, // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+} else {
+  console.warn('WARNUNG: SMTP-Konfiguration nicht gefunden. E-Mails können nicht gesendet werden.');
+  console.warn('Bitte setze SMTP_USER und SMTP_PASS in der .env Datei.');
+}
+
+export async function sendActivationEmail(email, username, activationToken) {
+  const activationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/activate/${activationToken}`;
+
+  // Try to load template from database
+  let template = null;
+  try {
+    template = await db.get('SELECT * FROM email_templates WHERE name = ?', ['activation']);
+  } catch (error) {
+    console.error('Error loading email template:', error);
+  }
+
+  // Use template from database or fallback to default
+  let subject = 'Aktiviere dein Soaria-Konto';
+  let htmlContent = '';
+  let textContent = '';
+
+  if (template) {
+    subject = template.subject;
+    htmlContent = template.html_content;
+    textContent = template.text_content || '';
+    
+    // Replace template variables
+    htmlContent = htmlContent.replace(/\{\{username\}\}/g, username);
+    htmlContent = htmlContent.replace(/\{\{activationUrl\}\}/g, activationUrl);
+    if (textContent) {
+      textContent = textContent.replace(/\{\{username\}\}/g, username);
+      textContent = textContent.replace(/\{\{activationUrl\}\}/g, activationUrl);
+    }
+  } else {
+    // Fallback to default template
+    htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(20, 15, 30, 0.95) 0%, rgba(40, 25, 50, 0.95) 100%);
+          }
+          .container {
+            background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+            border: 3px solid #8b6914;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+          }
+          h1 {
+            color: #d4af37;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+          }
+          p {
+            color: #e8dcc0;
+            margin: 15px 0;
+          }
+          .button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #4a2c1a 0%, #6b4423 50%, #4a2c1a 100%);
+            color: #d4af37;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            border: 2px solid #8b6914;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+          }
+          .button:hover {
+            background: linear-gradient(135deg, #5a3c2a 0%, #7b5433 50%, #5a3c2a 100%);
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid rgba(212, 175, 55, 0.3);
+            text-align: center;
+            color: #8b7a5a;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🏰 Willkommen bei Soaria!</h1>
+          <p>Hallo ${username},</p>
+          <p>vielen Dank für deine Registrierung bei Soaria! Um dein Konto zu aktivieren, klicke bitte auf den folgenden Button:</p>
+          <div style="text-align: center;">
+            <a href="${activationUrl}" class="button">Konto aktivieren</a>
+          </div>
+          <p>Oder kopiere diesen Link in deinen Browser:</p>
+          <p style="word-break: break-all; color: #d4af37;">${activationUrl}</p>
+          <p>Dieser Link ist 24 Stunden gültig.</p>
+          <p>Falls du dich nicht registriert hast, kannst du diese E-Mail ignorieren.</p>
+          <div class="footer">
+            <p>Soaria - Fantasy RPG</p>
+            <p>Dies ist eine automatische E-Mail. Bitte antworte nicht darauf.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    textContent = `
+      Willkommen bei Soaria!
+      
+      Hallo ${username},
+      
+      vielen Dank für deine Registrierung bei Soaria! Um dein Konto zu aktivieren, klicke bitte auf den folgenden Link:
+      
+      ${activationUrl}
+      
+      Dieser Link ist 24 Stunden gültig.
+      
+      Falls du dich nicht registriert hast, kannst du diese E-Mail ignorieren.
+      
+      Soaria - Fantasy RPG
+    `;
+  }
+
+  const mailOptions = {
+    from: `"Soaria" <${process.env.SMTP_USER || 'noreply@soaria.com'}>`,
+    to: email,
+    subject: subject,
+    html: htmlContent,
+    text: textContent,
+  };
+
+  if (!transporter) {
+    console.warn('E-Mail-Transporter nicht konfiguriert. E-Mail wird nicht gesendet.');
+    console.warn('Bitte konfiguriere SMTP_USER und SMTP_PASS in der .env Datei.');
+    return false;
+  }
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Activation email sent:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Error sending activation email:', error);
+    return false;
+  }
+}

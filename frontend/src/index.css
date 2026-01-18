@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=MedievalSharp&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Cinzel', serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Fantasy RPG Hintergrund - dunkle Burg/Stein-Textur */
+  background: 
+    linear-gradient(135deg, rgba(20, 15, 30, 0.95) 0%, rgba(40, 25, 50, 0.95) 50%, rgba(15, 10, 25, 0.95) 100%),
+    url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="stone" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="%231a1525"/><path d="M0 0L20 20M20 0L0 20" stroke="%232a1f3a" stroke-width="0.5" opacity="0.3"/></pattern></defs><rect width="100" height="100" fill="url(%23stone)"/></svg>');
+  background-size: cover, 100px 100px;
+  min-height: 100vh;
+  color: #e8dcc0;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(75, 0, 130, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+code {
+  font-family: 'MedievalSharp', cursive, monospace;
+}

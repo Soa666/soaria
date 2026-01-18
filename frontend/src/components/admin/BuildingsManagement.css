@@ -1,0 +1,123 @@
+.buildings-management {
+  padding: 1rem;
+}
+
+.buildings-list-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.building-card-admin {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.9), rgba(20, 15, 30, 0.9));
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.building-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #5a4a2a;
+}
+
+.building-header h3 {
+  color: #d4af37;
+  margin: 0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.building-info p {
+  color: #e8dcc0;
+  margin: 0.5rem 0;
+}
+
+.building-edit-form {
+  margin-top: 1rem;
+}
+
+.requirements-section {
+  margin-top: 1.5rem;
+}
+
+.requirements-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.requirements-header h4 {
+  color: #d4af37;
+  margin: 0;
+}
+
+.requirements-list {
+  margin-top: 1rem;
+}
+
+.requirements-group {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(20, 15, 30, 0.6);
+  border-radius: 6px;
+  border: 1px solid #5a4a2a;
+}
+
+.requirements-group h5 {
+  color: #d4af37;
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.requirements-group ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.requirements-group li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  background: rgba(30, 25, 40, 0.6);
+  border-radius: 4px;
+  color: #e8dcc0;
+}
+
+.requirement-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.no-requirements {
+  color: #8b7a5a;
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.requirement-add-form {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgba(20, 15, 30, 0.6);
+  border-radius: 6px;
+  border: 1px solid #5a4a2a;
+}
+
+.requirement-add-form h5 {
+  color: #d4af37;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
