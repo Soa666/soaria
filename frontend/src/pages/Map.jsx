@@ -15,27 +15,70 @@ function seededRandom(seed) {
   return x - Math.floor(x);
 }
 
-// Improved noise function for smoother terrain
-function noise2D(x, y, seed = 0) {
-  const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
-  return n - Math.floor(n);
+// Smooth interpolation
+function smoothstep(t) {
+  return t * t * (3 - 2 * t);
 }
 
-// Multi-octave noise for more natural terrain
-function terrainNoise(x, y, octaves = 4) {
+// Improved Perlin-like noise with interpolation
+function gradientNoise(x, y, seed = 0) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = x0 + 1;
+  const y1 = y0 + 1;
+  
+  // Fractional parts
+  const fx = x - x0;
+  const fy = y - y0;
+  
+  // Smooth interpolation weights
+  const sx = smoothstep(fx);
+  const sy = smoothstep(fy);
+  
+  // Random values at corners
+  const n00 = seededRandom(x0 * 374761393 + y0 * 668265263 + seed);
+  const n10 = seededRandom(x1 * 374761393 + y0 * 668265263 + seed);
+  const n01 = seededRandom(x0 * 374761393 + y1 * 668265263 + seed);
+  const n11 = seededRandom(x1 * 374761393 + y1 * 668265263 + seed);
+  
+  // Bilinear interpolation
+  const nx0 = n00 * (1 - sx) + n10 * sx;
+  const nx1 = n01 * (1 - sx) + n11 * sx;
+  
+  return nx0 * (1 - sy) + nx1 * sy;
+}
+
+// Multi-octave fractal noise for natural terrain
+function fractalNoise(x, y, octaves = 5, persistence = 0.5, scale = 0.02, seed = 0) {
   let value = 0;
   let amplitude = 1;
-  let frequency = 1;
+  let frequency = scale;
   let maxValue = 0;
   
   for (let i = 0; i < octaves; i++) {
-    value += amplitude * noise2D(x * frequency * 0.1, y * frequency * 0.1, i * 1000);
+    value += amplitude * gradientNoise(x * frequency, y * frequency, seed + i * 1000);
     maxValue += amplitude;
-    amplitude *= 0.5;
+    amplitude *= persistence;
     frequency *= 2;
   }
   
   return value / maxValue;
+}
+
+// River noise - creates flowing river patterns
+function riverNoise(x, y) {
+  // Use sin waves combined with noise for river-like patterns
+  const riverScale = 0.008;
+  const n1 = fractalNoise(x, y, 3, 0.5, riverScale, 12345);
+  const n2 = fractalNoise(x + 1000, y + 1000, 3, 0.5, riverScale * 0.7, 54321);
+  
+  // Create winding river effect
+  const windX = Math.sin(y * 0.01 + n1 * 3) * 50;
+  const windY = Math.cos(x * 0.01 + n2 * 3) * 50;
+  
+  const riverValue = fractalNoise(x + windX, y + windY, 2, 0.5, 0.015, 99999);
+  
+  return riverValue;
 }
 
 // Get tile ID based on terrain type and variation
@@ -46,20 +89,22 @@ function getTileForTerrain(terrain, variation) {
     grass: [1, 2, 3, 28, 29, 30, 55, 56, 57],
     // Dirt/sand tiles
     dirt: [4, 5, 6, 31, 32, 58, 59],
-    // Water tiles (animated, row 10+)
+    // Water tiles
     water: [271, 272, 273, 298, 299, 300],
     // Deep water
     deepWater: [287, 288, 289, 314, 315, 316],
-    // Forest/trees
+    // Forest/trees (dense)
     forest: [190, 191, 192, 217, 218, 219, 244, 245, 246],
-    // Trees on grass
+    // Trees on grass (sparse)
     trees: [147, 148, 149, 174, 175, 176],
     // Cliff/mountain
     cliff: [109, 110, 111, 136, 137, 138, 163, 164, 165],
     // Flowers/details
     flowers: [113, 114, 117, 118],
     // Path
-    path: [85, 86, 87, 88]
+    path: [85, 86, 87, 88],
+    // Sand/beach
+    sand: [23, 24, 25, 50, 51, 52]
   };
   
   const tileSet = tiles[terrain] || tiles.grass;
@@ -67,27 +112,56 @@ function getTileForTerrain(terrain, variation) {
   return tileSet[index];
 }
 
-// Generate terrain type based on noise
+// Generate terrain type based on noise - improved version
 function getTerrainAt(worldX, worldY) {
-  const n = terrainNoise(worldX, worldY);
-  const n2 = terrainNoise(worldX + 500, worldY + 500);
+  // Main elevation noise
+  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.015, 0);
+  // Moisture/vegetation noise
+  const moisture = fractalNoise(worldX, worldY, 4, 0.6, 0.02, 50000);
+  // Detail noise for variation
+  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.05, 100000);
+  // River pattern
+  const river = riverNoise(worldX, worldY);
   
-  // Water (rivers/lakes) - about 8%
-  if (n < 0.15) {
-    if (n < 0.08) return 'deepWater';
+  // Rivers - thin winding bands
+  if (river > 0.48 && river < 0.52 && elevation < 0.7) {
+    if (river > 0.49 && river < 0.51) return 'deepWater';
     return 'water';
   }
-  // Mountains/cliffs - about 10%
-  if (n > 0.85) return 'cliff';
-  // Forest - about 25%
-  if (n2 > 0.6 && n > 0.3) return 'forest';
-  // Trees scattered
-  if (n2 > 0.75 && n > 0.4) return 'trees';
-  // Dirt paths
-  if (n > 0.45 && n < 0.5 && n2 > 0.4 && n2 < 0.6) return 'path';
-  // Flowers
-  if (n2 > 0.85 && n > 0.5) return 'flowers';
-  // Plains/grass - rest
+  
+  // Lakes - low elevation areas
+  if (elevation < 0.2) {
+    if (elevation < 0.12) return 'deepWater';
+    return 'water';
+  }
+  
+  // Beach/sand near water
+  if (elevation < 0.25 && elevation >= 0.2) {
+    return 'sand';
+  }
+  
+  // Mountains/cliffs - high elevation
+  if (elevation > 0.78) {
+    return 'cliff';
+  }
+  
+  // Forest biomes - high moisture areas
+  if (moisture > 0.55 && elevation > 0.3 && elevation < 0.75) {
+    if (moisture > 0.7) return 'forest';
+    return 'trees';
+  }
+  
+  // Dirt paths - specific noise pattern
+  if (detail > 0.6 && detail < 0.65 && elevation > 0.3 && elevation < 0.6) {
+    return 'path';
+  }
+  
+  // Flowers - scattered in plains
+  if (detail > 0.8 && moisture > 0.4 && moisture < 0.55 && elevation > 0.35) {
+    return 'flowers';
+  }
+  
+  // Plains/grass - default
   return 'grass';
 }
 
