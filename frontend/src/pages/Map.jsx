@@ -187,6 +187,8 @@ function Map() {
   const [playerStats, setPlayerStats] = useState(null);
   const [combatResult, setCombatResult] = useState(null);
   const [travelStatus, setTravelStatus] = useState(null);
+  const [animationFrame, setAnimationFrame] = useState(0);
+  const [currentUserPosition, setCurrentUserPosition] = useState(null);
   const [npcShopData, setNpcShopData] = useState(null);
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
@@ -230,6 +232,39 @@ function Map() {
     }
   }, [travelStatus?.traveling]);
 
+  // Animation frame for walking character
+  useEffect(() => {
+    const animInterval = setInterval(() => {
+      setAnimationFrame(prev => (prev + 1) % 4);
+    }, 200); // 200ms per frame = 5 fps walking animation
+    return () => clearInterval(animInterval);
+  }, []);
+
+  // Calculate interpolated position while traveling
+  useEffect(() => {
+    if (travelStatus?.traveling && travelStatus.from && travelStatus.to && travelStatus.endTime) {
+      const updatePosition = () => {
+        const now = new Date();
+        const startTime = new Date(travelStatus.startTime || now);
+        const endTime = new Date(travelStatus.endTime);
+        const totalDuration = endTime - startTime;
+        const elapsed = now - startTime;
+        const progress = Math.min(1, Math.max(0, elapsed / totalDuration));
+
+        const currentX = travelStatus.from.x + (travelStatus.to.x - travelStatus.from.x) * progress;
+        const currentY = travelStatus.from.y + (travelStatus.to.y - travelStatus.from.y) * progress;
+
+        setCurrentUserPosition({ x: currentX, y: currentY });
+      };
+
+      updatePosition();
+      const posInterval = setInterval(updatePosition, 500); // Update position every 500ms
+      return () => clearInterval(posInterval);
+    } else {
+      setCurrentUserPosition(null);
+    }
+  }, [travelStatus]);
+
   useEffect(() => {
     if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
       fetchNearbyPlayers();
@@ -249,7 +284,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, targetCoords, actionMode, playerImages, tilesetLoaded]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, targetCoords, actionMode, playerImages, tilesetLoaded, animationFrame, currentUserPosition, travelStatus]);
 
   const fetchPlayers = async () => {
     try {
@@ -453,14 +488,38 @@ function Map() {
           if (!player || (player.world_x === undefined && player.world_y === undefined)) return;
           if (player.world_x === 0 && player.world_y === 0) return;
           
-          const playerX = player.world_x || 0;
-          const playerY = player.world_y || 0;
+          const isCurrentUser = user && player.id === user.id;
+          
+          // Use interpolated position for current user if traveling
+          let playerX, playerY;
+          let isWalking = false;
+          let walkDirection = 0; // 0=down, 1=left, 2=right, 3=up (sprite row)
+          
+          if (isCurrentUser && currentUserPosition && travelStatus?.traveling) {
+            playerX = currentUserPosition.x;
+            playerY = currentUserPosition.y;
+            isWalking = true;
+            
+            // Determine direction based on travel destination
+            const dx = travelStatus.to.x - travelStatus.from.x;
+            const dy = travelStatus.to.y - travelStatus.from.y;
+            
+            // Determine primary direction
+            if (Math.abs(dx) > Math.abs(dy)) {
+              walkDirection = dx > 0 ? 2 : 1; // right : left
+            } else {
+              walkDirection = dy > 0 ? 0 : 3; // down : up
+            }
+          } else {
+            playerX = player.world_x || 0;
+            playerY = player.world_y || 0;
+          }
+          
           const x = centerX + (playerX - viewCenter.x) * scale;
           const y = centerY + (playerY - viewCenter.y) * scale;
 
           if (x < -30 || x > width + 30 || y < -30 || y > height + 30) return;
 
-          const isCurrentUser = user && player.id === user.id;
           const isSelected = selectedPlayer && selectedPlayer.id === player.id;
           const markerSize = (isCurrentUser ? 20 : 16) * Math.min(scale, 1.5);
 
@@ -468,7 +527,8 @@ function Map() {
           const playerImg = playerImages[player.id];
           
           if (playerImg && playerImg.complete) {
-            // Draw avatar from sprite sheet (front-facing, middle column)
+            // Draw avatar from sprite sheet
+            // Sprite sheet layout: 3 columns (left, center, right poses), 4 rows (down, left, right, up)
             ctx.save();
             
             // Draw circular clip
@@ -477,10 +537,15 @@ function Map() {
             ctx.closePath();
             ctx.clip();
             
-            // Draw avatar (front-facing sprite: column 1, row 0)
-            // Sprite sheet is 96x128, each sprite is 32x32
-            const spriteX = 32; // Middle column (front-facing)
-            const spriteY = 0;  // First row
+            // Calculate sprite position
+            // Walking animation: cycle through columns 0, 1, 2, 1 (left, center, right, center)
+            const walkCycle = [0, 1, 2, 1];
+            const spriteCol = isWalking ? walkCycle[animationFrame] : 1; // Use center if not walking
+            const spriteRow = walkDirection;
+            
+            const spriteX = spriteCol * 32;
+            const spriteY = spriteRow * 32;
+            
             ctx.drawImage(
               playerImg,
               spriteX, spriteY, 32, 32,  // Source
@@ -503,6 +568,14 @@ function Map() {
               ctx.strokeStyle = '#d4af37';
               ctx.stroke();
               ctx.shadowBlur = 0;
+            }
+            
+            // Walking indicator
+            if (isWalking && isCurrentUser) {
+              ctx.font = '12px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillStyle = '#2ecc71';
+              ctx.fillText('🚶', x, y - markerSize - 5);
             }
           } else {
             // Fallback: colored circle
@@ -652,6 +725,50 @@ function Map() {
             }
           }
         });
+      }
+
+      // Draw travel route if traveling
+      if (travelStatus?.traveling && travelStatus.from && travelStatus.to && currentUserPosition) {
+        const fromX = centerX + (travelStatus.from.x - viewCenter.x) * scale;
+        const fromY = centerY + (travelStatus.from.y - viewCenter.y) * scale;
+        const toX = centerX + (travelStatus.to.x - viewCenter.x) * scale;
+        const toY = centerY + (travelStatus.to.y - viewCenter.y) * scale;
+        const currentX = centerX + (currentUserPosition.x - viewCenter.x) * scale;
+        const currentY = centerY + (currentUserPosition.y - viewCenter.y) * scale;
+
+        // Draw route line (traveled portion)
+        ctx.beginPath();
+        ctx.moveTo(fromX, fromY);
+        ctx.lineTo(currentX, currentY);
+        ctx.strokeStyle = 'rgba(46, 204, 113, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+        ctx.stroke();
+
+        // Draw route line (remaining portion)
+        ctx.beginPath();
+        ctx.moveTo(currentX, currentY);
+        ctx.lineTo(toX, toY);
+        ctx.strokeStyle = 'rgba(46, 204, 113, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw destination marker
+        ctx.beginPath();
+        ctx.arc(toX, toY, 12, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(46, 204, 113, 0.3)';
+        ctx.fill();
+        ctx.strokeStyle = '#2ecc71';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Flag at destination
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillText('🏁', toX, toY - 15);
       }
 
       // Draw target marker if in move mode
@@ -1220,6 +1337,33 @@ function Map() {
             <p>Deine Position: ({user?.world_x ?? 0}, {user?.world_y ?? 0})</p>
             <p>Spieler auf Karte: {Array.isArray(players) ? players.length : 0}</p>
           </div>
+
+          {/* Travel Status Panel */}
+          {travelStatus?.traveling && (
+            <div className="travel-status-panel">
+              <h4>🚶 Unterwegs</h4>
+              <div className="travel-route">
+                <span>Von: ({travelStatus.from?.x}, {travelStatus.from?.y})</span>
+                <span>→</span>
+                <span>Nach: ({travelStatus.to?.x}, {travelStatus.to?.y})</span>
+              </div>
+              <div className="travel-progress-container">
+                <div 
+                  className="travel-progress-bar" 
+                  style={{ width: `${travelStatus.progress || 0}%` }}
+                />
+              </div>
+              <p className="travel-time">
+                ⏱️ Verbleibend: {travelStatus.remainingTime || 'Berechne...'}
+              </p>
+              <button 
+                className="btn btn-danger btn-small"
+                onClick={handleCancelTravel}
+              >
+                ✗ Reise abbrechen
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="map-sidebar">
