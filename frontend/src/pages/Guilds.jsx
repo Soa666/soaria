@@ -156,7 +156,12 @@ function Guilds() {
         {showCreateForm && !myGuild && (
           <div className="create-guild-section">
             {/* Requirements Display */}
-            {guildRequirements && (
+            {!guildRequirements ? (
+              <div className="guild-requirements">
+                <h4>📋 Voraussetzungen zum Gründen</h4>
+                <div className="loading">Lade Voraussetzungen...</div>
+              </div>
+            ) : (
               <div className="guild-requirements">
                 <h4>📋 Voraussetzungen zum Gründen</h4>
                 
@@ -194,13 +199,18 @@ function Guilds() {
                   </div>
                 </div>
 
-                {!guildRequirements.canCreate && (
+                {!guildRequirements.canCreate ? (
                   <div className="requirements-warning">
                     ⚠️ Du erfüllst noch nicht alle Voraussetzungen
+                  </div>
+                ) : (
+                  <div className="requirements-success">
+                    ✓ Alle Voraussetzungen erfüllt!
                   </div>
                 )}
               </div>
             )}
+
 
             <form className="create-guild-form" onSubmit={handleCreateGuild}>
               <h3>Neue Gilde gründen</h3>

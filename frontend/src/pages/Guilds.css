@@ -247,27 +247,39 @@
 /* Create Guild Section */
 .create-guild-section {
   margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .create-guild-section {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Guild Requirements */
 .guild-requirements {
-  background: linear-gradient(145deg, rgba(30, 20, 40, 0.9), rgba(20, 15, 30, 0.9));
-  border: 2px solid #5a4a2a;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  background: linear-gradient(145deg, rgba(40, 30, 60, 0.95), rgba(30, 20, 45, 0.95));
+  border: 3px solid #8b6914;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(212, 175, 55, 0.1);
 }
 
 .guild-requirements h4 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.25rem 0;
   color: #d4af37;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  text-align: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.3);
 }
 
 .requirements-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .requirement-category {
@@ -275,43 +287,60 @@
 }
 
 .requirement-category h5 {
-  margin: 0 0 0.5rem 0;
-  color: #a89060;
-  font-size: 0.85rem;
-  font-weight: normal;
+  margin: 0 0 0.75rem 0;
+  color: #d4af37;
+  font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .requirement-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0.75rem;
-  background: rgba(20, 15, 30, 0.5);
-  border-radius: 4px;
-  font-size: 0.9rem;
+  padding: 0.75rem 1rem;
+  background: rgba(20, 15, 30, 0.6);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: all 0.2s;
 }
 
 .requirement-item.fulfilled {
-  border-left: 3px solid #4caf50;
-  color: #a0d0a0;
+  border-left: 4px solid #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+  color: #90d090;
 }
 
 .requirement-item.missing {
-  border-left: 3px solid #f44336;
-  color: #d0a0a0;
+  border-left: 4px solid #f44336;
+  background: rgba(244, 67, 54, 0.1);
+  color: #e09090;
 }
 
 .requirement-values {
   font-weight: bold;
+  font-size: 1rem;
 }
 
 .requirements-warning {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: rgba(244, 67, 54, 0.1);
-  border: 1px solid rgba(244, 67, 54, 0.3);
-  border-radius: 6px;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: rgba(244, 67, 54, 0.15);
+  border: 2px solid rgba(244, 67, 54, 0.4);
+  border-radius: 8px;
   color: #f0a0a0;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   text-align: center;
+  font-weight: bold;
+}
+
+.requirements-success {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: rgba(76, 175, 80, 0.15);
+  border: 2px solid rgba(76, 175, 80, 0.4);
+  border-radius: 8px;
+  color: #90d090;
+  font-size: 0.95rem;
+  text-align: center;
+  font-weight: bold;
 }
