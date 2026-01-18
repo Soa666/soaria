@@ -391,3 +391,283 @@
   color: #8b7a5a;
   font-size: 0.8rem;
 }
+
+/* Player Stats Bar */
+.player-stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.9), rgba(20, 15, 30, 0.9));
+  border: 2px solid #5a4a2a;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-label {
+  color: #8b7a5a;
+  font-size: 0.85rem;
+}
+
+.stat-value {
+  color: #d4af37;
+  font-weight: bold;
+}
+
+.btn-heal-small {
+  background: rgba(39, 174, 96, 0.3);
+  border: 1px solid #27ae60;
+  color: #27ae60;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-heal-small:hover {
+  background: rgba(39, 174, 96, 0.5);
+}
+
+/* NPC Panel */
+.npc-panel {
+  position: fixed;
+  right: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 300px;
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 3px solid #8b6914;
+  border-radius: 12px;
+  padding: 1.5rem;
+  z-index: 100;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.npc-panel.boss {
+  border-color: #cc0000;
+  box-shadow: 0 0 30px rgba(204, 0, 0, 0.3);
+}
+
+.npc-panel.monster {
+  border-color: #e74c3c;
+}
+
+.npc-panel.merchant {
+  border-color: #d4af37;
+}
+
+.npc-panel h3 {
+  color: #d4af37;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.npc-description {
+  color: #a89070;
+  font-style: italic;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.monster-stats {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 1rem 0;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  color: #e8dcc0;
+  margin-bottom: 0.25rem;
+}
+
+.dead-notice {
+  color: #ff9999;
+  font-style: italic;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+/* NPC Shop */
+.npc-shop {
+  margin: 1rem 0;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.npc-shop h4 {
+  color: #d4af37;
+  margin: 0 0 0.75rem 0;
+}
+
+.shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.shop-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+}
+
+.shop-item .item-name {
+  color: #e8dcc0;
+  flex: 1;
+}
+
+.shop-item .item-prices {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-buy, .btn-sell {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s;
+}
+
+.btn-buy {
+  background: rgba(231, 76, 60, 0.3);
+  border-color: #e74c3c;
+  color: #ff9999;
+}
+
+.btn-buy:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.5);
+}
+
+.btn-buy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sell {
+  background: rgba(39, 174, 96, 0.3);
+  border-color: #27ae60;
+  color: #90ee90;
+}
+
+.btn-sell:hover {
+  background: rgba(39, 174, 96, 0.5);
+}
+
+.npc-shop .no-items {
+  color: #8b7a5a;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Combat Result Modal */
+.combat-result-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.combat-result-content {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+  border: 3px solid #d4af37;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 400px;
+  text-align: center;
+  animation: fadeInScale 0.3s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.combat-result-content h3 {
+  color: #d4af37;
+  font-size: 1.8rem;
+  margin: 0 0 1rem 0;
+}
+
+.combat-stats {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.combat-stats p {
+  color: #e8dcc0;
+  margin: 0.25rem 0;
+}
+
+.combat-loot {
+  background: rgba(39, 174, 96, 0.2);
+  border: 1px solid #27ae60;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.combat-loot p {
+  color: #90ee90;
+  margin: 0.25rem 0;
+}
+
+.loot-list {
+  margin-top: 0.5rem;
+}
+
+.loot-list span {
+  display: block;
+  color: #e8dcc0;
+  font-size: 0.9rem;
+}
+
+.level-up {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(139, 105, 20, 0.3));
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  animation: pulse 1s infinite;
+}
+
+.level-up p {
+  color: #d4af37;
+  font-weight: bold;
+  margin: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.8); }
+}

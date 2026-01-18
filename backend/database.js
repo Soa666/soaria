@@ -531,6 +531,156 @@ export async function initDatabase() {
     ON messages(recipient_id, is_read)
   `);
 
+  // Add gold column to users (Currency system)
+  try {
+    await db.run(`ALTER TABLE users ADD COLUMN gold INTEGER DEFAULT 100`);
+  } catch (e) {
+    // Column might already exist
+  }
+
+  // Monster types table (Monster-Typen für Admin-Verwaltung)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS monster_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      image_path TEXT,
+      is_boss INTEGER DEFAULT 0,
+      min_level INTEGER DEFAULT 1,
+      max_level INTEGER DEFAULT 5,
+      base_health INTEGER DEFAULT 100,
+      base_attack INTEGER DEFAULT 10,
+      base_defense INTEGER DEFAULT 5,
+      health_per_level INTEGER DEFAULT 20,
+      attack_per_level INTEGER DEFAULT 3,
+      defense_per_level INTEGER DEFAULT 2,
+      spawn_weight INTEGER DEFAULT 100,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Monster loot table (Was Monster droppen können)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS monster_loot (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      monster_type_id INTEGER NOT NULL,
+      item_id INTEGER NOT NULL,
+      min_quantity INTEGER DEFAULT 1,
+      max_quantity INTEGER DEFAULT 1,
+      drop_chance REAL DEFAULT 0.5,
+      gold_min INTEGER DEFAULT 0,
+      gold_max INTEGER DEFAULT 0,
+      FOREIGN KEY (monster_type_id) REFERENCES monster_types(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+      UNIQUE(monster_type_id, item_id)
+    )
+  `);
+
+  // NPC types table (Händler)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS npc_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      image_path TEXT,
+      npc_type TEXT DEFAULT 'merchant' CHECK(npc_type IN ('merchant', 'quest_giver', 'trainer')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // NPC shop items (Was Händler verkaufen/kaufen)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS npc_shop_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      npc_type_id INTEGER NOT NULL,
+      item_id INTEGER NOT NULL,
+      buy_price INTEGER,
+      sell_price INTEGER,
+      stock INTEGER DEFAULT -1,
+      FOREIGN KEY (npc_type_id) REFERENCES npc_types(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+      UNIQUE(npc_type_id, item_id)
+    )
+  `);
+
+  // World NPCs (Spawned NPCs auf der Karte)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS world_npcs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      npc_type_id INTEGER,
+      monster_type_id INTEGER,
+      world_x INTEGER NOT NULL,
+      world_y INTEGER NOT NULL,
+      level INTEGER DEFAULT 1,
+      current_health INTEGER,
+      respawn_minutes INTEGER DEFAULT 10,
+      last_killed_at DATETIME,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (npc_type_id) REFERENCES npc_types(id) ON DELETE CASCADE,
+      FOREIGN KEY (monster_type_id) REFERENCES monster_types(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Player stats (Level, XP, Kampfwerte)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS player_stats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER UNIQUE NOT NULL,
+      level INTEGER DEFAULT 1,
+      experience INTEGER DEFAULT 0,
+      max_health INTEGER DEFAULT 100,
+      current_health INTEGER DEFAULT 100,
+      base_attack INTEGER DEFAULT 10,
+      base_defense INTEGER DEFAULT 5,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Combat log (Kampfprotokoll)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS combat_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      attacker_user_id INTEGER,
+      defender_user_id INTEGER,
+      world_npc_id INTEGER,
+      winner TEXT CHECK(winner IN ('attacker', 'defender', 'draw')),
+      attacker_damage_dealt INTEGER DEFAULT 0,
+      defender_damage_dealt INTEGER DEFAULT 0,
+      gold_gained INTEGER DEFAULT 0,
+      experience_gained INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (attacker_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (defender_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (world_npc_id) REFERENCES world_npcs(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Initialize player stats for existing users
+  const usersWithoutStats = await db.all(`
+    SELECT u.id FROM users u 
+    LEFT JOIN player_stats ps ON u.id = ps.user_id 
+    WHERE ps.id IS NULL
+  `);
+  
+  for (const user of usersWithoutStats) {
+    await db.run(`
+      INSERT INTO player_stats (user_id, level, experience, max_health, current_health, base_attack, base_defense)
+      VALUES (?, 1, 0, 100, 100, 10, 5)
+    `, [user.id]);
+  }
+
+  // Insert default monsters
+  await insertDefaultMonsters();
+  
+  // Insert default NPCs
+  await insertDefaultNPCs();
+  
+  // Spawn world NPCs if none exist
+  await spawnWorldNPCs();
+
   // Insert default activation email template
   try {
     const existingTemplate = await db.get('SELECT id FROM email_templates WHERE name = ?', ['activation']);
@@ -761,6 +911,247 @@ async function insertDefaultGroups() {
     INSERT OR IGNORE INTO groups (name, display_name, description)
     VALUES ('user', 'Benutzer', 'Standard-Benutzer ohne spezielle Berechtigungen')
   `);
+}
+
+async function insertDefaultMonsters() {
+  const monsters = [
+    // Normal monsters
+    { 
+      name: 'wolf', display_name: 'Wolf', description: 'Ein hungriger Wolf',
+      is_boss: 0, min_level: 1, max_level: 5,
+      base_health: 80, base_attack: 12, base_defense: 4,
+      health_per_level: 15, attack_per_level: 3, defense_per_level: 1,
+      spawn_weight: 100
+    },
+    { 
+      name: 'goblin', display_name: 'Goblin', description: 'Ein hinterlistiger Goblin',
+      is_boss: 0, min_level: 2, max_level: 8,
+      base_health: 60, base_attack: 15, base_defense: 3,
+      health_per_level: 12, attack_per_level: 4, defense_per_level: 1,
+      spawn_weight: 80
+    },
+    { 
+      name: 'skeleton', display_name: 'Skelett', description: 'Ein untotes Skelett',
+      is_boss: 0, min_level: 3, max_level: 10,
+      base_health: 70, base_attack: 18, base_defense: 6,
+      health_per_level: 14, attack_per_level: 4, defense_per_level: 2,
+      spawn_weight: 60
+    },
+    { 
+      name: 'orc', display_name: 'Ork', description: 'Ein brutaler Ork-Krieger',
+      is_boss: 0, min_level: 5, max_level: 15,
+      base_health: 120, base_attack: 22, base_defense: 8,
+      health_per_level: 20, attack_per_level: 5, defense_per_level: 3,
+      spawn_weight: 40
+    },
+    { 
+      name: 'troll', display_name: 'Troll', description: 'Ein gewaltiger Höhlentroll',
+      is_boss: 0, min_level: 8, max_level: 20,
+      base_health: 200, base_attack: 30, base_defense: 15,
+      health_per_level: 30, attack_per_level: 6, defense_per_level: 4,
+      spawn_weight: 20
+    },
+    // Boss monsters
+    { 
+      name: 'dragon_hatchling', display_name: 'Drachenjunges', description: 'Ein junger, aber gefährlicher Drache',
+      is_boss: 1, min_level: 10, max_level: 10,
+      base_health: 500, base_attack: 50, base_defense: 25,
+      health_per_level: 0, attack_per_level: 0, defense_per_level: 0,
+      spawn_weight: 5
+    },
+    { 
+      name: 'lich_king', display_name: 'Lichkönig', description: 'Ein mächtiger untoter Zauberer',
+      is_boss: 1, min_level: 15, max_level: 15,
+      base_health: 800, base_attack: 70, base_defense: 30,
+      health_per_level: 0, attack_per_level: 0, defense_per_level: 0,
+      spawn_weight: 2
+    },
+    { 
+      name: 'ancient_dragon', display_name: 'Uralter Drache', description: 'Der mächtigste aller Drachen',
+      is_boss: 1, min_level: 25, max_level: 25,
+      base_health: 2000, base_attack: 150, base_defense: 80,
+      health_per_level: 0, attack_per_level: 0, defense_per_level: 0,
+      spawn_weight: 1
+    },
+  ];
+
+  for (const monster of monsters) {
+    try {
+      const result = await db.run(`
+        INSERT OR IGNORE INTO monster_types 
+        (name, display_name, description, is_boss, min_level, max_level, 
+         base_health, base_attack, base_defense, health_per_level, attack_per_level, defense_per_level, spawn_weight)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        monster.name, monster.display_name, monster.description, monster.is_boss,
+        monster.min_level, monster.max_level, monster.base_health, monster.base_attack,
+        monster.base_defense, monster.health_per_level, monster.attack_per_level,
+        monster.defense_per_level, monster.spawn_weight
+      ]);
+      
+      // Add loot for this monster
+      if (result.changes > 0) {
+        const monsterId = result.lastID;
+        
+        // Get items for loot
+        const holz = await db.get('SELECT id FROM items WHERE name = ?', ['holz']);
+        const stein = await db.get('SELECT id FROM items WHERE name = ?', ['stein']);
+        const eisenbarren = await db.get('SELECT id FROM items WHERE name = ?', ['eisenbarren']);
+        
+        // Different loot based on monster
+        if (monster.name === 'wolf' && holz) {
+          await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
+            VALUES (?, ?, 1, 3, 0.8, 5, 15)`, [monsterId, holz.id]);
+        } else if (monster.name === 'goblin' && stein) {
+          await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
+            VALUES (?, ?, 2, 5, 0.7, 10, 30)`, [monsterId, stein.id]);
+        } else if (monster.name === 'orc' && eisenbarren) {
+          await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
+            VALUES (?, ?, 1, 2, 0.5, 20, 50)`, [monsterId, eisenbarren.id]);
+        }
+        // Bosses drop more gold
+        if (monster.is_boss && eisenbarren) {
+          await db.run(`INSERT OR IGNORE INTO monster_loot (monster_type_id, item_id, min_quantity, max_quantity, drop_chance, gold_min, gold_max) 
+            VALUES (?, ?, 5, 15, 1.0, 100, 500)`, [monsterId, eisenbarren.id]);
+        }
+      }
+    } catch (err) {
+      // Monster already exists
+    }
+  }
+}
+
+async function insertDefaultNPCs() {
+  const npcs = [
+    { 
+      name: 'blacksmith', display_name: 'Schmied Thorin', 
+      description: 'Ein erfahrener Schmied, der Werkzeuge und Waffen verkauft',
+      npc_type: 'merchant'
+    },
+    { 
+      name: 'herbalist', display_name: 'Kräuterfrau Elara', 
+      description: 'Handelt mit seltenen Kräutern und Materialien',
+      npc_type: 'merchant'
+    },
+    { 
+      name: 'general_merchant', display_name: 'Händler Markus', 
+      description: 'Ein Allgemeinhändler mit verschiedenen Waren',
+      npc_type: 'merchant'
+    },
+  ];
+
+  for (const npc of npcs) {
+    try {
+      const result = await db.run(`
+        INSERT OR IGNORE INTO npc_types (name, display_name, description, npc_type)
+        VALUES (?, ?, ?, ?)
+      `, [npc.name, npc.display_name, npc.description, npc.npc_type]);
+      
+      // Add shop items
+      if (result.changes > 0) {
+        const npcId = result.lastID;
+        
+        const holz = await db.get('SELECT id FROM items WHERE name = ?', ['holz']);
+        const stein = await db.get('SELECT id FROM items WHERE name = ?', ['stein']);
+        const eisenbarren = await db.get('SELECT id FROM items WHERE name = ?', ['eisenbarren']);
+        const spitzhacke_basic = await db.get('SELECT id FROM items WHERE name = ?', ['spitzhacke_basic']);
+        const spitzhacke_iron = await db.get('SELECT id FROM items WHERE name = ?', ['spitzhacke_iron']);
+        
+        if (npc.name === 'blacksmith') {
+          // Sells tools, buys resources
+          if (spitzhacke_basic) {
+            await db.run(`INSERT OR IGNORE INTO npc_shop_items (npc_type_id, item_id, buy_price, sell_price, stock) 
+              VALUES (?, ?, 50, 15, -1)`, [npcId, spitzhacke_basic.id]);
+          }
+          if (spitzhacke_iron) {
+            await db.run(`INSERT OR IGNORE INTO npc_shop_items (npc_type_id, item_id, buy_price, sell_price, stock) 
+              VALUES (?, ?, 150, 45, -1)`, [npcId, spitzhacke_iron.id]);
+          }
+          if (eisenbarren) {
+            await db.run(`INSERT OR IGNORE INTO npc_shop_items (npc_type_id, item_id, buy_price, sell_price, stock) 
+              VALUES (?, ?, 30, 10, -1)`, [npcId, eisenbarren.id]);
+          }
+        } else if (npc.name === 'general_merchant') {
+          // Buys/sells basic resources
+          if (holz) {
+            await db.run(`INSERT OR IGNORE INTO npc_shop_items (npc_type_id, item_id, buy_price, sell_price, stock) 
+              VALUES (?, ?, 5, 2, -1)`, [npcId, holz.id]);
+          }
+          if (stein) {
+            await db.run(`INSERT OR IGNORE INTO npc_shop_items (npc_type_id, item_id, buy_price, sell_price, stock) 
+              VALUES (?, ?, 8, 3, -1)`, [npcId, stein.id]);
+          }
+        }
+      }
+    } catch (err) {
+      // NPC already exists
+    }
+  }
+}
+
+async function spawnWorldNPCs() {
+  // Check if we already have world NPCs
+  const existingNPCs = await db.get('SELECT COUNT(*) as count FROM world_npcs');
+  if (existingNPCs.count > 0) return;
+  
+  // Get all existing player coordinates to avoid spawning too close
+  const existingCoords = await db.all('SELECT world_x, world_y FROM users WHERE world_x != 0 OR world_y != 0');
+  
+  // Spawn merchants (3-5)
+  const merchants = await db.all('SELECT id FROM npc_types');
+  for (const merchant of merchants) {
+    const coords = generateUniqueCoordinates(existingCoords, 100);
+    await db.run(`
+      INSERT INTO world_npcs (npc_type_id, world_x, world_y, is_active)
+      VALUES (?, ?, ?, 1)
+    `, [merchant.id, coords.x, coords.y]);
+    existingCoords.push({ world_x: coords.x, world_y: coords.y });
+  }
+  
+  // Spawn normal monsters (10-15)
+  const normalMonsters = await db.all('SELECT * FROM monster_types WHERE is_boss = 0');
+  for (let i = 0; i < 12; i++) {
+    // Pick a random monster type weighted by spawn_weight
+    const totalWeight = normalMonsters.reduce((sum, m) => sum + m.spawn_weight, 0);
+    let randomWeight = Math.random() * totalWeight;
+    let selectedMonster = normalMonsters[0];
+    
+    for (const monster of normalMonsters) {
+      randomWeight -= monster.spawn_weight;
+      if (randomWeight <= 0) {
+        selectedMonster = monster;
+        break;
+      }
+    }
+    
+    // Random level within monster's range
+    const level = Math.floor(Math.random() * (selectedMonster.max_level - selectedMonster.min_level + 1)) + selectedMonster.min_level;
+    const health = selectedMonster.base_health + (level - 1) * selectedMonster.health_per_level;
+    
+    const coords = generateUniqueCoordinates(existingCoords, 80);
+    await db.run(`
+      INSERT INTO world_npcs (monster_type_id, world_x, world_y, level, current_health, respawn_minutes, is_active)
+      VALUES (?, ?, ?, ?, ?, 10, 1)
+    `, [selectedMonster.id, coords.x, coords.y, level, health]);
+    existingCoords.push({ world_x: coords.x, world_y: coords.y });
+  }
+  
+  // Spawn bosses (2-3, but rare)
+  const bossMonsters = await db.all('SELECT * FROM monster_types WHERE is_boss = 1');
+  for (let i = 0; i < 2; i++) {
+    if (bossMonsters.length === 0) break;
+    
+    const boss = bossMonsters[i % bossMonsters.length];
+    const coords = generateUniqueCoordinates(existingCoords, 200); // Bosses need more space
+    
+    await db.run(`
+      INSERT INTO world_npcs (monster_type_id, world_x, world_y, level, current_health, respawn_minutes, is_active)
+      VALUES (?, ?, ?, ?, ?, 60, 1)
+    `, [boss.id, coords.x, coords.y, boss.min_level, boss.base_health]);
+    existingCoords.push({ world_x: coords.x, world_y: coords.y });
+  }
+  
+  console.log('[DB] World NPCs spawned successfully');
 }
 
 async function insertDefaultBuildings() {

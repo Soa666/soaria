@@ -29,7 +29,9 @@ function Map() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [players, setPlayers] = useState([]);
+  const [npcs, setNpcs] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [selectedNpc, setSelectedNpc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [viewCenter, setViewCenter] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -42,9 +44,14 @@ function Map() {
   const [myTradeItems, setMyTradeItems] = useState([]);
   const [targetTradeItems, setTargetTradeItems] = useState([]);
   const [playerImages, setPlayerImages] = useState({});
+  const [playerStats, setPlayerStats] = useState(null);
+  const [combatResult, setCombatResult] = useState(null);
+  const [npcShopData, setNpcShopData] = useState(null);
 
   useEffect(() => {
     fetchPlayers();
+    fetchNpcs();
+    fetchPlayerStats();
     if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
       setViewCenter({ x: user.world_x, y: user.world_y });
     } else {
@@ -72,7 +79,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, viewCenter, zoom, user, selectedPlayer, targetCoords, actionMode, playerImages]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, targetCoords, actionMode, playerImages]);
 
   const fetchPlayers = async () => {
     try {
@@ -104,6 +111,24 @@ function Map() {
       setNearbyPlayers(response.data.players || []);
     } catch (error) {
       console.error('Fehler beim Laden der nahen Spieler:', error);
+    }
+  };
+
+  const fetchNpcs = async () => {
+    try {
+      const response = await api.get('/npcs/world');
+      setNpcs(response.data.npcs || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der NPCs:', error);
+    }
+  };
+
+  const fetchPlayerStats = async () => {
+    try {
+      const response = await api.get('/npcs/player/stats');
+      setPlayerStats(response.data.stats);
+    } catch (error) {
+      console.error('Fehler beim Laden der Spielerstatistiken:', error);
     }
   };
 
@@ -319,6 +344,117 @@ function Map() {
         });
       }
 
+      // Draw NPCs (monsters, merchants, bosses)
+      if (npcs && Array.isArray(npcs) && npcs.length > 0) {
+        npcs.forEach((npc) => {
+          if (!npc || npc.world_x === undefined || npc.world_y === undefined) return;
+          
+          const npcX = npc.world_x || 0;
+          const npcY = npc.world_y || 0;
+          const x = centerX + (npcX - viewCenter.x) * scale;
+          const y = centerY + (npcY - viewCenter.y) * scale;
+
+          if (x < -30 || x > width + 30 || y < -30 || y > height + 30) return;
+
+          const isSelected = selectedNpc && selectedNpc.id === npc.id;
+          const markerSize = (npc.entity_type === 'boss' ? 22 : npc.entity_type === 'merchant' ? 18 : 16) * Math.min(scale, 1.5);
+
+          // Different colors/shapes for different NPC types
+          ctx.save();
+          
+          if (npc.entity_type === 'merchant') {
+            // Merchant - golden square
+            ctx.fillStyle = isSelected ? '#f4d03f' : '#d4af37';
+            ctx.shadowBlur = isSelected ? 15 : 8;
+            ctx.shadowColor = '#d4af37';
+            ctx.fillRect(x - markerSize * 0.7, y - markerSize * 0.7, markerSize * 1.4, markerSize * 1.4);
+            ctx.strokeStyle = '#8b6914';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x - markerSize * 0.7, y - markerSize * 0.7, markerSize * 1.4, markerSize * 1.4);
+            
+            // Shop icon
+            ctx.fillStyle = '#4a2c1a';
+            ctx.font = `bold ${Math.max(12, markerSize * 0.8)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🏪', x, y);
+          } else if (npc.entity_type === 'boss') {
+            // Boss - red diamond with skull
+            ctx.fillStyle = isSelected ? '#ff4444' : '#cc0000';
+            ctx.shadowBlur = isSelected ? 20 : 12;
+            ctx.shadowColor = '#ff0000';
+            ctx.beginPath();
+            ctx.moveTo(x, y - markerSize);
+            ctx.lineTo(x + markerSize, y);
+            ctx.lineTo(x, y + markerSize);
+            ctx.lineTo(x - markerSize, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#800000';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Crown icon for boss
+            ctx.fillStyle = '#d4af37';
+            ctx.font = `bold ${Math.max(14, markerSize * 0.7)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowBlur = 0;
+            ctx.fillText('👑', x, y - 2);
+          } else {
+            // Regular monster - red circle
+            ctx.beginPath();
+            ctx.arc(x, y, markerSize * 0.7, 0, Math.PI * 2);
+            ctx.fillStyle = isSelected ? '#ff6666' : '#e74c3c';
+            ctx.shadowBlur = isSelected ? 12 : 6;
+            ctx.shadowColor = '#e74c3c';
+            ctx.fill();
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Monster icon
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.max(10, markerSize * 0.6)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowBlur = 0;
+            ctx.fillText('👹', x, y);
+          }
+          
+          ctx.restore();
+
+          // Draw NPC name and level
+          ctx.fillStyle = npc.entity_type === 'boss' ? '#ff4444' : npc.entity_type === 'merchant' ? '#d4af37' : '#ff9999';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 3;
+          ctx.font = `bold ${Math.max(9, 11 * Math.min(scale, 1.2))}px Arial`;
+          ctx.textAlign = 'center';
+          
+          const label = npc.entity_type === 'merchant' 
+            ? npc.display_name 
+            : `${npc.display_name} (Lv.${npc.level || 1})`;
+          ctx.strokeText(label, x, y - markerSize - 5);
+          ctx.fillText(label, x, y - markerSize - 5);
+
+          // Health bar for monsters (if damaged)
+          if (npc.entity_type !== 'merchant' && npc.current_health !== undefined && npc.max_health) {
+            const healthPercent = npc.current_health / npc.max_health;
+            if (healthPercent < 1) {
+              const barWidth = markerSize * 2;
+              const barHeight = 4;
+              const barY = y + markerSize + 3;
+              
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+              ctx.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
+              
+              ctx.fillStyle = healthPercent > 0.5 ? '#27ae60' : healthPercent > 0.25 ? '#f39c12' : '#e74c3c';
+              ctx.fillRect(x - barWidth / 2, barY, barWidth * healthPercent, barHeight);
+            }
+          }
+        });
+      }
+
       // Draw target marker if in move mode
       if (actionMode === 'move' && targetCoords) {
         const x = centerX + (targetCoords.x - viewCenter.x) * scale;
@@ -401,14 +537,42 @@ function Map() {
         }
       }
 
-      if (clickedPlayer) {
+      // Check if clicked on an NPC
+      let clickedNpc = null;
+      if (npcs && Array.isArray(npcs)) {
+        for (const npc of npcs) {
+          if (!npc || npc.world_x === undefined || npc.world_y === undefined) continue;
+          
+          const nx = centerX + (npc.world_x - viewCenter.x) * scale;
+          const ny = centerY + (npc.world_y - viewCenter.y) * scale;
+          const distance = Math.sqrt(Math.pow(x - nx, 2) + Math.pow(y - ny, 2));
+        
+          if (distance < clickRadius) {
+            clickedNpc = npc;
+            break;
+          }
+        }
+      }
+
+      if (clickedNpc) {
+        // Clicked on NPC
+        setSelectedNpc(clickedNpc);
+        setSelectedPlayer(null);
+        setActionMode(null);
+        setTargetCoords(null);
+        
+        // Fetch NPC details
+        fetchNpcDetails(clickedNpc.id);
+      } else if (clickedPlayer) {
         if (clickedPlayer.id === user?.id) {
           // Clicked on yourself - deselect
           setSelectedPlayer(null);
+          setSelectedNpc(null);
           setActionMode(null);
         } else {
           // Clicked on another player - select them
           setSelectedPlayer(clickedPlayer);
+          setSelectedNpc(null);
           setActionMode(null);
           setTargetCoords(null);
         }
@@ -418,6 +582,7 @@ function Map() {
       } else {
         // Clicked on empty space - deselect
         setSelectedPlayer(null);
+        setSelectedNpc(null);
       }
     } catch (error) {
       console.error('Error in handleCanvasClick:', error);
@@ -466,6 +631,100 @@ function Map() {
     } catch (error) {
       setMessage(error.response?.data?.error || 'Fehler beim Bewegen');
       setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const fetchNpcDetails = async (npcId) => {
+    try {
+      const response = await api.get(`/npcs/${npcId}`);
+      if (response.data.npc?.npc_type_id) {
+        // It's a merchant
+        setNpcShopData(response.data);
+      } else {
+        setNpcShopData(null);
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der NPC-Details:', error);
+    }
+  };
+
+  const handleAttackMonster = async () => {
+    if (!selectedNpc || selectedNpc.entity_type === 'merchant') {
+      setMessage('Wähle ein Monster zum Angreifen');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    // Check distance
+    if (user?.world_x !== undefined && user?.world_y !== undefined) {
+      const distance = Math.sqrt(
+        Math.pow((user.world_x || 0) - (selectedNpc.world_x || 0), 2) +
+        Math.pow((user.world_y || 0) - (selectedNpc.world_y || 0), 2)
+      );
+      
+      if (distance > 100) {
+        setMessage(`Zu weit entfernt! Distanz: ${Math.round(distance)} (max: 100)`);
+        setTimeout(() => setMessage(''), 3000);
+        return;
+      }
+    }
+
+    try {
+      const response = await api.post(`/combat/monster/${selectedNpc.id}`);
+      setCombatResult(response.data);
+      fetchPlayerStats();
+      fetchNpcs();
+      
+      if (response.data.result === 'attacker') {
+        setMessage(`Sieg! +${response.data.goldGained} Gold, +${response.data.expGained} EP`);
+      } else {
+        setMessage(`Niederlage! Du wurdest besiegt.`);
+      }
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Kampffehler');
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleBuyItem = async (itemId, quantity = 1) => {
+    if (!selectedNpc) return;
+
+    try {
+      const response = await api.post(`/npcs/${selectedNpc.id}/buy`, { itemId, quantity });
+      setMessage(response.data.message);
+      fetchPlayerStats();
+      fetchNpcDetails(selectedNpc.id);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Kauffehler');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleSellItem = async (itemId, quantity = 1) => {
+    if (!selectedNpc) return;
+
+    try {
+      const response = await api.post(`/npcs/${selectedNpc.id}/sell`, { itemId, quantity });
+      setMessage(response.data.message);
+      fetchPlayerStats();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Verkaufsfehler');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleHeal = async () => {
+    try {
+      const response = await api.post('/combat/heal');
+      setMessage(response.data.message);
+      fetchPlayerStats();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Heilungsfehler');
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -753,6 +1012,172 @@ function Map() {
             </div>
           )}
         </div>
+
+        {/* Player Stats Bar */}
+        {playerStats && (
+          <div className="player-stats-bar">
+            <div className="stat-item">
+              <span className="stat-label">💰 Gold:</span>
+              <span className="stat-value">{playerStats.gold || 0}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">⭐ Level:</span>
+              <span className="stat-value">{playerStats.level}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">❤️ HP:</span>
+              <span className="stat-value">{playerStats.current_health}/{playerStats.max_health}</span>
+              {playerStats.current_health < playerStats.max_health && (
+                <button className="btn-heal-small" onClick={handleHeal}>💊</button>
+              )}
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">⚔️ ATK:</span>
+              <span className="stat-value">{playerStats.base_attack}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">🛡️ DEF:</span>
+              <span className="stat-value">{playerStats.base_defense}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">✨ EP:</span>
+              <span className="stat-value">{playerStats.experience}</span>
+            </div>
+          </div>
+        )}
+
+        {/* NPC Panel */}
+        {selectedNpc && (
+          <div className={`npc-panel ${selectedNpc.entity_type}`}>
+            <h3>
+              {selectedNpc.entity_type === 'merchant' ? '🏪' : selectedNpc.entity_type === 'boss' ? '👑' : '👹'} 
+              {selectedNpc.display_name}
+              {selectedNpc.entity_type !== 'merchant' && ` (Lv.${selectedNpc.level || 1})`}
+            </h3>
+            <p className="npc-description">{selectedNpc.description}</p>
+            
+            <p>Position: ({selectedNpc.world_x}, {selectedNpc.world_y})</p>
+            {user?.world_x !== undefined && user?.world_y !== undefined && (
+              <p>Entfernung: <strong>{Math.round(Math.sqrt(
+                Math.pow((user.world_x || 0) - (selectedNpc.world_x || 0), 2) +
+                Math.pow((user.world_y || 0) - (selectedNpc.world_y || 0), 2)
+              ))} Einheiten</strong></p>
+            )}
+
+            {/* Monster Stats */}
+            {selectedNpc.entity_type !== 'merchant' && (
+              <div className="monster-stats">
+                <div className="stat-row">
+                  <span>❤️ HP: {selectedNpc.current_health}/{selectedNpc.max_health}</span>
+                </div>
+                <div className="stat-row">
+                  <span>⚔️ ATK: {selectedNpc.attack}</span>
+                  <span>🛡️ DEF: {selectedNpc.defense}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Merchant Shop */}
+            {selectedNpc.entity_type === 'merchant' && npcShopData && (
+              <div className="npc-shop">
+                <h4>🛒 Waren</h4>
+                {npcShopData.shopItems?.length > 0 ? (
+                  <div className="shop-items">
+                    {npcShopData.shopItems.map(item => (
+                      <div key={item.id} className="shop-item">
+                        <span className="item-name">{item.item_display_name}</span>
+                        <div className="item-prices">
+                          {item.buy_price && (
+                            <button 
+                              className="btn-buy"
+                              onClick={() => handleBuyItem(item.item_id)}
+                              disabled={!playerStats || playerStats.gold < item.buy_price}
+                            >
+                              Kaufen: {item.buy_price} 💰
+                            </button>
+                          )}
+                          {item.sell_price && (
+                            <button 
+                              className="btn-sell"
+                              onClick={() => handleSellItem(item.item_id)}
+                            >
+                              Verkaufen: {item.sell_price} 💰
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="no-items">Keine Waren verfügbar</p>
+                )}
+              </div>
+            )}
+
+            <div className="action-buttons">
+              {selectedNpc.entity_type !== 'merchant' && (
+                <button 
+                  className="btn btn-danger" 
+                  onClick={handleAttackMonster}
+                  disabled={!selectedNpc.is_active}
+                >
+                  ⚔️ Angreifen
+                </button>
+              )}
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setSelectedNpc(null);
+                  setNpcShopData(null);
+                }}
+              >
+                ✗ Schließen
+              </button>
+            </div>
+
+            {!selectedNpc.is_active && selectedNpc.entity_type !== 'merchant' && (
+              <p className="dead-notice">⚰️ Dieses Monster ist tot und respawnt bald.</p>
+            )}
+          </div>
+        )}
+
+        {/* Combat Result Modal */}
+        {combatResult && (
+          <div className="combat-result-modal">
+            <div className="combat-result-content">
+              <h3>{combatResult.result === 'attacker' ? '🏆 Sieg!' : '💀 Niederlage'}</h3>
+              <p>Kampf gegen <strong>{combatResult.monsterName}</strong> (Lv.{combatResult.monsterLevel})</p>
+              <div className="combat-stats">
+                <p>Runden: {combatResult.rounds}</p>
+                <p>Schaden verursacht: {combatResult.damageDealt}</p>
+                <p>Schaden erhalten: {combatResult.damageTaken}</p>
+                <p>Deine HP: {combatResult.playerHealth}/{combatResult.playerMaxHealth}</p>
+              </div>
+              {combatResult.result === 'attacker' && (
+                <div className="combat-loot">
+                  <p>💰 Gold: +{combatResult.goldGained}</p>
+                  <p>✨ EP: +{combatResult.expGained}</p>
+                  {combatResult.lootItems?.length > 0 && (
+                    <div className="loot-list">
+                      <p>🎁 Beute:</p>
+                      {combatResult.lootItems.map((item, idx) => (
+                        <span key={idx}>{item.quantity}x {item.name}</span>
+                      ))}
+                    </div>
+                  )}
+                  {combatResult.levelUp && (
+                    <div className="level-up">
+                      <p>🎉 LEVEL UP! Du bist jetzt Level {combatResult.levelUp.newLevel}!</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button className="btn btn-primary" onClick={() => setCombatResult(null)}>
+                OK
+              </button>
+            </div>
+          </div>
+        )}
 
         {selectedPlayer && selectedPlayer.id !== user?.id && (
           <div className="player-actions">

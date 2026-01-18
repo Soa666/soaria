@@ -17,6 +17,9 @@ import mapRoutes from './routes/map.js';
 import guildsRoutes from './routes/guilds.js';
 import playersRoutes from './routes/players.js';
 import messagesRoutes from './routes/messages.js';
+import npcsRoutes from './routes/npcs.js';
+import combatRoutes from './routes/combat.js';
+import adminNpcsRoutes from './routes/adminNpcs.js';
 
 dotenv.config();
 
@@ -51,6 +54,9 @@ app.use('/api/map', mapRoutes);
 app.use('/api/guilds', guildsRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/npcs', npcsRoutes);
+app.use('/api/combat', combatRoutes);
+app.use('/api/admin/npcs', adminNpcsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

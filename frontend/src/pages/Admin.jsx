@@ -9,6 +9,8 @@ import GroupsManagement from '../components/admin/GroupsManagement';
 import BuildingsManagement from '../components/admin/BuildingsManagement';
 import EmailManagement from '../components/admin/EmailManagement';
 import ReportsManagement from '../components/admin/ReportsManagement';
+import MonsterManagement from '../components/admin/MonsterManagement';
+import NpcManagement from '../components/admin/NpcManagement';
 import './Admin.css';
 
 function Admin() {
@@ -77,6 +79,18 @@ function Admin() {
           >
             🚩 Meldungen
           </button>
+          <button
+            className={`admin-tab ${activeTab === 'monsters' ? 'active' : ''}`}
+            onClick={() => setActiveTab('monsters')}
+          >
+            👹 Monster
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'npcs' ? 'active' : ''}`}
+            onClick={() => setActiveTab('npcs')}
+          >
+            🏪 Händler
+          </button>
         </div>
 
         <div className="admin-content">
@@ -87,6 +101,8 @@ function Admin() {
           {activeTab === 'buildings' && <BuildingsManagement />}
           {activeTab === 'email' && <EmailManagement />}
           {activeTab === 'reports' && <ReportsManagement />}
+          {activeTab === 'monsters' && <MonsterManagement />}
+          {activeTab === 'npcs' && <NpcManagement />}
         </div>
       </div>
     </div>
