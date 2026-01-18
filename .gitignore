@@ -1,8 +1,31 @@
+# Dependencies
 node_modules/
+
+# Environment variables (sensitive data!)
 .env
+
+# Database
 *.db
-*.db-journal
-.DS_Store
-dist/
-build/
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build output
+frontend/dist/
+
+# PM2
+.pm2/
