@@ -186,6 +186,7 @@ function Map() {
   const [playerImages, setPlayerImages] = useState({});
   const [playerStats, setPlayerStats] = useState(null);
   const [combatResult, setCombatResult] = useState(null);
+  const [travelStatus, setTravelStatus] = useState(null);
   const [npcShopData, setNpcShopData] = useState(null);
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
@@ -210,6 +211,7 @@ function Map() {
     fetchPlayers();
     fetchNpcs();
     fetchPlayerStats();
+    fetchTravelStatus();
     if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
       setViewCenter({ x: user.world_x, y: user.world_y });
     } else {
@@ -217,6 +219,16 @@ function Map() {
       setViewCenter({ x: 0, y: 0 });
     }
   }, [user?.world_x, user?.world_y]);
+
+  // Poll travel status every 10 seconds while traveling
+  useEffect(() => {
+    if (travelStatus?.traveling) {
+      const interval = setInterval(() => {
+        fetchTravelStatus();
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [travelStatus?.traveling]);
 
   useEffect(() => {
     if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
@@ -287,6 +299,31 @@ function Map() {
       setPlayerStats(response.data.stats);
     } catch (error) {
       console.error('Fehler beim Laden der Spielerstatistiken:', error);
+    }
+  };
+
+  const fetchTravelStatus = async () => {
+    try {
+      const response = await api.get('/map/travel/status');
+      setTravelStatus(response.data);
+      
+      // If arrived, refresh user data
+      if (response.data.arrived) {
+        setMessage('Du bist angekommen!');
+        setTimeout(() => setMessage(''), 3000);
+        // Refresh user profile to get updated coordinates
+        try {
+          const profileResponse = await api.get('/auth/profile');
+          if (profileResponse.data.user) {
+            setUser(profileResponse.data.user);
+          }
+        } catch (e) {
+          console.error('Error refreshing profile:', e);
+        }
+        fetchPlayers();
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden des Reisestatus:', error);
     }
   };
 
@@ -777,6 +814,13 @@ function Map() {
       return;
     }
 
+    // Check if already traveling
+    if (travelStatus?.traveling) {
+      setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
     try {
       const response = await api.put('/map/coordinates', {
         world_x: targetCoords.x,
@@ -784,39 +828,67 @@ function Map() {
       });
       
       setMessage(response.data.message);
-      setTimeout(() => setMessage(''), 3000);
+      setTimeout(() => setMessage(''), 5000);
       
-      // Update user coordinates in context
-      if (user) {
-        const updatedUser = { ...user, world_x: targetCoords.x, world_y: targetCoords.y };
-        // Update via context
-        setUser(updatedUser);
-      }
+      // Update travel status
+      setTravelStatus({
+        traveling: true,
+        from: response.data.from,
+        to: response.data.to,
+        endTime: response.data.endTime,
+        travelTime: response.data.travelTime
+      });
       
-      setViewCenter({ x: targetCoords.x, y: targetCoords.y });
       setActionMode(null);
       setTargetCoords(null);
-      
-      // Refresh user data
-      try {
-        const profileResponse = await api.get('/auth/profile');
-        if (profileResponse.data.user) {
-          setUser(profileResponse.data.user);
-        }
-      } catch (error) {
-        console.error('Error refreshing user profile:', error);
-        // Don't fail the whole operation if profile refresh fails
-      }
-      fetchPlayers();
-      fetchNearbyPlayers();
     } catch (error) {
       // Check if it's a boat requirement error
       if (error.response?.data?.needsBoat) {
         setMessage('🚣 Du brauchst ein Boot um aufs Wasser zu gehen!');
+      } else if (error.response?.data?.alreadyTraveling) {
+        setMessage('Du bist bereits unterwegs!');
+        fetchTravelStatus();
       } else {
-        setMessage(error.response?.data?.error || 'Fehler beim Bewegen');
+        setMessage(error.response?.data?.error || 'Fehler beim Starten der Reise');
       }
       setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleTravelHome = async () => {
+    if (travelStatus?.traveling) {
+      setMessage('Du bist bereits unterwegs! Warte oder brich die Reise ab.');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    try {
+      const response = await api.post('/map/travel/home');
+      setMessage(response.data.message);
+      setTimeout(() => setMessage(''), 5000);
+      
+      setTravelStatus({
+        traveling: true,
+        from: response.data.from,
+        to: response.data.to,
+        endTime: response.data.endTime,
+        travelTime: response.data.travelTime
+      });
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Starten der Heimreise');
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleCancelTravel = async () => {
+    try {
+      const response = await api.post('/map/travel/cancel');
+      setMessage(response.data.message);
+      setTimeout(() => setMessage(''), 3000);
+      setTravelStatus({ traveling: false });
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Abbrechen der Reise');
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -1106,7 +1178,7 @@ function Map() {
 
         <div className="map-controls">
           <div className="control-group">
-            <button className="btn btn-secondary" onClick={centerOnUser}>
+            <button className="btn btn-secondary" onClick={centerOnUser} title="Zentriert die Karte auf deine aktuelle Position">
               🎯 Zu mir
             </button>
             <button 
@@ -1115,8 +1187,17 @@ function Map() {
                 setActionMode(actionMode === 'move' ? null : 'move');
                 setSelectedPlayer(null);
               }}
+              disabled={travelStatus?.traveling}
             >
               🚶 Bewegen
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={handleTravelHome}
+              disabled={travelStatus?.traveling || (user?.world_x === 0 && user?.world_y === 0)}
+              title="Reise zurück zu deinem Grundstück (0, 0)"
+            >
+              🏠 Nach Hause
             </button>
           </div>
           

@@ -184,6 +184,129 @@ function isWaterAt(worldX, worldY) {
 }
 
 // Update player coordinates (for future movement system)
+// Travel speed: units per minute
+const TRAVEL_SPEED_LAND = 50;  // 50 units per minute on land
+const TRAVEL_SPEED_WATER = 80; // 80 units per minute with boat (faster)
+
+// Calculate travel time in minutes
+function calculateTravelTime(fromX, fromY, toX, toY, hasBoat, targetIsWater) {
+  const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+  const speed = targetIsWater && hasBoat ? TRAVEL_SPEED_WATER : TRAVEL_SPEED_LAND;
+  return Math.max(1, Math.ceil(distance / speed)); // Minimum 1 minute
+}
+
+// Format minutes to readable time
+function formatTravelTime(minutes) {
+  if (minutes < 60) {
+    return `${minutes} Minute${minutes !== 1 ? 'n' : ''}`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (mins === 0) {
+    return `${hours} Stunde${hours !== 1 ? 'n' : ''}`;
+  }
+  return `${hours} Std. ${mins} Min.`;
+}
+
+// Get current travel status
+router.get('/travel/status', authenticateToken, async (req, res) => {
+  try {
+    const user = await db.get(`
+      SELECT world_x, world_y, travel_target_x, travel_target_y, travel_start_time, travel_end_time
+      FROM users WHERE id = ?
+    `, [req.user.id]);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    // Check if currently traveling
+    if (user.travel_end_time) {
+      const now = new Date();
+      const endTime = new Date(user.travel_end_time);
+      
+      if (now >= endTime) {
+        // Travel complete - update position
+        await db.run(`
+          UPDATE users 
+          SET world_x = travel_target_x, 
+              world_y = travel_target_y,
+              travel_target_x = NULL,
+              travel_target_y = NULL,
+              travel_start_time = NULL,
+              travel_end_time = NULL
+          WHERE id = ?
+        `, [req.user.id]);
+
+        return res.json({
+          traveling: false,
+          arrived: true,
+          world_x: user.travel_target_x,
+          world_y: user.travel_target_y,
+          message: 'Du bist angekommen!'
+        });
+      } else {
+        // Still traveling
+        const remainingMs = endTime - now;
+        const remainingMinutes = Math.ceil(remainingMs / 60000);
+        const totalMs = endTime - new Date(user.travel_start_time);
+        const elapsedMs = now - new Date(user.travel_start_time);
+        const progress = Math.min(100, Math.floor((elapsedMs / totalMs) * 100));
+
+        return res.json({
+          traveling: true,
+          from: { x: user.world_x, y: user.world_y },
+          to: { x: user.travel_target_x, y: user.travel_target_y },
+          startTime: user.travel_start_time,
+          endTime: user.travel_end_time,
+          remainingMinutes,
+          remainingTime: formatTravelTime(remainingMinutes),
+          progress
+        });
+      }
+    }
+
+    res.json({
+      traveling: false,
+      world_x: user.world_x,
+      world_y: user.world_y
+    });
+  } catch (error) {
+    console.error('Travel status error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Cancel travel
+router.post('/travel/cancel', authenticateToken, async (req, res) => {
+  try {
+    const user = await db.get(`
+      SELECT travel_target_x, travel_target_y, travel_end_time
+      FROM users WHERE id = ?
+    `, [req.user.id]);
+
+    if (!user || !user.travel_end_time) {
+      return res.status(400).json({ error: 'Du bist gerade nicht unterwegs' });
+    }
+
+    // Cancel travel - stay at current position
+    await db.run(`
+      UPDATE users 
+      SET travel_target_x = NULL,
+          travel_target_y = NULL,
+          travel_start_time = NULL,
+          travel_end_time = NULL
+      WHERE id = ?
+    `, [req.user.id]);
+
+    res.json({ message: 'Reise abgebrochen. Du bleibst an deiner aktuellen Position.' });
+  } catch (error) {
+    console.error('Cancel travel error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Start traveling to coordinates
 router.put('/coordinates', authenticateToken, async (req, res) => {
   try {
     const { world_x, world_y } = req.body;
@@ -200,39 +323,146 @@ router.put('/coordinates', authenticateToken, async (req, res) => {
     const targetX = parseInt(world_x);
     const targetY = parseInt(world_y);
 
+    // Get current user data
+    const user = await db.get(`
+      SELECT world_x, world_y, travel_end_time
+      FROM users WHERE id = ?
+    `, [req.user.id]);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    // Check if already traveling
+    if (user.travel_end_time && new Date(user.travel_end_time) > new Date()) {
+      return res.status(400).json({ 
+        error: 'Du bist bereits unterwegs! Warte bis du ankommst oder brich die Reise ab.',
+        alreadyTraveling: true
+      });
+    }
+
+    // Check if already at target
+    if (user.world_x === targetX && user.world_y === targetY) {
+      return res.status(400).json({ error: 'Du bist bereits an diesem Ort!' });
+    }
+
     // Check if target is water
     const targetIsWater = isWaterAt(targetX, targetY);
     
-    if (targetIsWater) {
-      // Check if player has a boat
-      const hasBoat = await db.get(`
-        SELECT ui.quantity FROM user_inventory ui
-        JOIN items i ON ui.item_id = i.id
-        WHERE ui.user_id = ? AND i.name = 'boot' AND ui.quantity > 0
-      `, [req.user.id]);
-      
-      if (!hasBoat) {
-        return res.status(400).json({ 
-          error: 'Du brauchst ein Boot um aufs Wasser zu gehen! Baue oder kaufe ein Boot.',
-          needsBoat: true
-        });
-      }
+    // Check if player has a boat
+    const hasBoat = await db.get(`
+      SELECT ui.quantity FROM user_inventory ui
+      JOIN items i ON ui.item_id = i.id
+      WHERE ui.user_id = ? AND i.name = 'boot' AND ui.quantity > 0
+    `, [req.user.id]);
+    
+    if (targetIsWater && !hasBoat) {
+      return res.status(400).json({ 
+        error: 'Du brauchst ein Boot um aufs Wasser zu gehen! Baue oder kaufe ein Boot.',
+        needsBoat: true
+      });
     }
 
-    await db.run(
-      'UPDATE users SET world_x = ?, world_y = ? WHERE id = ?',
-      [targetX, targetY, req.user.id]
+    // Calculate travel time
+    const travelMinutes = calculateTravelTime(
+      user.world_x, user.world_y, 
+      targetX, targetY, 
+      !!hasBoat, targetIsWater
     );
 
+    const now = new Date();
+    const endTime = new Date(now.getTime() + travelMinutes * 60000);
+
+    // Set travel destination
+    await db.run(`
+      UPDATE users 
+      SET travel_target_x = ?,
+          travel_target_y = ?,
+          travel_start_time = ?,
+          travel_end_time = ?
+      WHERE id = ?
+    `, [targetX, targetY, now.toISOString(), endTime.toISOString(), req.user.id]);
+
+    const distance = Math.round(Math.sqrt(
+      Math.pow(targetX - user.world_x, 2) + 
+      Math.pow(targetY - user.world_y, 2)
+    ));
+
     res.json({ 
-      message: targetIsWater ? 'Du segelst zu den neuen Koordinaten' : 'Koordinaten aktualisiert',
-      world_x: targetX,
-      world_y: targetY,
+      message: `Du machst dich auf den Weg! Reisezeit: ${formatTravelTime(travelMinutes)}`,
+      traveling: true,
+      from: { x: user.world_x, y: user.world_y },
+      to: { x: targetX, y: targetY },
+      distance,
+      travelMinutes,
+      travelTime: formatTravelTime(travelMinutes),
+      endTime: endTime.toISOString(),
       onWater: targetIsWater
     });
   } catch (error) {
     console.error('Update coordinates error:', error);
-    res.status(500).json({ error: 'Serverfehler beim Aktualisieren der Koordinaten' });
+    res.status(500).json({ error: 'Serverfehler beim Starten der Reise' });
+  }
+});
+
+// Quick travel home (to 0,0) - same rules apply
+router.post('/travel/home', authenticateToken, async (req, res) => {
+  try {
+    const user = await db.get(`
+      SELECT world_x, world_y, travel_end_time
+      FROM users WHERE id = ?
+    `, [req.user.id]);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    // Check if already traveling
+    if (user.travel_end_time && new Date(user.travel_end_time) > new Date()) {
+      return res.status(400).json({ 
+        error: 'Du bist bereits unterwegs! Warte bis du ankommst oder brich die Reise ab.',
+        alreadyTraveling: true
+      });
+    }
+
+    // Check if already home
+    if (user.world_x === 0 && user.world_y === 0) {
+      return res.status(400).json({ error: 'Du bist bereits zu Hause!' });
+    }
+
+    // Calculate travel time to home (0,0)
+    const travelMinutes = calculateTravelTime(user.world_x, user.world_y, 0, 0, false, false);
+
+    const now = new Date();
+    const endTime = new Date(now.getTime() + travelMinutes * 60000);
+
+    // Set travel destination to home
+    await db.run(`
+      UPDATE users 
+      SET travel_target_x = 0,
+          travel_target_y = 0,
+          travel_start_time = ?,
+          travel_end_time = ?
+      WHERE id = ?
+    `, [now.toISOString(), endTime.toISOString(), req.user.id]);
+
+    const distance = Math.round(Math.sqrt(
+      Math.pow(user.world_x, 2) + Math.pow(user.world_y, 2)
+    ));
+
+    res.json({ 
+      message: `Du machst dich auf den Heimweg! Reisezeit: ${formatTravelTime(travelMinutes)}`,
+      traveling: true,
+      from: { x: user.world_x, y: user.world_y },
+      to: { x: 0, y: 0 },
+      distance,
+      travelMinutes,
+      travelTime: formatTravelTime(travelMinutes),
+      endTime: endTime.toISOString()
+    });
+  } catch (error) {
+    console.error('Travel home error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
   }
 });
 

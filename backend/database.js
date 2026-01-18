@@ -538,6 +538,16 @@ export async function initDatabase() {
     // Column might already exist
   }
 
+  // Add travel destination columns to users (Reisesystem)
+  try {
+    await db.run(`ALTER TABLE users ADD COLUMN travel_target_x INTEGER`);
+    await db.run(`ALTER TABLE users ADD COLUMN travel_target_y INTEGER`);
+    await db.run(`ALTER TABLE users ADD COLUMN travel_start_time DATETIME`);
+    await db.run(`ALTER TABLE users ADD COLUMN travel_end_time DATETIME`);
+  } catch (e) {
+    // Columns might already exist
+  }
+
   // Monster types table (Monster-Typen für Admin-Verwaltung)
   await db.run(`
     CREATE TABLE IF NOT EXISTS monster_types (

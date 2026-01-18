@@ -58,6 +58,20 @@ router.post('/craft', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Rezept-ID ist erforderlich' });
     }
 
+    // Check if player is at home (0,0) or near home
+    const user = await db.get('SELECT world_x, world_y FROM users WHERE id = ?', [req.user.id]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const distanceFromHome = Math.sqrt(Math.pow(user.world_x, 2) + Math.pow(user.world_y, 2));
+    if (distanceFromHome > 50) {
+      return res.status(400).json({ 
+        error: 'Du musst zu Hause sein um zu craften! Reise zuerst zu deinem Grundstück.',
+        notAtHome: true
+      });
+    }
+
     // Get recipe
     const recipe = await db.get(`
       SELECT * FROM crafting_recipes WHERE id = ?
