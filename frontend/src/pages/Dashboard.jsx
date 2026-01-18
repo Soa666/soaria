@@ -92,14 +92,15 @@ function Dashboard() {
         <div className="character-header">
           <div className="character-avatar">
             {user?.avatar_path ? (
-              <img 
-                src={`/chars/${user.avatar_path}`} 
-                alt="Avatar"
+              <div 
+                className="avatar-sprite"
                 style={{ 
                   width: '100%', 
                   height: '100%', 
-                  objectFit: 'cover',
-                  objectPosition: 'center top'
+                  backgroundImage: `url(/chars/${user.avatar_path})`,
+                  backgroundPosition: '-32px 0',
+                  backgroundSize: '300% 400%',
+                  imageRendering: 'pixelated'
                 }}
               />
             ) : (
