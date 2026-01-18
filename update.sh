@@ -85,7 +85,8 @@ cd ~/Soaria
 
 # Server starten
 echo "🚀 Server wird gestartet..."
-pm2 delete all 2>/dev/null
+pm2 kill 2>/dev/null
+sleep 1
 pm2 start ecosystem.config.js
 
 # Aufräumen
