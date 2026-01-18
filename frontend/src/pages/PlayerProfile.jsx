@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './PlayerProfile.css';
+
+// API-Base URL für öffentliche Anfragen (ohne Auth)
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 function PlayerProfile() {
   const { username } = useParams();
@@ -19,10 +21,17 @@ function PlayerProfile() {
 
   const fetchPlayer = async () => {
     try {
-      const response = await api.get(`/players/profile/${encodeURIComponent(username)}`);
-      setPlayer(response.data.player);
+      // Öffentlicher API-Call ohne Auth-Token
+      const response = await fetch(`${API_BASE}/players/profile/${encodeURIComponent(username)}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Spieler nicht gefunden');
+      }
+      
+      setPlayer(data.player);
     } catch (err) {
-      setError(err.response?.data?.error || 'Spieler nicht gefunden');
+      setError(err.message || 'Spieler nicht gefunden');
     } finally {
       setLoading(false);
     }
@@ -199,8 +208,31 @@ function PlayerProfile() {
           </button>
         </div>
 
-        {/* Back Link */}
-        <Link to="/players" className="back-link">← Zurück zur Spieler-Übersicht</Link>
+        {/* Call to Action for non-logged in users */}
+        {!user && (
+          <div className="profile-cta">
+            <p>Erkunde die Welt von Soaria!</p>
+            <div className="cta-buttons">
+              <button 
+                className="btn btn-register"
+                onClick={() => navigate('/register')}
+              >
+                🎮 Jetzt spielen
+              </button>
+              <button 
+                className="btn btn-login"
+                onClick={() => navigate('/login')}
+              >
+                Anmelden
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Back Link - only for logged in users */}
+        {user && (
+          <Link to="/players" className="back-link">← Zurück zur Spieler-Übersicht</Link>
+        )}
       </div>
     </div>
   );

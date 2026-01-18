@@ -124,14 +124,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/player/:username"
-          element={
-            <ProtectedRoute>
-              <PlayerProfile />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/player/:username" element={<PlayerProfile />} />
         <Route
           path="/guilds"
           element={

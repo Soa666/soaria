@@ -35,8 +35,8 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Get player profile by username (public visitenkarte)
-router.get('/profile/:username', authenticateToken, async (req, res) => {
+// Get player profile by username (public visitenkarte - NO AUTH REQUIRED)
+router.get('/profile/:username', async (req, res) => {
   try {
     const { username } = req.params;
     console.log('[PLAYERS] Loading profile for username:', username);

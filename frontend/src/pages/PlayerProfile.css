@@ -331,6 +331,52 @@
   border-color: #8b7a5a;
 }
 
+/* Call to Action for visitors */
+.profile-cta {
+  padding: 1.5rem;
+  text-align: center;
+  background: linear-gradient(145deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.05));
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.profile-cta p {
+  color: #e8dcc0;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.btn-register {
+  background: linear-gradient(145deg, #d4af37, #b8960c);
+  border-color: #d4af37;
+  color: #1a1025;
+  font-weight: bold;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+.btn-register:hover {
+  background: linear-gradient(145deg, #e8c547, #d4af37);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+}
+
+.btn-login {
+  background: rgba(50, 40, 60, 0.8);
+  border-color: #5a4a2a;
+  color: #e8dcc0;
+}
+
+.btn-login:hover {
+  background: rgba(70, 50, 80, 0.8);
+  border-color: #8b7a5a;
+}
+
 /* Back Link */
 .back-link {
   display: block;
