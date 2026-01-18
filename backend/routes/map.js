@@ -112,6 +112,77 @@ router.get('/players/nearby', authenticateToken, async (req, res) => {
   }
 });
 
+// Terrain generation functions (same as frontend for validation)
+function seededRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function smoothstep(t) {
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function gradientNoise(x, y, seed = 0) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = x0 + 1;
+  const y1 = y0 + 1;
+  
+  const fx = x - x0;
+  const fy = y - y0;
+  
+  const sx = smoothstep(fx);
+  const sy = smoothstep(fy);
+  
+  const n00 = seededRandom(x0 * 374761393 + y0 * 668265263 + seed);
+  const n10 = seededRandom(x1 * 374761393 + y0 * 668265263 + seed);
+  const n01 = seededRandom(x0 * 374761393 + y1 * 668265263 + seed);
+  const n11 = seededRandom(x1 * 374761393 + y1 * 668265263 + seed);
+  
+  const nx0 = n00 * (1 - sx) + n10 * sx;
+  const nx1 = n01 * (1 - sx) + n11 * sx;
+  
+  return nx0 * (1 - sy) + nx1 * sy;
+}
+
+function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed = 0) {
+  let value = 0;
+  let amplitude = 1;
+  let frequency = scale;
+  let maxValue = 0;
+  
+  for (let i = 0; i < octaves; i++) {
+    value += amplitude * gradientNoise(x * frequency, y * frequency, seed + i * 1000);
+    maxValue += amplitude;
+    amplitude *= persistence;
+    frequency *= 2;
+  }
+  
+  return value / maxValue;
+}
+
+function isWaterAt(worldX, worldY) {
+  const continent = fractalNoise(worldX, worldY, 4, 0.5, 0.003, 0);
+  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.008, 10000);
+  const height = continent * 0.6 + elevation * 0.4;
+  
+  // Ocean
+  if (continent < 0.35) return true;
+  
+  // Lakes
+  if (height < 0.38 && continent > 0.35 && continent < 0.45) return true;
+  
+  // Rivers
+  const riverBase = fractalNoise(worldX, worldY, 3, 0.6, 0.004, 77777);
+  const riverWind = Math.sin(worldX * 0.005 + riverBase * 4) * 0.5 + 
+                    Math.cos(worldY * 0.005 + riverBase * 4) * 0.5;
+  const riverValue = Math.abs(riverWind + fractalNoise(worldX, worldY, 2, 0.5, 0.01, 88888) * 0.3);
+  
+  if (riverValue < 0.08 && height > 0.4 && height < 0.75) return true;
+  
+  return false;
+}
+
 // Update player coordinates (for future movement system)
 router.put('/coordinates', authenticateToken, async (req, res) => {
   try {
@@ -126,15 +197,38 @@ router.put('/coordinates', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Koordinaten außerhalb des erlaubten Bereichs' });
     }
 
+    const targetX = parseInt(world_x);
+    const targetY = parseInt(world_y);
+
+    // Check if target is water
+    const targetIsWater = isWaterAt(targetX, targetY);
+    
+    if (targetIsWater) {
+      // Check if player has a boat
+      const hasBoat = await db.get(`
+        SELECT ui.quantity FROM user_inventory ui
+        JOIN items i ON ui.item_id = i.id
+        WHERE ui.user_id = ? AND i.name = 'boot' AND ui.quantity > 0
+      `, [req.user.id]);
+      
+      if (!hasBoat) {
+        return res.status(400).json({ 
+          error: 'Du brauchst ein Boot um aufs Wasser zu gehen! Baue oder kaufe ein Boot.',
+          needsBoat: true
+        });
+      }
+    }
+
     await db.run(
       'UPDATE users SET world_x = ?, world_y = ? WHERE id = ?',
-      [parseInt(world_x), parseInt(world_y), req.user.id]
+      [targetX, targetY, req.user.id]
     );
 
     res.json({ 
-      message: 'Koordinaten aktualisiert',
-      world_x: parseInt(world_x),
-      world_y: parseInt(world_y)
+      message: targetIsWater ? 'Du segelst zu den neuen Koordinaten' : 'Koordinaten aktualisiert',
+      world_x: targetX,
+      world_y: targetY,
+      onWater: targetIsWater
     });
   } catch (error) {
     console.error('Update coordinates error:', error);

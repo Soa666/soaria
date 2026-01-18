@@ -15,41 +15,37 @@ function seededRandom(seed) {
   return x - Math.floor(x);
 }
 
-// Smooth interpolation
+// Smooth interpolation (quintic for smoother results)
 function smoothstep(t) {
-  return t * t * (3 - 2 * t);
+  return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-// Improved Perlin-like noise with interpolation
+// 2D gradient noise with smooth interpolation
 function gradientNoise(x, y, seed = 0) {
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);
   const x1 = x0 + 1;
   const y1 = y0 + 1;
   
-  // Fractional parts
   const fx = x - x0;
   const fy = y - y0;
   
-  // Smooth interpolation weights
   const sx = smoothstep(fx);
   const sy = smoothstep(fy);
   
-  // Random values at corners
   const n00 = seededRandom(x0 * 374761393 + y0 * 668265263 + seed);
   const n10 = seededRandom(x1 * 374761393 + y0 * 668265263 + seed);
   const n01 = seededRandom(x0 * 374761393 + y1 * 668265263 + seed);
   const n11 = seededRandom(x1 * 374761393 + y1 * 668265263 + seed);
   
-  // Bilinear interpolation
   const nx0 = n00 * (1 - sx) + n10 * sx;
   const nx1 = n01 * (1 - sx) + n11 * sx;
   
   return nx0 * (1 - sy) + nx1 * sy;
 }
 
-// Multi-octave fractal noise for natural terrain
-function fractalNoise(x, y, octaves = 5, persistence = 0.5, scale = 0.02, seed = 0) {
+// Multi-octave fractal noise
+function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed = 0) {
   let value = 0;
   let amplitude = 1;
   let frequency = scale;
@@ -65,45 +61,18 @@ function fractalNoise(x, y, octaves = 5, persistence = 0.5, scale = 0.02, seed =
   return value / maxValue;
 }
 
-// River noise - creates flowing river patterns
-function riverNoise(x, y) {
-  // Use sin waves combined with noise for river-like patterns
-  const riverScale = 0.008;
-  const n1 = fractalNoise(x, y, 3, 0.5, riverScale, 12345);
-  const n2 = fractalNoise(x + 1000, y + 1000, 3, 0.5, riverScale * 0.7, 54321);
-  
-  // Create winding river effect
-  const windX = Math.sin(y * 0.01 + n1 * 3) * 50;
-  const windY = Math.cos(x * 0.01 + n2 * 3) * 50;
-  
-  const riverValue = fractalNoise(x + windX, y + windY, 2, 0.5, 0.015, 99999);
-  
-  return riverValue;
-}
-
 // Get tile ID based on terrain type and variation
 function getTileForTerrain(terrain, variation) {
-  // Tile IDs from the tileset (1-indexed like in Tiled)
   const tiles = {
-    // Grass tiles (row 0-2, various grass types)
     grass: [1, 2, 3, 28, 29, 30, 55, 56, 57],
-    // Dirt/sand tiles
     dirt: [4, 5, 6, 31, 32, 58, 59],
-    // Water tiles
     water: [271, 272, 273, 298, 299, 300],
-    // Deep water
     deepWater: [287, 288, 289, 314, 315, 316],
-    // Forest/trees (dense)
     forest: [190, 191, 192, 217, 218, 219, 244, 245, 246],
-    // Trees on grass (sparse)
     trees: [147, 148, 149, 174, 175, 176],
-    // Cliff/mountain
     cliff: [109, 110, 111, 136, 137, 138, 163, 164, 165],
-    // Flowers/details
     flowers: [113, 114, 117, 118],
-    // Path
     path: [85, 86, 87, 88],
-    // Sand/beach
     sand: [23, 24, 25, 50, 51, 52]
   };
   
@@ -112,56 +81,87 @@ function getTileForTerrain(terrain, variation) {
   return tileSet[index];
 }
 
-// Generate terrain type based on noise - improved version
+// Check if terrain is water
+function isWaterTerrain(terrain) {
+  return terrain === 'water' || terrain === 'deepWater';
+}
+
+// Generate terrain type based on noise
 function getTerrainAt(worldX, worldY) {
-  // Main elevation noise
-  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.015, 0);
-  // Moisture/vegetation noise
-  const moisture = fractalNoise(worldX, worldY, 4, 0.6, 0.02, 50000);
-  // Detail noise for variation
-  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.05, 100000);
-  // River pattern
-  const river = riverNoise(worldX, worldY);
+  // Large-scale continent noise (very smooth, large features)
+  const continent = fractalNoise(worldX, worldY, 4, 0.5, 0.003, 0);
   
-  // Rivers - thin winding bands
-  if (river > 0.48 && river < 0.52 && elevation < 0.7) {
-    if (river > 0.49 && river < 0.51) return 'deepWater';
+  // Medium-scale elevation
+  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.008, 10000);
+  
+  // Moisture for vegetation
+  const moisture = fractalNoise(worldX, worldY, 4, 0.5, 0.012, 50000);
+  
+  // Detail noise
+  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.03, 100000);
+  
+  // River noise - creates winding rivers
+  const riverBase = fractalNoise(worldX, worldY, 3, 0.6, 0.004, 77777);
+  const riverWind = Math.sin(worldX * 0.005 + riverBase * 4) * 0.5 + 
+                    Math.cos(worldY * 0.005 + riverBase * 4) * 0.5;
+  const riverValue = Math.abs(riverWind + fractalNoise(worldX, worldY, 2, 0.5, 0.01, 88888) * 0.3);
+  
+  // Combined height value
+  const height = continent * 0.6 + elevation * 0.4;
+  
+  // Ocean (low continent value)
+  if (continent < 0.35) {
+    if (continent < 0.25) return 'deepWater';
     return 'water';
   }
   
-  // Lakes - low elevation areas
-  if (elevation < 0.2) {
-    if (elevation < 0.12) return 'deepWater';
+  // Lakes (low spots on land)
+  if (height < 0.38 && continent > 0.35 && continent < 0.45) {
     return 'water';
   }
   
-  // Beach/sand near water
-  if (elevation < 0.25 && elevation >= 0.2) {
+  // Rivers (thin winding paths through land)
+  if (riverValue < 0.08 && height > 0.4 && height < 0.75) {
+    if (riverValue < 0.04) return 'deepWater';
+    return 'water';
+  }
+  
+  // Beach/sand (near water)
+  if (continent > 0.35 && continent < 0.42) {
     return 'sand';
   }
   
-  // Mountains/cliffs - high elevation
-  if (elevation > 0.78) {
+  // Mountains/cliffs (high elevation)
+  if (height > 0.75) {
     return 'cliff';
   }
   
-  // Forest biomes - high moisture areas
-  if (moisture > 0.55 && elevation > 0.3 && elevation < 0.75) {
-    if (moisture > 0.7) return 'forest';
+  // Forest (high moisture, medium elevation)
+  if (moisture > 0.55 && height > 0.45 && height < 0.72) {
+    if (moisture > 0.68 && detail > 0.4) return 'forest';
+    if (moisture > 0.58) return 'trees';
+  }
+  
+  // Scattered trees
+  if (detail > 0.7 && moisture > 0.45 && height > 0.45) {
     return 'trees';
   }
   
-  // Dirt paths - specific noise pattern
-  if (detail > 0.6 && detail < 0.65 && elevation > 0.3 && elevation < 0.6) {
+  // Paths
+  if (detail > 0.48 && detail < 0.52 && height > 0.42 && height < 0.65) {
     return 'path';
   }
   
-  // Flowers - scattered in plains
-  if (detail > 0.8 && moisture > 0.4 && moisture < 0.55 && elevation > 0.35) {
+  // Flowers
+  if (detail > 0.85 && moisture > 0.4 && height > 0.45) {
     return 'flowers';
   }
   
-  // Plains/grass - default
+  // Dirt patches
+  if (moisture < 0.35 && height > 0.5 && height < 0.65 && detail > 0.6) {
+    return 'dirt';
+  }
+  
   return 'grass';
 }
 
@@ -623,14 +623,27 @@ function Map() {
         const y = centerY + (targetCoords.y - viewCenter.y) * scale;
 
         if (x >= -50 && x <= width + 50 && y >= -50 && y <= height + 50) {
-          // Target marker
-          ctx.strokeStyle = '#27ae60';
-          ctx.fillStyle = 'rgba(39, 174, 96, 0.3)';
+          // Check if target is water
+          const targetTerrain = getTerrainAt(Math.floor(targetCoords.x / 16), Math.floor(targetCoords.y / 16));
+          const onWater = isWaterTerrain(targetTerrain);
+          
+          // Target marker - blue for water, green for land
+          ctx.strokeStyle = onWater ? '#3498db' : '#27ae60';
+          ctx.fillStyle = onWater ? 'rgba(52, 152, 219, 0.3)' : 'rgba(39, 174, 96, 0.3)';
           ctx.lineWidth = 3;
           ctx.beginPath();
           ctx.arc(x, y, 15, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
+          
+          // Boat icon for water targets
+          if (onWater) {
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff';
+            ctx.fillText('🚣', x, y);
+          }
           
           // Crosshair
           ctx.beginPath();
@@ -751,6 +764,12 @@ function Map() {
     }
   };
 
+  // Check if target coordinates are on water
+  const isTargetOnWater = (x, y) => {
+    const terrain = getTerrainAt(Math.floor(x / 16), Math.floor(y / 16));
+    return isWaterTerrain(terrain);
+  };
+
   const handleMove = async () => {
     if (!targetCoords) {
       setMessage('Bitte wähle ein Ziel auf der Karte');
@@ -791,7 +810,12 @@ function Map() {
       fetchPlayers();
       fetchNearbyPlayers();
     } catch (error) {
-      setMessage(error.response?.data?.error || 'Fehler beim Bewegen');
+      // Check if it's a boat requirement error
+      if (error.response?.data?.needsBoat) {
+        setMessage('🚣 Du brauchst ein Boot um aufs Wasser zu gehen!');
+      } else {
+        setMessage(error.response?.data?.error || 'Fehler beim Bewegen');
+      }
       setTimeout(() => setMessage(''), 5000);
     }
   };
@@ -1407,9 +1431,12 @@ function Map() {
                     Math.pow(targetCoords.y - (user.world_y || 0), 2)
                   ))} Einheiten</p>
                 )}
+                {isTargetOnWater(targetCoords.x, targetCoords.y) && (
+                  <p className="water-warning">🌊 Ziel ist auf Wasser - Du brauchst ein Boot!</p>
+                )}
                 <div className="move-actions">
                   <button className="btn btn-primary" onClick={handleMove}>
-                    ✓ Hierhin bewegen
+                    {isTargetOnWater(targetCoords.x, targetCoords.y) ? '🚣 Segeln' : '✓ Hierhin bewegen'}
                   </button>
                   <button className="btn btn-secondary" onClick={() => {
                     setTargetCoords(null);

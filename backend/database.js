@@ -763,10 +763,15 @@ async function insertDefaultItems() {
     { name: 'feuerstein', display_name: 'Feuerstein', type: 'resource', rarity: 'uncommon' },
     { name: 'ast', display_name: 'Ast', type: 'resource', rarity: 'common' },
     { name: 'eisenbarren', display_name: 'Eisenbarren', type: 'material', rarity: 'uncommon' },
+    { name: 'seil', display_name: 'Seil', type: 'material', rarity: 'common', description: 'Ein robustes Seil aus Pflanzenfasern' },
+    { name: 'stoff', display_name: 'Stoff', type: 'material', rarity: 'common', description: 'Gewebter Stoff' },
     
     // Tools
     { name: 'spitzhacke_basic', display_name: 'Spitzhacke (Basis)', type: 'tool', rarity: 'common' },
     { name: 'spitzhacke_iron', display_name: 'Spitzhacke (Eisen)', type: 'tool', rarity: 'uncommon' },
+    
+    // Vehicles
+    { name: 'boot', display_name: 'Boot', type: 'tool', rarity: 'uncommon', description: 'Ein einfaches Holzboot. Ermöglicht die Reise über Wasser.' },
   ];
 
   for (const item of defaultItems) {
