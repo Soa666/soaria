@@ -237,6 +237,28 @@
   50% { transform: scale(1.1); }
 }
 
+/* Quest link with badge */
+.navbar-quests {
+  position: relative;
+}
+
+.quest-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: bold;
+  padding: 0.15rem 0.35rem;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  animation: badge-pulse 2s infinite;
+  border: 1px solid #81c784;
+}
+
 /* Mobile Hamburger Menu */
 .navbar-toggle {
   display: none;
@@ -342,6 +364,13 @@
   
   .navbar-links a::before {
     display: none;
+  }
+  
+  .navbar-quests .quest-badge {
+    position: static;
+    display: inline-block;
+    margin-left: 8px;
+    vertical-align: middle;
   }
   
   .navbar-user {

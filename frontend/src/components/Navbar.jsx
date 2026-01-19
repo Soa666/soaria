@@ -8,30 +8,43 @@ function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [questCount, setQuestCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Fetch unread message count
+  // Fetch unread message count and claimable quests
   useEffect(() => {
-    const fetchUnreadCount = async () => {
+    const fetchCounts = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
       try {
-        const response = await fetch('/api/messages/unread-count', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
+        // Fetch messages and quests in parallel
+        const [messagesRes, questsRes] = await Promise.all([
+          fetch('/api/messages/unread-count', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch('/api/quests/claimable-count', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        if (messagesRes.ok) {
+          const data = await messagesRes.json();
           setUnreadCount(data.count);
         }
+        if (questsRes.ok) {
+          const data = await questsRes.json();
+          setQuestCount(data.count);
+        }
       } catch (err) {
-        console.error('Error fetching unread count:', err);
+        console.error('Error fetching counts:', err);
       }
     };
 
     if (user) {
-      fetchUnreadCount();
-      // Poll every 30 seconds for new messages
-      const interval = setInterval(fetchUnreadCount, 30000);
+      fetchCounts();
+      // Poll every 30 seconds
+      const interval = setInterval(fetchCounts, 30000);
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -63,7 +76,12 @@ function Navbar() {
           <Link to="/map" onClick={closeMenu}>Karte</Link>
           <Link to="/grundstueck" onClick={closeMenu}>Grundstück</Link>
           <Link to="/collection" onClick={closeMenu}>Sammeln</Link>
-          <Link to="/quests" onClick={closeMenu}>Quests</Link>
+          <Link to="/quests" className="navbar-quests" onClick={closeMenu}>
+            Quests
+            {questCount > 0 && (
+              <span className="quest-badge">{questCount > 99 ? '99+' : questCount}</span>
+            )}
+          </Link>
           <Link to="/statistics" onClick={closeMenu}>Statistik</Link>
           <Link to="/players" onClick={closeMenu}>Spieler</Link>
           <Link to="/guilds" onClick={closeMenu}>Gilden</Link>

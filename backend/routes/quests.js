@@ -18,6 +18,22 @@ const OBJECTIVE_TYPES = [
   'defeat_player', 'daily_login'
 ];
 
+// Get count of claimable quests - MUST be before /:questId routes!
+router.get('/claimable-count', authenticateToken, async (req, res) => {
+  try {
+    const result = await db.get(`
+      SELECT COUNT(*) as count 
+      FROM user_quests 
+      WHERE user_id = ? AND status = 'completed'
+    `, [req.user.id]);
+    
+    res.json({ count: result?.count || 0 });
+  } catch (error) {
+    console.error('Get claimable count error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // Get statistics for a user - MUST be before /:questId routes!
 router.get('/statistics', authenticateToken, async (req, res) => {
   try {
