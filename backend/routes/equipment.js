@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { trackCrafting, updateStatistic } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -640,6 +641,9 @@ router.post('/craft/collect', authenticateToken, async (req, res) => {
 
     // Mark job as completed
     await db.run('UPDATE crafting_jobs SET is_completed = 1 WHERE id = ?', [job.id]);
+
+    // Track statistics
+    await trackCrafting(userId, job.equipment_type_id, true);
 
     res.json({
       message: `${job.display_name} (${QUALITY_NAMES[job.quality]}) hergestellt!`,

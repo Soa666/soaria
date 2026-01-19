@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { trackItemCollected, updateStatistic } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -273,11 +274,15 @@ router.post('/claim', authenticateToken, async (req, res) => {
       WHERE id = ?
     `, [job.id]);
 
-    // Get item names for response
+    // Get item names for response and track statistics
     const itemsWithNames = await Promise.all(
       results.map(async (result) => {
-        const item = await db.get('SELECT display_name, rarity, image_path FROM items WHERE id = ?', [result.item_id]);
+        const item = await db.get('SELECT display_name, name, rarity, image_path FROM items WHERE id = ?', [result.item_id]);
         console.log(`[CLAIM] Item ${result.item_id} (${item?.display_name}): image_path = ${item?.image_path}`);
+        
+        // Track the collected items
+        await trackItemCollected(req.user.id, result.item_id, item?.name || '', result.quantity);
+        
         return {
           ...result,
           display_name: item?.display_name || 'Unbekannt',
@@ -286,6 +291,9 @@ router.post('/claim', authenticateToken, async (req, res) => {
         };
       })
     );
+
+    // Track collection time
+    await updateStatistic(req.user.id, 'collection_time_minutes', job.duration_minutes);
     
     console.log(`[CLAIM] Final itemsWithNames:`, JSON.stringify(itemsWithNames, null, 2));
 

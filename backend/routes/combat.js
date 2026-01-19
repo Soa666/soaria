@@ -2,6 +2,7 @@ import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendSystemMessage } from './messages.js';
+import { trackKill, updateStatistic, updateMultipleStats } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -292,6 +293,21 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
       INSERT INTO combat_log (attacker_user_id, world_npc_id, winner, attacker_damage_dealt, defender_damage_dealt, gold_gained, experience_gained)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [userId, npcId, result.winner, result.defenderDamageDealt, result.attackerDamageDealt, goldGained, expGained]);
+
+    // Track statistics
+    await updateMultipleStats(userId, {
+      total_damage_dealt: result.defenderDamageDealt,
+      total_damage_received: result.attackerDamageDealt
+    });
+
+    if (result.winner === 'attacker') {
+      await trackKill(userId, worldNpc.monster_type_id, worldNpc.is_boss);
+      if (goldGained > 0) {
+        await updateStatistic(userId, 'gold_earned', goldGained);
+      }
+    } else {
+      await updateStatistic(userId, 'deaths', 1);
+    }
 
     // Send combat report message
     const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);

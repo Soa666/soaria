@@ -841,6 +841,134 @@ export async function initDatabase() {
     )
   `);
 
+  // User Statistics - tracking all player actions
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS user_statistics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER UNIQUE NOT NULL,
+      -- Combat stats
+      monsters_killed INTEGER DEFAULT 0,
+      bosses_killed INTEGER DEFAULT 0,
+      players_killed INTEGER DEFAULT 0,
+      deaths INTEGER DEFAULT 0,
+      total_damage_dealt INTEGER DEFAULT 0,
+      total_damage_received INTEGER DEFAULT 0,
+      -- Collection stats
+      resources_collected INTEGER DEFAULT 0,
+      wood_collected INTEGER DEFAULT 0,
+      stone_collected INTEGER DEFAULT 0,
+      iron_ore_collected INTEGER DEFAULT 0,
+      herbs_collected INTEGER DEFAULT 0,
+      -- Crafting stats
+      items_crafted INTEGER DEFAULT 0,
+      equipment_crafted INTEGER DEFAULT 0,
+      -- Building stats
+      buildings_built INTEGER DEFAULT 0,
+      buildings_upgraded INTEGER DEFAULT 0,
+      -- Travel stats
+      distance_traveled INTEGER DEFAULT 0,
+      tiles_walked INTEGER DEFAULT 0,
+      -- Economy stats
+      gold_earned INTEGER DEFAULT 0,
+      gold_spent INTEGER DEFAULT 0,
+      items_sold INTEGER DEFAULT 0,
+      items_bought INTEGER DEFAULT 0,
+      -- Social stats
+      messages_sent INTEGER DEFAULT 0,
+      trades_completed INTEGER DEFAULT 0,
+      -- Time stats
+      collection_time_minutes INTEGER DEFAULT 0,
+      crafting_time_minutes INTEGER DEFAULT 0,
+      -- Misc
+      quests_completed INTEGER DEFAULT 0,
+      achievements_earned INTEGER DEFAULT 0,
+      logins INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Quests table - defines available quests
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS quests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      category TEXT DEFAULT 'main' CHECK(category IN ('main', 'side', 'daily', 'weekly', 'achievement')),
+      is_repeatable INTEGER DEFAULT 0,
+      cooldown_hours INTEGER DEFAULT 0,
+      min_level INTEGER DEFAULT 1,
+      prerequisite_quest_id INTEGER,
+      reward_gold INTEGER DEFAULT 0,
+      reward_experience INTEGER DEFAULT 0,
+      reward_item_id INTEGER,
+      reward_item_quantity INTEGER DEFAULT 1,
+      is_active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (prerequisite_quest_id) REFERENCES quests(id) ON DELETE SET NULL,
+      FOREIGN KEY (reward_item_id) REFERENCES items(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Quest objectives - each quest can have multiple objectives
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS quest_objectives (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quest_id INTEGER NOT NULL,
+      objective_type TEXT NOT NULL CHECK(objective_type IN (
+        'kill_monster', 'kill_boss', 'kill_specific_monster',
+        'collect_resource', 'collect_specific_item',
+        'craft_item', 'craft_specific_item', 'craft_equipment',
+        'build_building', 'upgrade_building', 'build_specific_building',
+        'travel_distance', 'visit_location',
+        'reach_level', 'earn_gold', 'spend_gold',
+        'complete_trade', 'send_message',
+        'defeat_player'
+      )),
+      target_id INTEGER,
+      target_name TEXT,
+      required_amount INTEGER DEFAULT 1,
+      description TEXT,
+      sort_order INTEGER DEFAULT 0,
+      FOREIGN KEY (quest_id) REFERENCES quests(id) ON DELETE CASCADE
+    )
+  `);
+
+  // User quests - tracks player progress on quests
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS user_quests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      quest_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'available' CHECK(status IN ('available', 'active', 'completed', 'claimed')),
+      started_at DATETIME,
+      completed_at DATETIME,
+      claimed_at DATETIME,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (quest_id) REFERENCES quests(id) ON DELETE CASCADE,
+      UNIQUE(user_id, quest_id)
+    )
+  `);
+
+  // User quest progress - tracks progress on each objective
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS user_quest_progress (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      quest_id INTEGER NOT NULL,
+      objective_id INTEGER NOT NULL,
+      current_amount INTEGER DEFAULT 0,
+      is_completed INTEGER DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (quest_id) REFERENCES quests(id) ON DELETE CASCADE,
+      FOREIGN KEY (objective_id) REFERENCES quest_objectives(id) ON DELETE CASCADE,
+      UNIQUE(user_id, objective_id)
+    )
+  `);
+
   // Initialize player stats for existing users
   const usersWithoutStats = await db.all(`
     SELECT u.id FROM users u 
@@ -853,6 +981,17 @@ export async function initDatabase() {
       INSERT INTO player_stats (user_id, level, experience, max_health, current_health, base_attack, base_defense)
       VALUES (?, 1, 0, 100, 100, 10, 5)
     `, [user.id]);
+  }
+
+  // Initialize statistics for existing users
+  const usersWithoutStatistics = await db.all(`
+    SELECT u.id FROM users u 
+    LEFT JOIN user_statistics us ON u.id = us.user_id 
+    WHERE us.id IS NULL
+  `);
+  
+  for (const user of usersWithoutStatistics) {
+    await db.run('INSERT INTO user_statistics (user_id) VALUES (?)', [user.id]);
   }
 
   // Insert default monsters

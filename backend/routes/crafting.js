@@ -2,6 +2,7 @@ import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permissions.js';
+import { trackCrafting } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -170,6 +171,9 @@ router.post('/craft', authenticateToken, async (req, res) => {
     `, [req.user.id, recipe.result_item_id, recipe.result_quantity, recipe.result_quantity]);
 
     const resultItem = await db.get('SELECT display_name FROM items WHERE id = ?', [recipe.result_item_id]);
+
+    // Track crafting statistics
+    await trackCrafting(req.user.id, recipe.result_item_id, false);
 
     res.json({
       message: `${recipe.result_quantity}x ${resultItem.display_name} erfolgreich gecraftet`

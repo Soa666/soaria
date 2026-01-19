@@ -18,6 +18,8 @@ import PlayerProfile from './pages/PlayerProfile';
 import Guilds from './pages/Guilds';
 import GuildDetail from './pages/GuildDetail';
 import Messages from './pages/Messages';
+import Quests from './pages/Quests';
+import Statistics from './pages/Statistics';
 import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
@@ -146,6 +148,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Messages />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quests"
+          element={
+            <ProtectedRoute>
+              <Quests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/statistics"
+          element={
+            <ProtectedRoute>
+              <Statistics />
             </ProtectedRoute>
           }
         />

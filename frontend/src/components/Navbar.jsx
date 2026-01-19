@@ -51,6 +51,8 @@ function Navbar() {
           <Link to="/map">Karte</Link>
           <Link to="/grundstueck">Grundstück</Link>
           <Link to="/collection">Sammeln</Link>
+          <Link to="/quests">Quests</Link>
+          <Link to="/statistics">Statistik</Link>
           <Link to="/players">Spieler</Link>
           <Link to="/guilds">Gilden</Link>
           <Link to="/messages" className="navbar-messages">

@@ -2,6 +2,7 @@ import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendSystemMessage } from './messages.js';
+import { trackTravel } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -250,6 +251,12 @@ router.get('/travel/status', authenticateToken, async (req, res) => {
       const endTime = new Date(user.travel_end_time);
       
       if (now >= endTime) {
+        // Calculate distance traveled
+        const distanceTraveled = Math.sqrt(
+          Math.pow(user.travel_target_x - user.world_x, 2) + 
+          Math.pow(user.travel_target_y - user.world_y, 2)
+        );
+
         // Travel complete - update position
         await db.run(`
           UPDATE users 
@@ -261,6 +268,9 @@ router.get('/travel/status', authenticateToken, async (req, res) => {
               travel_end_time = NULL
           WHERE id = ?
         `, [req.user.id]);
+
+        // Track travel statistics
+        await trackTravel(req.user.id, distanceTraveled);
 
         return res.json({
           traveling: false,

@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { trackBuilding } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -536,6 +537,9 @@ router.post('/job/claim', authenticateToken, async (req, res) => {
       SET status = 'claimed'
       WHERE id = ?
     `, [job.id]);
+
+    // Track building statistics
+    await trackBuilding(req.user.id, job.building_id, job.job_type === 'upgrade');
 
     res.json({
       message: job.job_type === 'build' 

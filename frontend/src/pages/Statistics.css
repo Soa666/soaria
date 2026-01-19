@@ -1,0 +1,128 @@
+.statistics-page {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.statistics-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.statistics-header h1 {
+  color: #d4af37;
+  font-size: 2.2rem;
+  margin: 0 0 10px 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.statistics-header .subtitle {
+  color: #8b7a5a;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.stat-category {
+  background: linear-gradient(145deg, rgba(30, 25, 40, 0.95), rgba(20, 15, 30, 0.98));
+  border: 1px solid #4a3a5a;
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-category:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.stat-category h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #d4af37;
+  font-size: 1.3rem;
+  margin: 0 0 15px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.category-icon {
+  font-size: 1.4rem;
+}
+
+.stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(40, 30, 50, 0.5);
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.stat-item:hover {
+  background: rgba(50, 40, 60, 0.7);
+}
+
+.stat-icon {
+  font-size: 1.2rem;
+  width: 30px;
+  text-align: center;
+  margin-right: 8px;
+}
+
+.stat-label {
+  flex: 1;
+  color: #a89070;
+  font-size: 0.95rem;
+}
+
+.stat-value {
+  color: #e8dcc0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  min-width: 60px;
+  text-align: right;
+  font-family: 'Segoe UI', monospace;
+}
+
+.stats-footer {
+  text-align: center;
+  margin-top: 30px;
+  padding: 20px;
+  color: #6b5a4a;
+  font-style: italic;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 60px;
+  color: #8b7a5a;
+  font-size: 1.2rem;
+}
+
+.error {
+  color: #c0392b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .statistics-header h1 {
+    font-size: 1.8rem;
+  }
+}

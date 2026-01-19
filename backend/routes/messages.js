@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { updateStatistic } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -249,6 +250,9 @@ router.post('/', authenticateToken, async (req, res) => {
       INSERT INTO messages (sender_id, recipient_id, subject, content, message_type)
       VALUES (?, ?, ?, ?, 'personal')
     `, [req.user.id, recipient.id, processedSubject, processedContent]);
+
+    // Track message sent
+    await updateStatistic(req.user.id, 'messages_sent', 1);
     
     res.status(201).json({ 
       message: 'Nachricht gesendet',
