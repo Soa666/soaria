@@ -563,14 +563,14 @@ function Dashboard() {
           <div className="equipment-tab">
             <div className="inventory-header">
               <h2>⚔️ Ausrüstung</h2>
-              <a href="/grundstueck" className="btn-craft-link">🔨 Schmiede</a>
+              <a href="/grundstueck?view=smithy" className="btn-craft-link">🔨 Schmiede</a>
             </div>
             
             {equipmentInventory.length === 0 ? (
               <div className="empty-inventory">
                 <div className="empty-icon">⚔️</div>
                 <p>Du hast keine Ausrüstung</p>
-                <a href="/grundstueck" className="btn-collect">🔨 Zur Schmiede</a>
+                <a href="/grundstueck?view=smithy" className="btn-collect">🔨 Zur Schmiede</a>
               </div>
             ) : (
               <div className="equipment-list">
@@ -677,7 +677,7 @@ function Dashboard() {
               <h4>💡 Berufe leveln</h4>
               <p>Stelle Ausrüstung in der Schmiede her um Erfahrung zu sammeln.</p>
               <p>Höheres Berufslevel = bessere Qualitätschance!</p>
-              <a href="/grundstueck" className="btn-craft-link">🔨 Zur Schmiede</a>
+              <a href="/grundstueck?view=smithy" className="btn-craft-link">🔨 Zur Schmiede</a>
             </div>
           </div>
         )}

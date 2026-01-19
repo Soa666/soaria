@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './Grundstueck.css';
@@ -19,6 +19,7 @@ const getImageUrl = (imagePath) => {
 
 function Grundstueck() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [buildings, setBuildings] = useState([]);
   const [myBuildings, setMyBuildings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,14 @@ function Grundstueck() {
   const [craftingMessage, setCraftingMessage] = useState(null);
   const [craftingJob, setCraftingJob] = useState(null);
   const [craftingTimeLeft, setCraftingTimeLeft] = useState(0);
+
+  // Check URL params for direct navigation
+  useEffect(() => {
+    const view = searchParams.get('view');
+    if (view === 'smithy') {
+      setShowSmithyView(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchBuildings();
@@ -769,24 +778,32 @@ function Grundstueck() {
 
           {/* Quick Actions when no building selected */}
           {!selectedBuilding && (
-            <div className="info-panel">
+            <div className="info-panel quick-actions-panel">
               <h4>💡 Schnellzugriff</h4>
-              <div className="details-actions">
+              <p className="quick-actions-hint">Klicke auf ein Gebäude links um Details zu sehen</p>
+              <div className="quick-actions-grid">
                 {myBuildings.find(b => b.name === 'schmiede') && (
                   <button 
-                    className="btn-open-smithy"
+                    className="quick-action-btn smithy"
                     onClick={() => setShowSmithyView(true)}
                   >
-                    ⚔️ Schmiede öffnen
+                    <span className="quick-action-icon">⚒️</span>
+                    <span className="quick-action-text">Schmiede</span>
                   </button>
                 )}
                 {myBuildings.find(b => b.name === 'werkbank') && (
-                  <Link to="/crafting" className="btn-open-crafting">
-                    🔧 Crafting öffnen
+                  <Link to="/crafting" className="quick-action-btn crafting">
+                    <span className="quick-action-icon">🔧</span>
+                    <span className="quick-action-text">Crafting</span>
                   </Link>
                 )}
-                <Link to="/map" className="btn-open-crafting" style={{ background: 'linear-gradient(180deg, #3498db, #2980b9)' }}>
-                  🗺️ Zur Karte
+                <Link to="/collection" className="quick-action-btn collection">
+                  <span className="quick-action-icon">🌿</span>
+                  <span className="quick-action-text">Sammeln</span>
+                </Link>
+                <Link to="/map" className="quick-action-btn map">
+                  <span className="quick-action-icon">🗺️</span>
+                  <span className="quick-action-text">Karte</span>
                 </Link>
               </div>
             </div>

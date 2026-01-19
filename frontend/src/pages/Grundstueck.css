@@ -579,6 +579,104 @@
 }
 
 /* ========================================
+   QUICK ACTIONS PANEL
+   ======================================== */
+.quick-actions-panel h4 {
+  margin-bottom: 0.5rem;
+}
+
+.quick-actions-hint {
+  color: #8b8b8b;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.quick-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 2px solid;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  min-height: 80px;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.quick-action-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.quick-action-text {
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Smithy Button */
+.quick-action-btn.smithy {
+  background: linear-gradient(145deg, #e67e22, #d35400);
+  border-color: #c0392b;
+  color: white;
+}
+
+.quick-action-btn.smithy:hover {
+  background: linear-gradient(145deg, #f39c12, #e67e22);
+  border-color: #e74c3c;
+}
+
+/* Crafting Button */
+.quick-action-btn.crafting {
+  background: linear-gradient(145deg, #9b59b6, #8e44ad);
+  border-color: #7d3c98;
+  color: white;
+}
+
+.quick-action-btn.crafting:hover {
+  background: linear-gradient(145deg, #a569bd, #9b59b6);
+  border-color: #9b59b6;
+}
+
+/* Collection Button */
+.quick-action-btn.collection {
+  background: linear-gradient(145deg, #27ae60, #1e8449);
+  border-color: #1a7a3a;
+  color: white;
+}
+
+.quick-action-btn.collection:hover {
+  background: linear-gradient(145deg, #2ecc71, #27ae60);
+  border-color: #27ae60;
+}
+
+/* Map Button */
+.quick-action-btn.map {
+  background: linear-gradient(145deg, #3498db, #2980b9);
+  border-color: #2472a4;
+  color: white;
+}
+
+.quick-action-btn.map:hover {
+  background: linear-gradient(145deg, #5dade2, #3498db);
+  border-color: #3498db;
+}
+
+/* ========================================
    MESSAGE TOAST
    ======================================== */
 .message-toast {
