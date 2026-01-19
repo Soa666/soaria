@@ -426,11 +426,13 @@ async function checkDailyLoginQuest(userId) {
   try {
     // Get all daily login quests
     const dailyLoginQuests = await db.all(`
-      SELECT q.id, q.cooldown_hours
+      SELECT q.id, q.cooldown_hours, q.display_name
       FROM quests q
       JOIN quest_objectives qo ON qo.quest_id = q.id
       WHERE q.is_active = 1 AND qo.objective_type = 'daily_login'
     `);
+
+    console.log(`[DAILY] Checking ${dailyLoginQuests.length} daily login quests for user ${userId}`);
 
     for (const quest of dailyLoginQuests) {
       // Check current user quest status
@@ -438,24 +440,33 @@ async function checkDailyLoginQuest(userId) {
         SELECT status, claimed_at FROM user_quests WHERE user_id = ? AND quest_id = ?
       `, [userId, quest.id]);
 
-      // If claimed, check if cooldown has passed (24 hours)
+      console.log(`[DAILY] Quest ${quest.id} status for user ${userId}:`, userQuest);
+
+      // If already completed (ready to claim), skip
+      if (userQuest?.status === 'completed') {
+        console.log(`[DAILY] Quest ${quest.id} already completed, waiting for claim`);
+        continue;
+      }
+
+      // If claimed, check if cooldown has passed
       if (userQuest?.status === 'claimed' && userQuest.claimed_at) {
         const claimedAt = new Date(userQuest.claimed_at);
         const now = new Date();
         const hoursSinceClaim = (now - claimedAt) / (1000 * 60 * 60);
         
+        console.log(`[DAILY] Quest ${quest.id} claimed ${hoursSinceClaim.toFixed(2)} hours ago, cooldown: ${quest.cooldown_hours}h`);
+        
         if (hoursSinceClaim < (quest.cooldown_hours || 24)) {
           // Still on cooldown, skip this quest
+          console.log(`[DAILY] Quest ${quest.id} still on cooldown`);
           continue;
         }
       }
 
-      // If quest is completed (ready to claim), skip
-      if (userQuest?.status === 'completed') {
-        continue;
-      }
-
-      // Start or restart the quest and immediately complete it
+      // Quest is either: new (no userQuest), active, or cooldown passed
+      // Complete it immediately!
+      console.log(`[DAILY] Completing quest ${quest.id} for user ${userId}`);
+      
       await db.run(`
         INSERT INTO user_quests (user_id, quest_id, status, started_at, completed_at)
         VALUES (?, ?, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -477,7 +488,7 @@ async function checkDailyLoginQuest(userId) {
         `, [userId, quest.id, obj.id]);
       }
 
-      console.log(`[DAILY] Quest ${quest.id} completed for user ${userId}`);
+      console.log(`[DAILY] Quest "${quest.display_name}" (ID: ${quest.id}) completed for user ${userId}!`);
     }
   } catch (error) {
     console.error('Check daily login quest error:', error);
