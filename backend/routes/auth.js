@@ -242,6 +242,9 @@ router.get('/profile', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Benutzer nicht gefunden' });
     }
 
+    // Check daily login quest on every profile fetch (page load)
+    await checkDailyLoginQuest(req.user.id);
+
     res.json({ user });
   } catch (error) {
     console.error('Profile error:', error);
@@ -421,94 +424,60 @@ router.post('/resend-activation', async (req, res) => {
 // Helper: Check and complete daily login quest
 async function checkDailyLoginQuest(userId) {
   try {
-    // Find active daily login quests for this user
-    const activeLoginQuests = await db.all(`
-      SELECT uq.quest_id, qo.id as objective_id
-      FROM user_quests uq
-      JOIN quest_objectives qo ON qo.quest_id = uq.quest_id
-      WHERE uq.user_id = ? AND uq.status = 'active' AND qo.objective_type = 'daily_login'
-    `, [userId]);
-
-    for (const quest of activeLoginQuests) {
-      // Update the objective progress to 1 (completed)
-      await db.run(`
-        INSERT INTO user_quest_progress (user_id, quest_id, objective_id, current_amount, is_completed)
-        VALUES (?, ?, ?, 1, 1)
-        ON CONFLICT(user_id, objective_id) DO UPDATE SET 
-          current_amount = 1, is_completed = 1
-      `, [userId, quest.quest_id, quest.objective_id]);
-
-      // Check if all objectives for this quest are now completed
-      const incompleteObjectives = await db.get(`
-        SELECT COUNT(*) as count
-        FROM quest_objectives qo
-        LEFT JOIN user_quest_progress uqp ON qo.id = uqp.objective_id AND uqp.user_id = ?
-        WHERE qo.quest_id = ? AND (uqp.is_completed IS NULL OR uqp.is_completed = 0)
-      `, [userId, quest.quest_id]);
-
-      if (incompleteObjectives.count === 0) {
-        // Mark quest as completed
-        await db.run(`
-          UPDATE user_quests 
-          SET status = 'completed', completed_at = CURRENT_TIMESTAMP
-          WHERE user_id = ? AND quest_id = ?
-        `, [userId, quest.quest_id]);
-      }
-    }
-
-    // Auto-accept daily login quests that aren't started yet
-    const availableDailyQuests = await db.all(`
-      SELECT q.id 
+    // Get all daily login quests
+    const dailyLoginQuests = await db.all(`
+      SELECT q.id, q.cooldown_hours
       FROM quests q
       JOIN quest_objectives qo ON qo.quest_id = q.id
-      LEFT JOIN user_quests uq ON uq.quest_id = q.id AND uq.user_id = ?
-      WHERE q.is_active = 1 
-        AND q.category = 'daily' 
-        AND qo.objective_type = 'daily_login'
-        AND (uq.id IS NULL OR (uq.status = 'claimed' AND q.is_repeatable = 1))
-    `, [userId]);
+      WHERE q.is_active = 1 AND qo.objective_type = 'daily_login'
+    `);
 
-    for (const quest of availableDailyQuests) {
-      // Auto-start the quest
+    for (const quest of dailyLoginQuests) {
+      // Check current user quest status
+      const userQuest = await db.get(`
+        SELECT status, claimed_at FROM user_quests WHERE user_id = ? AND quest_id = ?
+      `, [userId, quest.id]);
+
+      // If claimed, check if cooldown has passed (24 hours)
+      if (userQuest?.status === 'claimed' && userQuest.claimed_at) {
+        const claimedAt = new Date(userQuest.claimed_at);
+        const now = new Date();
+        const hoursSinceClaim = (now - claimedAt) / (1000 * 60 * 60);
+        
+        if (hoursSinceClaim < (quest.cooldown_hours || 24)) {
+          // Still on cooldown, skip this quest
+          continue;
+        }
+      }
+
+      // If quest is completed (ready to claim), skip
+      if (userQuest?.status === 'completed') {
+        continue;
+      }
+
+      // Start or restart the quest and immediately complete it
       await db.run(`
-        INSERT INTO user_quests (user_id, quest_id, status, started_at)
-        VALUES (?, ?, 'active', CURRENT_TIMESTAMP)
+        INSERT INTO user_quests (user_id, quest_id, status, started_at, completed_at)
+        VALUES (?, ?, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(user_id, quest_id) DO UPDATE SET 
-          status = 'active', 
+          status = 'completed', 
           started_at = CURRENT_TIMESTAMP,
-          completed_at = NULL,
+          completed_at = CURRENT_TIMESTAMP,
           claimed_at = NULL
       `, [userId, quest.id]);
 
-      // Initialize and complete the login objective
+      // Mark all objectives as completed
       const objectives = await db.all('SELECT id FROM quest_objectives WHERE quest_id = ?', [quest.id]);
       for (const obj of objectives) {
-        const objType = await db.get('SELECT objective_type FROM quest_objectives WHERE id = ?', [obj.id]);
-        const isLoginObj = objType?.objective_type === 'daily_login';
-        
         await db.run(`
           INSERT INTO user_quest_progress (user_id, quest_id, objective_id, current_amount, is_completed)
-          VALUES (?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, 1, 1)
           ON CONFLICT(user_id, objective_id) DO UPDATE SET 
-            current_amount = ?, is_completed = ?
-        `, [userId, quest.id, obj.id, isLoginObj ? 1 : 0, isLoginObj ? 1 : 0, isLoginObj ? 1 : 0, isLoginObj ? 1 : 0]);
+            current_amount = 1, is_completed = 1
+        `, [userId, quest.id, obj.id]);
       }
 
-      // Check if quest is now completed (only has login objective)
-      const incompleteObjectives = await db.get(`
-        SELECT COUNT(*) as count
-        FROM quest_objectives qo
-        LEFT JOIN user_quest_progress uqp ON qo.id = uqp.objective_id AND uqp.user_id = ?
-        WHERE qo.quest_id = ? AND (uqp.is_completed IS NULL OR uqp.is_completed = 0)
-      `, [userId, quest.id]);
-
-      if (incompleteObjectives.count === 0) {
-        await db.run(`
-          UPDATE user_quests 
-          SET status = 'completed', completed_at = CURRENT_TIMESTAMP
-          WHERE user_id = ? AND quest_id = ?
-        `, [userId, quest.id]);
-      }
+      console.log(`[DAILY] Quest ${quest.id} completed for user ${userId}`);
     }
   } catch (error) {
     console.error('Check daily login quest error:', error);

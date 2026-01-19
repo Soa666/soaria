@@ -314,6 +314,15 @@ router.post('/:questId/abandon', authenticateToken, async (req, res) => {
     const { questId } = req.params;
     const userId = req.user.id;
 
+    // Check if quest has daily_login objective (can't be abandoned)
+    const hasDailyLogin = await db.get(`
+      SELECT 1 FROM quest_objectives WHERE quest_id = ? AND objective_type = 'daily_login'
+    `, [questId]);
+
+    if (hasDailyLogin) {
+      return res.status(400).json({ error: 'Diese Quest kann nicht abgebrochen werden!' });
+    }
+
     // Check quest status
     const userQuest = await db.get(
       'SELECT status FROM user_quests WHERE user_id = ? AND quest_id = ?',

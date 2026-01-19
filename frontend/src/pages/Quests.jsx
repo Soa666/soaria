@@ -291,7 +291,7 @@ function Quests() {
                   </button>
                 </>
               )}
-              {getQuestStatus(selectedQuest) === 'active' && (
+              {getQuestStatus(selectedQuest) === 'active' && !selectedQuest.objectives?.some(o => o.objective_type === 'daily_login') && (
                 <button 
                   className="btn-abandon"
                   onClick={() => abandonQuest(selectedQuest.id)}
