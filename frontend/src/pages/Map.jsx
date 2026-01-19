@@ -198,6 +198,10 @@ function Map() {
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [highlightedPlayer, setHighlightedPlayer] = useState(null);
+  const [resourceNodes, setResourceNodes] = useState([]);
+  const [selectedResource, setSelectedResource] = useState(null);
+  const [gatheringJob, setGatheringJob] = useState(null);
+  const [userTools, setUserTools] = useState([]);
 
   // Load tileset image
   useEffect(() => {
@@ -247,12 +251,17 @@ function Map() {
     fetchHomes();
     fetchPlayerStats();
     fetchTravelStatus();
+    fetchResourceNodes();
+    fetchGatheringStatus();
+    fetchUserTools();
     
     // Periodic refresh every 30 seconds (without clearing selection)
     const refreshInterval = setInterval(() => {
       fetchPlayers();
       fetchNpcs();
       fetchPlayerStats();
+      fetchResourceNodes();
+      fetchGatheringStatus();
     }, 30000);
     
     return () => clearInterval(refreshInterval);
@@ -329,7 +338,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, targetCoords, actionMode, playerImages, tilesetLoaded, animationFrame, currentUserPosition, travelStatus]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, tilesetLoaded, animationFrame, currentUserPosition, travelStatus, resourceNodes]);
 
   const fetchPlayers = async () => {
     try {
@@ -428,6 +437,107 @@ function Map() {
       }
     } catch (error) {
       console.error('Fehler beim Laden des Reisestatus:', error);
+    }
+  };
+
+  const fetchResourceNodes = async () => {
+    try {
+      const response = await api.get('/resources/nodes');
+      setResourceNodes(response.data.nodes || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Ressourcen:', error);
+    }
+  };
+
+  const fetchGatheringStatus = async () => {
+    try {
+      const response = await api.get('/resources/gather/status');
+      setGatheringJob(response.data.job);
+    } catch (error) {
+      console.error('Fehler beim Laden des Sammelstatus:', error);
+    }
+  };
+
+  const fetchUserTools = async () => {
+    try {
+      const response = await api.get('/resources/tools');
+      setUserTools(response.data.tools || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Werkzeuge:', error);
+    }
+  };
+
+  const handleResourceClick = async (node) => {
+    try {
+      const response = await api.get(`/resources/nodes/${node.id}`);
+      setSelectedResource(response.data);
+      setSelectedPlayer(null);
+      setSelectedNpc(null);
+    } catch (error) {
+      console.error('Fehler beim Laden der Ressourcendetails:', error);
+    }
+  };
+
+  const startGathering = async (nodeId, toolId = null) => {
+    try {
+      const response = await api.post(`/resources/gather/${nodeId}`, { toolId });
+      setMessage(response.data.message);
+      setGatheringJob({ ...response.data, node_id: nodeId });
+      setSelectedResource(null);
+      setTimeout(() => setMessage(''), 3000);
+      
+      // Start polling for gathering completion
+      const pollInterval = setInterval(async () => {
+        const statusRes = await api.get('/resources/gather/status');
+        if (statusRes.data.job?.is_ready) {
+          clearInterval(pollInterval);
+          setGatheringJob(statusRes.data.job);
+        } else if (!statusRes.data.job) {
+          clearInterval(pollInterval);
+          setGatheringJob(null);
+        } else {
+          setGatheringJob(statusRes.data.job);
+        }
+      }, 1000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Sammeln');
+      setTimeout(() => setMessage(''), 4000);
+    }
+  };
+
+  const collectGathering = async () => {
+    try {
+      const response = await api.post('/resources/gather/collect');
+      setMessage(response.data.message);
+      setGatheringJob(null);
+      fetchResourceNodes();
+      setTimeout(() => setMessage(''), 4000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler beim Abholen');
+      setTimeout(() => setMessage(''), 4000);
+    }
+  };
+
+  const cancelGathering = async () => {
+    try {
+      await api.post('/resources/gather/cancel');
+      setGatheringJob(null);
+      setMessage('Sammeln abgebrochen');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler');
+    }
+  };
+
+  const getStarterTool = async (category) => {
+    try {
+      const response = await api.post('/resources/tools/starter', { category });
+      setMessage(response.data.message);
+      fetchUserTools();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Fehler');
+      setTimeout(() => setMessage(''), 4000);
     }
   };
 
@@ -859,6 +969,75 @@ function Map() {
         });
       }
 
+      // Draw Resource Nodes (trees, rocks, herbs)
+      if (resourceNodes && Array.isArray(resourceNodes) && resourceNodes.length > 0) {
+        resourceNodes.forEach((node) => {
+          if (!node || node.world_x === undefined || node.world_y === undefined) return;
+          if (node.is_depleted) return; // Don't draw depleted nodes
+          
+          const nodeX = node.world_x || 0;
+          const nodeY = node.world_y || 0;
+          const x = centerX + (nodeX - viewCenter.x) * scale;
+          const y = centerY + (nodeY - viewCenter.y) * scale;
+
+          if (x < -30 || x > width + 30 || y < -30 || y > height + 30) return;
+
+          const isSelected = selectedResource?.node?.id === node.id;
+          const markerSize = 14 * Math.min(scale, 1.5);
+
+          ctx.save();
+          
+          // Background based on category
+          let bgColor, borderColor;
+          if (node.category === 'mining') {
+            bgColor = isSelected ? '#95a5a6' : '#7f8c8d';
+            borderColor = '#5d6d7e';
+          } else if (node.category === 'woodcutting') {
+            bgColor = isSelected ? '#27ae60' : '#1e8449';
+            borderColor = '#145a32';
+          } else if (node.category === 'herbalism') {
+            bgColor = isSelected ? '#9b59b6' : '#8e44ad';
+            borderColor = '#6c3483';
+          } else {
+            bgColor = '#95a5a6';
+            borderColor = '#5d6d7e';
+          }
+
+          // Draw circle marker
+          ctx.beginPath();
+          ctx.arc(x, y, markerSize * 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = bgColor;
+          ctx.shadowBlur = isSelected ? 12 : 5;
+          ctx.shadowColor = bgColor;
+          ctx.fill();
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Draw icon
+          ctx.shadowBlur = 0;
+          ctx.font = `${Math.max(10, markerSize * 0.9)}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(node.icon || '❓', x, y);
+          
+          ctx.restore();
+
+          // Draw remaining amount indicator
+          if (node.current_amount < node.max_amount) {
+            const dots = node.current_amount;
+            const dotSize = 3;
+            const startX = x - (dots - 1) * dotSize;
+            ctx.fillStyle = '#2ecc71';
+            for (let i = 0; i < dots; i++) {
+              ctx.beginPath();
+              ctx.arc(startX + i * dotSize * 2, y + markerSize + 5, dotSize, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        });
+      }
+
       // Draw travel route if traveling
       if (travelStatus?.traveling && travelStatus.from && travelStatus.to && currentUserPosition) {
         const fromX = centerX + (travelStatus.from.x - viewCenter.x) * scale;
@@ -1015,7 +1194,32 @@ function Map() {
         }
       }
 
-      if (clickedNpc) {
+      // Check if clicked on a resource node
+      let clickedResource = null;
+      if (resourceNodes && Array.isArray(resourceNodes)) {
+        for (const node of resourceNodes) {
+          if (!node || node.world_x === undefined || node.world_y === undefined) continue;
+          if (node.is_depleted) continue;
+          
+          const rx = centerX + (node.world_x - viewCenter.x) * scale;
+          const ry = centerY + (node.world_y - viewCenter.y) * scale;
+          const distance = Math.sqrt(Math.pow(x - rx, 2) + Math.pow(y - ry, 2));
+        
+          if (distance < clickRadius) {
+            clickedResource = node;
+            break;
+          }
+        }
+      }
+
+      if (clickedResource) {
+        // Clicked on resource node
+        handleResourceClick(clickedResource);
+        setSelectedPlayer(null);
+        setSelectedNpc(null);
+        setActionMode(null);
+        setTargetCoords(null);
+      } else if (clickedNpc) {
         // Clicked on NPC
         setSelectedNpc(clickedNpc);
         setSelectedPlayer(null);
@@ -1831,6 +2035,120 @@ function Map() {
             {!selectedNpc.is_active && selectedNpc.entity_type !== 'merchant' && (
               <p className="dead-notice">⚰️ Dieses Monster ist tot und respawnt bald.</p>
             )}
+          </div>
+        )}
+
+        {/* Resource Node Panel */}
+        {selectedResource && (
+          <div className={`resource-panel ${selectedResource.node?.category}`}>
+            <h3>
+              {selectedResource.node?.icon || '❓'} {selectedResource.node?.display_name}
+            </h3>
+            <p className="resource-description">{selectedResource.node?.description}</p>
+            
+            <p>Position: ({selectedResource.node?.world_x}, {selectedResource.node?.world_y})</p>
+            <p>Entfernung: <strong>{selectedResource.distance} Einheiten</strong></p>
+            <p>Verbleibend: <strong>{selectedResource.node?.current_amount}/{selectedResource.node?.max_amount}</strong></p>
+            
+            {selectedResource.node?.min_level > 1 && (
+              <p className="level-req">Benötigt Level: {selectedResource.node?.min_level}</p>
+            )}
+
+            <div className="resource-drops">
+              <h4>📦 Mögliche Drops:</h4>
+              {selectedResource.drops?.map((drop, idx) => (
+                <div key={idx} className={`drop-item ${drop.is_rare ? 'rare' : ''}`}>
+                  <span className={`drop-name rarity-${drop.rarity}`}>{drop.item_name}</span>
+                  <span className="drop-chance">
+                    {drop.is_rare ? '⭐' : ''} {drop.drop_chance}% ({drop.min_quantity}-{drop.max_quantity})
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {selectedResource.node?.required_tool_type && (
+              <div className="tool-section">
+                <h4>🔧 Werkzeug: {selectedResource.node?.required_tool_type === 'pickaxe' ? 'Spitzhacke' : selectedResource.node?.required_tool_type === 'axe' ? 'Axt' : 'Sichel'}</h4>
+                {selectedResource.userTools?.length > 0 ? (
+                  <div className="user-tools">
+                    {selectedResource.userTools.map(tool => (
+                      <div key={tool.id} className="tool-item">
+                        <span>{tool.icon} {tool.display_name}</span>
+                        <span className="tool-durability">🔋 {tool.current_durability}/{tool.durability}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="no-tools">
+                    <p>❌ Kein passendes Werkzeug!</p>
+                    <button 
+                      className="btn btn-small"
+                      onClick={() => getStarterTool(selectedResource.node?.required_tool_type)}
+                    >
+                      🆓 Gratis Starter-Werkzeug holen
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="action-buttons">
+              {selectedResource.canGather ? (
+                <button 
+                  className="btn btn-success" 
+                  onClick={() => startGathering(selectedResource.node?.id, selectedResource.userTools?.[0]?.id)}
+                  disabled={gatheringJob || !selectedResource.userTools?.length}
+                >
+                  {!selectedResource.userTools?.length ? '❌ Werkzeug fehlt' : '⛏️ Sammeln starten'}
+                </button>
+              ) : selectedResource.distance > 5 ? (
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => handleTravelTo(selectedResource.node?.world_x, selectedResource.node?.world_y, selectedResource.node?.display_name)}
+                  disabled={travelStatus?.traveling}
+                >
+                  🚶 Dahin bewegen ({selectedResource.distance} Einheiten)
+                </button>
+              ) : (
+                <p className="cannot-gather">⚠️ Nicht sammelbar</p>
+              )}
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setSelectedResource(null)}
+              >
+                ✗ Schließen
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Gathering Job Panel */}
+        {gatheringJob && (
+          <div className="gathering-panel">
+            <h4>{gatheringJob.icon || '⛏️'} {gatheringJob.display_name}</h4>
+            {gatheringJob.is_ready ? (
+              <>
+                <p className="ready-text">✅ Fertig!</p>
+                <button className="btn btn-success" onClick={collectGathering}>
+                  🎁 Abholen
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="gathering-progress">
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill" 
+                      style={{ width: `${Math.max(0, 100 - (gatheringJob.remaining_seconds / 60 * 100))}%` }}
+                    />
+                  </div>
+                  <span className="time-left">⏱️ {gatheringJob.remaining_seconds}s</span>
+                </div>
+              </>
+            )}
+            <button className="btn btn-danger btn-small" onClick={cancelGathering}>
+              ✗ Abbrechen
+            </button>
           </div>
         )}
 

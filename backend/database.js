@@ -985,6 +985,116 @@ export async function initDatabase() {
     await db.run('INSERT INTO user_statistics (user_id) VALUES (?)', [user.id]);
   }
 
+  // Resource Node Types (Stone deposits, Trees, etc.)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS resource_node_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL CHECK(category IN ('mining', 'woodcutting', 'herbalism')),
+      icon TEXT DEFAULT '🪨',
+      required_tool_type TEXT,
+      base_gather_time INTEGER DEFAULT 30,
+      respawn_minutes INTEGER DEFAULT 30,
+      min_level INTEGER DEFAULT 1,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Resource Node Drops (what items drop from each node type)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS resource_node_drops (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      node_type_id INTEGER NOT NULL,
+      item_id INTEGER NOT NULL,
+      drop_chance REAL DEFAULT 100,
+      min_quantity INTEGER DEFAULT 1,
+      max_quantity INTEGER DEFAULT 1,
+      min_tool_tier INTEGER DEFAULT 0,
+      is_rare INTEGER DEFAULT 0,
+      FOREIGN KEY (node_type_id) REFERENCES resource_node_types(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+    )
+  `);
+
+  // World Resource Nodes (actual nodes placed on the map)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS world_resource_nodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      node_type_id INTEGER NOT NULL,
+      world_x INTEGER NOT NULL,
+      world_y INTEGER NOT NULL,
+      current_amount INTEGER DEFAULT 3,
+      max_amount INTEGER DEFAULT 3,
+      last_gathered_at DATETIME,
+      depleted_at DATETIME,
+      is_depleted INTEGER DEFAULT 0,
+      FOREIGN KEY (node_type_id) REFERENCES resource_node_types(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Tool Types (Pickaxes, Axes, etc.)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS tool_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL CHECK(category IN ('pickaxe', 'axe', 'sickle')),
+      tier INTEGER DEFAULT 1,
+      speed_bonus REAL DEFAULT 1.0,
+      rare_drop_bonus REAL DEFAULT 0,
+      efficiency_bonus REAL DEFAULT 0,
+      durability INTEGER DEFAULT 100,
+      required_level INTEGER DEFAULT 1,
+      icon TEXT,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // User Tools (which tools players own)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS user_tools (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      tool_type_id INTEGER NOT NULL,
+      current_durability INTEGER DEFAULT 100,
+      is_equipped INTEGER DEFAULT 0,
+      acquired_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (tool_type_id) REFERENCES tool_types(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Active Gathering Jobs
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS gathering_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      node_id INTEGER NOT NULL,
+      tool_id INTEGER,
+      started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      finish_at DATETIME NOT NULL,
+      is_completed INTEGER DEFAULT 0,
+      is_cancelled INTEGER DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (node_id) REFERENCES world_resource_nodes(id) ON DELETE CASCADE,
+      FOREIGN KEY (tool_id) REFERENCES user_tools(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Insert default resource node types
+  await insertDefaultResourceNodes();
+
+  // Insert default tools
+  await insertDefaultTools();
+
+  // Spawn resource nodes on map
+  await spawnResourceNodes();
+
   // Insert default daily login quest
   await insertDefaultQuests();
 
@@ -1962,6 +2072,362 @@ async function insertDefaultQuests() {
   } catch (error) {
     console.error('Error creating default quest:', error);
   }
+}
+
+// Insert default resource node types
+async function insertDefaultResourceNodes() {
+  const existingNodes = await db.get('SELECT COUNT(*) as count FROM resource_node_types');
+  if (existingNodes.count > 0) return;
+
+  console.log('[DB] Creating default resource node types...');
+
+  const nodeTypes = [
+    // Mining nodes
+    {
+      name: 'stone_deposit',
+      display_name: 'Steinvorkommen',
+      description: 'Ein Felsvorsprung mit abbaubarem Gestein',
+      category: 'mining',
+      icon: '🪨',
+      required_tool_type: 'pickaxe',
+      base_gather_time: 20,
+      respawn_minutes: 15,
+      min_level: 1
+    },
+    {
+      name: 'iron_vein',
+      display_name: 'Eisenader',
+      description: 'Eine Ader mit wertvollem Eisenerz',
+      category: 'mining',
+      icon: '�ite',
+      required_tool_type: 'pickaxe',
+      base_gather_time: 30,
+      respawn_minutes: 30,
+      min_level: 5
+    },
+    {
+      name: 'copper_vein',
+      display_name: 'Kupferader',
+      description: 'Kupfererz schimmert im Gestein',
+      category: 'mining',
+      icon: '🟤',
+      required_tool_type: 'pickaxe',
+      base_gather_time: 25,
+      respawn_minutes: 20,
+      min_level: 3
+    },
+    {
+      name: 'gold_vein',
+      display_name: 'Goldader',
+      description: 'Seltenes Goldvorkommen!',
+      category: 'mining',
+      icon: '✨',
+      required_tool_type: 'pickaxe',
+      base_gather_time: 45,
+      respawn_minutes: 60,
+      min_level: 10
+    },
+    // Woodcutting nodes
+    {
+      name: 'oak_tree',
+      display_name: 'Eiche',
+      description: 'Ein stattlicher Eichenbaum',
+      category: 'woodcutting',
+      icon: '🌳',
+      required_tool_type: 'axe',
+      base_gather_time: 20,
+      respawn_minutes: 20,
+      min_level: 1
+    },
+    {
+      name: 'pine_tree',
+      display_name: 'Kiefer',
+      description: 'Eine große Kiefer mit hartem Holz',
+      category: 'woodcutting',
+      icon: '🌲',
+      required_tool_type: 'axe',
+      base_gather_time: 25,
+      respawn_minutes: 25,
+      min_level: 3
+    },
+    {
+      name: 'birch_tree',
+      display_name: 'Birke',
+      description: 'Eine elegante Birke',
+      category: 'woodcutting',
+      icon: '🌳',
+      required_tool_type: 'axe',
+      base_gather_time: 15,
+      respawn_minutes: 15,
+      min_level: 1
+    },
+    {
+      name: 'magic_tree',
+      display_name: 'Magischer Baum',
+      description: 'Ein uralter, mystischer Baum',
+      category: 'woodcutting',
+      icon: '🎄',
+      required_tool_type: 'axe',
+      base_gather_time: 60,
+      respawn_minutes: 90,
+      min_level: 15
+    },
+    // Herbalism nodes
+    {
+      name: 'herb_patch',
+      display_name: 'Kräuterfeld',
+      description: 'Verschiedene Heilkräuter wachsen hier',
+      category: 'herbalism',
+      icon: '🌿',
+      required_tool_type: 'sickle',
+      base_gather_time: 10,
+      respawn_minutes: 10,
+      min_level: 1
+    },
+    {
+      name: 'rare_herbs',
+      display_name: 'Seltene Kräuter',
+      description: 'Seltene, magische Pflanzen',
+      category: 'herbalism',
+      icon: '🌺',
+      required_tool_type: 'sickle',
+      base_gather_time: 20,
+      respawn_minutes: 45,
+      min_level: 8
+    }
+  ];
+
+  for (const node of nodeTypes) {
+    try {
+      await db.run(`
+        INSERT INTO resource_node_types (name, display_name, description, category, icon, required_tool_type, base_gather_time, respawn_minutes, min_level)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [node.name, node.display_name, node.description, node.category, node.icon, node.required_tool_type, node.base_gather_time, node.respawn_minutes, node.min_level]);
+    } catch (err) {
+      // Already exists
+    }
+  }
+
+  // Now add drops for each node type
+  const stoneNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'stone_deposit'");
+  const ironNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'iron_vein'");
+  const copperNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'copper_vein'");
+  const goldNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'gold_vein'");
+  const oakNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'oak_tree'");
+  const pineNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'pine_tree'");
+  const birchNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'birch_tree'");
+  const herbNode = await db.get("SELECT id FROM resource_node_types WHERE name = 'herb_patch'");
+
+  // Get or create items
+  const stoneItem = await db.get("SELECT id FROM items WHERE name = 'stein'");
+  const holzItem = await db.get("SELECT id FROM items WHERE name = 'holz'");
+  const eisenerzItem = await db.get("SELECT id FROM items WHERE name = 'eisenerz'");
+  
+  // Create missing items
+  let kupfererzId, golderzId, eichenholzId, kiefernholzId, birkenholzId, krautId;
+  
+  const kupfererz = await db.get("SELECT id FROM items WHERE name = 'kupfererz'");
+  if (!kupfererz) {
+    const result = await db.run(`
+      INSERT INTO items (name, display_name, description, type, rarity, stackable) 
+      VALUES ('kupfererz', 'Kupfererz', 'Rohes Kupfererz aus dem Berg', 'resource', 'uncommon', 1)
+    `);
+    kupfererzId = result.lastID;
+  } else {
+    kupfererzId = kupfererz.id;
+  }
+
+  const golderz = await db.get("SELECT id FROM items WHERE name = 'golderz'");
+  if (!golderz) {
+    const result = await db.run(`
+      INSERT INTO items (name, display_name, description, type, rarity, stackable) 
+      VALUES ('golderz', 'Golderz', 'Funkelndes Golderz', 'resource', 'rare', 1)
+    `);
+    golderzId = result.lastID;
+  } else {
+    golderzId = golderz.id;
+  }
+
+  const eichenholz = await db.get("SELECT id FROM items WHERE name = 'eichenholz'");
+  if (!eichenholz) {
+    const result = await db.run(`
+      INSERT INTO items (name, display_name, description, type, rarity, stackable) 
+      VALUES ('eichenholz', 'Eichenholz', 'Robustes Eichenholz', 'resource', 'common', 1)
+    `);
+    eichenholzId = result.lastID;
+  } else {
+    eichenholzId = eichenholz.id;
+  }
+
+  const kiefernholz = await db.get("SELECT id FROM items WHERE name = 'kiefernholz'");
+  if (!kiefernholz) {
+    const result = await db.run(`
+      INSERT INTO items (name, display_name, description, type, rarity, stackable) 
+      VALUES ('kiefernholz', 'Kiefernholz', 'Hartes Kiefernholz', 'resource', 'uncommon', 1)
+    `);
+    kiefernholzId = result.lastID;
+  } else {
+    kiefernholzId = kiefernholz.id;
+  }
+
+  const birkenholz = await db.get("SELECT id FROM items WHERE name = 'birkenholz'");
+  if (!birkenholz) {
+    const result = await db.run(`
+      INSERT INTO items (name, display_name, description, type, rarity, stackable) 
+      VALUES ('birkenholz', 'Birkenholz', 'Helles Birkenholz', 'resource', 'common', 1)
+    `);
+    birkenholzId = result.lastID;
+  } else {
+    birkenholzId = birkenholz.id;
+  }
+
+  const kraut = await db.get("SELECT id FROM items WHERE name = 'kraut'");
+  if (!kraut) {
+    const result = await db.run(`
+      INSERT INTO items (name, display_name, description, type, rarity, stackable) 
+      VALUES ('kraut', 'Heilkraut', 'Nützliches Heilkraut', 'resource', 'common', 1)
+    `);
+    krautId = result.lastID;
+  } else {
+    krautId = kraut.id;
+  }
+
+  // Add drops
+  if (stoneNode && stoneItem) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 1, 3)', [stoneNode.id, stoneItem.id]);
+    if (eisenerzItem) {
+      await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity, min_tool_tier, is_rare) VALUES (?, ?, 15, 1, 1, 2, 1)', [stoneNode.id, eisenerzItem.id]);
+    }
+  }
+
+  if (ironNode && eisenerzItem) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 1, 2)', [ironNode.id, eisenerzItem.id]);
+    if (stoneItem) {
+      await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 50, 1, 2)', [ironNode.id, stoneItem.id]);
+    }
+  }
+
+  if (copperNode && kupfererzId) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 1, 2)', [copperNode.id, kupfererzId]);
+  }
+
+  if (goldNode && golderzId) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 1, 1)', [goldNode.id, golderzId]);
+  }
+
+  if (oakNode && eichenholzId) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 2, 4)', [oakNode.id, eichenholzId]);
+    if (holzItem) {
+      await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 80, 1, 2)', [oakNode.id, holzItem.id]);
+    }
+  }
+
+  if (pineNode && kiefernholzId) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 2, 3)', [pineNode.id, kiefernholzId]);
+  }
+
+  if (birchNode && birkenholzId) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 2, 4)', [birchNode.id, birkenholzId]);
+    if (holzItem) {
+      await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 1, 2)', [birchNode.id, holzItem.id]);
+    }
+  }
+
+  if (herbNode && krautId) {
+    await db.run('INSERT OR IGNORE INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity) VALUES (?, ?, 100, 1, 3)', [herbNode.id, krautId]);
+  }
+
+  console.log('[DB] Resource node types created');
+}
+
+// Insert default tools
+async function insertDefaultTools() {
+  const existingTools = await db.get('SELECT COUNT(*) as count FROM tool_types');
+  if (existingTools.count > 0) return;
+
+  console.log('[DB] Creating default tools...');
+
+  const tools = [
+    // Pickaxes
+    { name: 'wooden_pickaxe', display_name: 'Holzspitzhacke', description: 'Eine einfache Spitzhacke aus Holz', category: 'pickaxe', tier: 1, speed_bonus: 1.0, rare_drop_bonus: 0, efficiency_bonus: 0, durability: 50, required_level: 1, icon: '⛏️' },
+    { name: 'stone_pickaxe', display_name: 'Steinspitzhacke', description: 'Eine robuste Spitzhacke aus Stein', category: 'pickaxe', tier: 2, speed_bonus: 1.2, rare_drop_bonus: 0.05, efficiency_bonus: 0.1, durability: 100, required_level: 5, icon: '⛏️' },
+    { name: 'iron_pickaxe', display_name: 'Eisenspitzhacke', description: 'Eine starke Spitzhacke aus Eisen', category: 'pickaxe', tier: 3, speed_bonus: 1.5, rare_drop_bonus: 0.10, efficiency_bonus: 0.2, durability: 200, required_level: 10, icon: '⛏️' },
+    { name: 'steel_pickaxe', display_name: 'Stahlspitzhacke', description: 'Eine mächtige Spitzhacke aus Stahl', category: 'pickaxe', tier: 4, speed_bonus: 1.8, rare_drop_bonus: 0.20, efficiency_bonus: 0.3, durability: 400, required_level: 15, icon: '⛏️' },
+    { name: 'mithril_pickaxe', display_name: 'Mithrilspitzhacke', description: 'Eine legendäre Spitzhacke', category: 'pickaxe', tier: 5, speed_bonus: 2.2, rare_drop_bonus: 0.35, efficiency_bonus: 0.5, durability: 800, required_level: 25, icon: '⛏️' },
+    
+    // Axes
+    { name: 'wooden_axe', display_name: 'Holzaxt', description: 'Eine einfache Axt aus Holz', category: 'axe', tier: 1, speed_bonus: 1.0, rare_drop_bonus: 0, efficiency_bonus: 0, durability: 50, required_level: 1, icon: '🪓' },
+    { name: 'stone_axe', display_name: 'Steinaxt', description: 'Eine robuste Axt aus Stein', category: 'axe', tier: 2, speed_bonus: 1.2, rare_drop_bonus: 0.05, efficiency_bonus: 0.1, durability: 100, required_level: 5, icon: '🪓' },
+    { name: 'iron_axe', display_name: 'Eisenaxt', description: 'Eine starke Axt aus Eisen', category: 'axe', tier: 3, speed_bonus: 1.5, rare_drop_bonus: 0.10, efficiency_bonus: 0.2, durability: 200, required_level: 10, icon: '🪓' },
+    { name: 'steel_axe', display_name: 'Stahlaxt', description: 'Eine mächtige Axt aus Stahl', category: 'axe', tier: 4, speed_bonus: 1.8, rare_drop_bonus: 0.20, efficiency_bonus: 0.3, durability: 400, required_level: 15, icon: '🪓' },
+    { name: 'mithril_axe', display_name: 'Mithrilaxt', description: 'Eine legendäre Axt', category: 'axe', tier: 5, speed_bonus: 2.2, rare_drop_bonus: 0.35, efficiency_bonus: 0.5, durability: 800, required_level: 25, icon: '🪓' },
+    
+    // Sickles
+    { name: 'wooden_sickle', display_name: 'Holzsichel', description: 'Eine einfache Sichel', category: 'sickle', tier: 1, speed_bonus: 1.0, rare_drop_bonus: 0, efficiency_bonus: 0, durability: 50, required_level: 1, icon: '🌾' },
+    { name: 'iron_sickle', display_name: 'Eisensichel', description: 'Eine scharfe Eisensichel', category: 'sickle', tier: 3, speed_bonus: 1.5, rare_drop_bonus: 0.15, efficiency_bonus: 0.2, durability: 200, required_level: 8, icon: '🌾' },
+    { name: 'steel_sickle', display_name: 'Stahlsichel', description: 'Eine perfekte Stahlsichel', category: 'sickle', tier: 4, speed_bonus: 2.0, rare_drop_bonus: 0.25, efficiency_bonus: 0.4, durability: 400, required_level: 15, icon: '🌾' },
+  ];
+
+  for (const tool of tools) {
+    try {
+      await db.run(`
+        INSERT INTO tool_types (name, display_name, description, category, tier, speed_bonus, rare_drop_bonus, efficiency_bonus, durability, required_level, icon)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [tool.name, tool.display_name, tool.description, tool.category, tool.tier, tool.speed_bonus, tool.rare_drop_bonus, tool.efficiency_bonus, tool.durability, tool.required_level, tool.icon]);
+    } catch (err) {
+      // Already exists
+    }
+  }
+
+  console.log('[DB] Tools created');
+}
+
+// Spawn resource nodes on the map
+async function spawnResourceNodes() {
+  const existingNodes = await db.get('SELECT COUNT(*) as count FROM world_resource_nodes');
+  if (existingNodes.count > 0) return;
+
+  console.log('[DB] Spawning resource nodes on map...');
+
+  const nodeTypes = await db.all('SELECT * FROM resource_node_types WHERE is_active = 1');
+  
+  // Define spawn counts per type
+  const spawnCounts = {
+    'stone_deposit': 50,
+    'iron_vein': 20,
+    'copper_vein': 25,
+    'gold_vein': 5,
+    'oak_tree': 60,
+    'pine_tree': 40,
+    'birch_tree': 50,
+    'magic_tree': 3,
+    'herb_patch': 40,
+    'rare_herbs': 10
+  };
+
+  for (const nodeType of nodeTypes) {
+    const count = spawnCounts[nodeType.name] || 20;
+    
+    for (let i = 0; i < count; i++) {
+      const x = Math.floor(Math.random() * 4000) - 2000;
+      const y = Math.floor(Math.random() * 4000) - 2000;
+      
+      // Don't spawn too close to origin (player starting area has home-based collection)
+      const distFromCenter = Math.sqrt(x * x + y * y);
+      if (distFromCenter < 100) continue;
+
+      try {
+        await db.run(`
+          INSERT INTO world_resource_nodes (node_type_id, world_x, world_y, current_amount, max_amount)
+          VALUES (?, ?, ?, 3, 3)
+        `, [nodeType.id, x, y]);
+      } catch (err) {
+        // Skip duplicates
+      }
+    }
+  }
+
+  console.log('[DB] Resource nodes spawned');
 }
 
 export default db;
