@@ -8,6 +8,7 @@ function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Fetch unread message count
   useEffect(() => {
@@ -40,29 +41,40 @@ function Navbar() {
     navigate('/login');
   };
 
+  const closeMenu = () => setMenuOpen(false);
+
   return (
     <nav className="navbar">
       <div className="navbar-container">
         <Link to="/dashboard" className="navbar-brand">
           <Logo size="small" />
         </Link>
-        <div className="navbar-links">
-          <Link to="/dashboard">Charakter</Link>
-          <Link to="/map">Karte</Link>
-          <Link to="/grundstueck">Grundstück</Link>
-          <Link to="/collection">Sammeln</Link>
-          <Link to="/quests">Quests</Link>
-          <Link to="/statistics">Statistik</Link>
-          <Link to="/players">Spieler</Link>
-          <Link to="/guilds">Gilden</Link>
-          <Link to="/messages" className="navbar-messages">
+        <Link to="/messages" className="navbar-messages mobile-messages">
+          📬
+          {unreadCount > 0 && (
+            <span className="message-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+          )}
+        </Link>
+        <button className="navbar-toggle" onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? '✕' : '☰'}
+        </button>
+        <div className={`navbar-links ${menuOpen ? 'open' : ''}`}>
+          <Link to="/dashboard" onClick={closeMenu}>Charakter</Link>
+          <Link to="/map" onClick={closeMenu}>Karte</Link>
+          <Link to="/grundstueck" onClick={closeMenu}>Grundstück</Link>
+          <Link to="/collection" onClick={closeMenu}>Sammeln</Link>
+          <Link to="/quests" onClick={closeMenu}>Quests</Link>
+          <Link to="/statistics" onClick={closeMenu}>Statistik</Link>
+          <Link to="/players" onClick={closeMenu}>Spieler</Link>
+          <Link to="/guilds" onClick={closeMenu}>Gilden</Link>
+          <Link to="/messages" className="navbar-messages desktop-messages" onClick={closeMenu}>
             📬
             {unreadCount > 0 && (
               <span className="message-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
             )}
           </Link>
           <div className="navbar-user">
-            <Link to="/profile" className="navbar-username">
+            <Link to="/profile" className="navbar-username" onClick={closeMenu}>
               {user?.username}
             </Link>
             <span className={`role-badge role-${user?.role}`}>{user?.role}</span>

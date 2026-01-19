@@ -984,3 +984,241 @@
   0%, 100% { box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
   50% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.8); }
 }
+
+/* ============== MOBILE STYLES ============== */
+@media (max-width: 768px) {
+  .map-page {
+    padding: 10px;
+  }
+
+  .map-page h1 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+
+  .map-wrapper {
+    margin: 0.5rem 0;
+  }
+
+  .map-container {
+    border-radius: 8px;
+  }
+
+  .map-container canvas {
+    max-width: 100%;
+    height: auto !important;
+    touch-action: none;
+  }
+
+  /* Overlay adjustments for mobile */
+  .map-overlay.top-left,
+  .map-overlay.top-right,
+  .map-overlay.bottom-left,
+  .map-overlay.bottom-right {
+    position: absolute;
+  }
+
+  .map-overlay.top-left {
+    top: 5px;
+    left: 5px;
+  }
+
+  .map-overlay.top-right {
+    top: 5px;
+    right: 5px;
+  }
+
+  .map-overlay.bottom-left {
+    bottom: 5px;
+    left: 5px;
+  }
+
+  .map-overlay.bottom-right {
+    bottom: 5px;
+    right: 5px;
+  }
+
+  /* Smaller overlay panels */
+  .overlay-panel {
+    border-radius: 8px;
+  }
+
+  .overlay-panel.position-info {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  .coord-label {
+    font-size: 1rem;
+  }
+
+  .coord-value {
+    font-size: 0.85rem;
+  }
+
+  /* Smaller buttons */
+  .overlay-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  .overlay-panel.action-buttons {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  /* Zoom controls */
+  .overlay-panel.zoom-controls {
+    padding: 6px;
+  }
+
+  .zoom-controls .zoom-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+  }
+
+  .zoom-value {
+    font-size: 0.75rem;
+  }
+
+  /* Pan controls */
+  .overlay-panel.pan-controls {
+    padding: 6px;
+  }
+
+  .pan-controls .pan-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+
+  /* Travel panel */
+  .overlay-panel.travel-panel {
+    padding: 10px 12px;
+    min-width: 200px;
+    max-width: calc(100vw - 100px);
+  }
+
+  .travel-time {
+    font-size: 0.9rem;
+  }
+
+  .travel-progress-bar {
+    height: 6px;
+  }
+
+  .travel-cancel-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* Players panel */
+  .overlay-panel.players-panel {
+    max-width: calc(100vw - 20px);
+    max-height: 150px;
+  }
+
+  .players-panel h4 {
+    font-size: 0.85rem;
+    padding: 8px 10px;
+  }
+
+  .nearby-list {
+    max-height: 100px;
+  }
+
+  .nearby-player {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  /* Interaction panel (NPC/Player details) */
+  .interaction-panel {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 60vh;
+    border-radius: 16px 16px 0 0;
+    z-index: 1000;
+  }
+
+  .interaction-panel .panel-header {
+    padding: 12px 15px;
+  }
+
+  .interaction-panel .panel-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .interaction-panel .panel-content {
+    padding: 12px 15px;
+    max-height: calc(60vh - 100px);
+    overflow-y: auto;
+  }
+
+  .interaction-panel .panel-actions {
+    padding: 10px 15px;
+    gap: 8px;
+  }
+
+  .interaction-panel .panel-actions button {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  /* Shop panel */
+  .shop-section {
+    padding: 10px;
+  }
+
+  .shop-item {
+    padding: 8px;
+  }
+
+  .shop-item img {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Combat result */
+  .combat-result {
+    padding: 12px;
+  }
+
+  .combat-result h4 {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .map-page h1 {
+    font-size: 1.3rem;
+  }
+
+  .overlay-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+
+  .zoom-controls .zoom-btn,
+  .pan-controls .pan-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+
+  .overlay-panel.travel-panel {
+    min-width: 180px;
+  }
+
+  .interaction-panel {
+    max-height: 70vh;
+  }
+}

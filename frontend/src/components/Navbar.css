@@ -236,3 +236,145 @@
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.1); }
 }
+
+/* Mobile Hamburger Menu */
+.navbar-toggle {
+  display: none;
+  background: none;
+  border: 2px solid #5a4a2a;
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  color: #d4af37;
+  font-size: 1.5rem;
+}
+
+.navbar-toggle:hover {
+  background: rgba(212, 175, 55, 0.1);
+}
+
+/* Mobile Styles */
+@media (max-width: 1024px) {
+  .navbar-container {
+    padding: 0 1rem;
+  }
+  
+  .navbar-links {
+    gap: 0.8rem;
+  }
+  
+  .navbar-links a {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
+    letter-spacing: 0.5px;
+  }
+  
+  .navbar-user {
+    margin-left: 1rem;
+    padding-left: 1rem;
+  }
+}
+
+/* Desktop/Mobile message icon visibility */
+.mobile-messages {
+  display: none;
+}
+
+.desktop-messages {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0.5rem 0;
+  }
+  
+  .navbar-container {
+    flex-wrap: wrap;
+    position: relative;
+  }
+  
+  .navbar-toggle {
+    display: block;
+    order: 2;
+  }
+  
+  .navbar-brand {
+    order: 0;
+    flex: 1;
+  }
+  
+  .mobile-messages {
+    display: flex;
+    order: 1;
+    margin-right: 10px;
+  }
+  
+  .desktop-messages {
+    display: none !important;
+  }
+  
+  .navbar-links {
+    order: 3;
+    width: 100%;
+    flex-direction: column;
+    gap: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    background: rgba(20, 15, 30, 0.98);
+    border-top: 1px solid #5a4a2a;
+    margin-top: 0.5rem;
+  }
+  
+  .navbar-links.open {
+    max-height: 500px;
+    padding: 0.5rem 0;
+  }
+  
+  .navbar-links a {
+    width: 100%;
+    text-align: center;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid rgba(90, 74, 42, 0.3);
+    font-size: 0.9rem;
+  }
+  
+  .navbar-links a::before {
+    display: none;
+  }
+  
+  .navbar-user {
+    width: 100%;
+    justify-content: center;
+    margin: 0;
+    padding: 0.8rem 0;
+    border-left: none;
+    border-top: 1px solid #5a4a2a;
+  }
+  
+  .role-badge {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-container {
+    padding: 0 0.5rem;
+  }
+  
+  .navbar-brand {
+    transform: scale(0.85);
+    transform-origin: left center;
+  }
+  
+  .navbar-links a {
+    font-size: 0.85rem;
+    padding: 0.7rem;
+  }
+  
+  .navbar-username {
+    font-size: 0.85rem;
+  }
+}
