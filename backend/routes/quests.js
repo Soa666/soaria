@@ -6,6 +6,27 @@ import { updateStatistic } from '../helpers/statistics.js';
 
 const router = express.Router();
 
+// Get statistics for a user - MUST be before /:questId routes!
+router.get('/statistics', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Make sure statistics exist
+    await db.run('INSERT OR IGNORE INTO user_statistics (user_id) VALUES (?)', [userId]);
+
+    const stats = await db.get('SELECT * FROM user_statistics WHERE user_id = ?', [userId]);
+    const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+
+    res.json({ 
+      statistics: stats,
+      username: user?.username
+    });
+  } catch (error) {
+    console.error('Get statistics error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // Get all available and active quests for user
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -437,27 +458,6 @@ router.delete('/admin/:id', authenticateToken, requirePermission('manage_items')
   } catch (error) {
     console.error('Delete quest error:', error);
     res.status(500).json({ error: 'Serverfehler beim Löschen' });
-  }
-});
-
-// Get statistics for a user
-router.get('/statistics/:userId?', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.params.userId || req.user.id;
-    
-    // Make sure statistics exist
-    await db.run('INSERT OR IGNORE INTO user_statistics (user_id) VALUES (?)', [userId]);
-
-    const stats = await db.get('SELECT * FROM user_statistics WHERE user_id = ?', [userId]);
-    const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
-
-    res.json({ 
-      statistics: stats,
-      username: user?.username
-    });
-  } catch (error) {
-    console.error('Get statistics error:', error);
-    res.status(500).json({ error: 'Serverfehler' });
   }
 });
 
