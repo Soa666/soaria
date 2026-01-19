@@ -6,6 +6,7 @@ import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendActivationEmail } from '../utils/email.js';
 import { sendDiscordRegistrationNotification } from '../utils/discord.js';
+import { updateStatistic, updateQuestObjectiveProgress } from '../helpers/statistics.js';
 
 const router = express.Router();
 
@@ -189,6 +190,12 @@ router.post('/login', async (req, res) => {
 
     // Update last login
     await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+
+    // Track login statistics
+    await updateStatistic(user.id, 'logins', 1);
+
+    // Check for daily login quests
+    await checkDailyLoginQuest(user.id);
 
     // Generate token
     const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
@@ -410,5 +417,102 @@ router.post('/resend-activation', async (req, res) => {
     res.status(500).json({ error: 'Serverfehler beim Senden der Aktivierungs-E-Mail' });
   }
 });
+
+// Helper: Check and complete daily login quest
+async function checkDailyLoginQuest(userId) {
+  try {
+    // Find active daily login quests for this user
+    const activeLoginQuests = await db.all(`
+      SELECT uq.quest_id, qo.id as objective_id
+      FROM user_quests uq
+      JOIN quest_objectives qo ON qo.quest_id = uq.quest_id
+      WHERE uq.user_id = ? AND uq.status = 'active' AND qo.objective_type = 'daily_login'
+    `, [userId]);
+
+    for (const quest of activeLoginQuests) {
+      // Update the objective progress to 1 (completed)
+      await db.run(`
+        INSERT INTO user_quest_progress (user_id, quest_id, objective_id, current_amount, is_completed)
+        VALUES (?, ?, ?, 1, 1)
+        ON CONFLICT(user_id, objective_id) DO UPDATE SET 
+          current_amount = 1, is_completed = 1
+      `, [userId, quest.quest_id, quest.objective_id]);
+
+      // Check if all objectives for this quest are now completed
+      const incompleteObjectives = await db.get(`
+        SELECT COUNT(*) as count
+        FROM quest_objectives qo
+        LEFT JOIN user_quest_progress uqp ON qo.id = uqp.objective_id AND uqp.user_id = ?
+        WHERE qo.quest_id = ? AND (uqp.is_completed IS NULL OR uqp.is_completed = 0)
+      `, [userId, quest.quest_id]);
+
+      if (incompleteObjectives.count === 0) {
+        // Mark quest as completed
+        await db.run(`
+          UPDATE user_quests 
+          SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+          WHERE user_id = ? AND quest_id = ?
+        `, [userId, quest.quest_id]);
+      }
+    }
+
+    // Auto-accept daily login quests that aren't started yet
+    const availableDailyQuests = await db.all(`
+      SELECT q.id 
+      FROM quests q
+      JOIN quest_objectives qo ON qo.quest_id = q.id
+      LEFT JOIN user_quests uq ON uq.quest_id = q.id AND uq.user_id = ?
+      WHERE q.is_active = 1 
+        AND q.category = 'daily' 
+        AND qo.objective_type = 'daily_login'
+        AND (uq.id IS NULL OR (uq.status = 'claimed' AND q.is_repeatable = 1))
+    `, [userId]);
+
+    for (const quest of availableDailyQuests) {
+      // Auto-start the quest
+      await db.run(`
+        INSERT INTO user_quests (user_id, quest_id, status, started_at)
+        VALUES (?, ?, 'active', CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id, quest_id) DO UPDATE SET 
+          status = 'active', 
+          started_at = CURRENT_TIMESTAMP,
+          completed_at = NULL,
+          claimed_at = NULL
+      `, [userId, quest.id]);
+
+      // Initialize and complete the login objective
+      const objectives = await db.all('SELECT id FROM quest_objectives WHERE quest_id = ?', [quest.id]);
+      for (const obj of objectives) {
+        const objType = await db.get('SELECT objective_type FROM quest_objectives WHERE id = ?', [obj.id]);
+        const isLoginObj = objType?.objective_type === 'daily_login';
+        
+        await db.run(`
+          INSERT INTO user_quest_progress (user_id, quest_id, objective_id, current_amount, is_completed)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(user_id, objective_id) DO UPDATE SET 
+            current_amount = ?, is_completed = ?
+        `, [userId, quest.id, obj.id, isLoginObj ? 1 : 0, isLoginObj ? 1 : 0, isLoginObj ? 1 : 0, isLoginObj ? 1 : 0]);
+      }
+
+      // Check if quest is now completed (only has login objective)
+      const incompleteObjectives = await db.get(`
+        SELECT COUNT(*) as count
+        FROM quest_objectives qo
+        LEFT JOIN user_quest_progress uqp ON qo.id = uqp.objective_id AND uqp.user_id = ?
+        WHERE qo.quest_id = ? AND (uqp.is_completed IS NULL OR uqp.is_completed = 0)
+      `, [userId, quest.id]);
+
+      if (incompleteObjectives.count === 0) {
+        await db.run(`
+          UPDATE user_quests 
+          SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+          WHERE user_id = ? AND quest_id = ?
+        `, [userId, quest.id]);
+      }
+    }
+  } catch (error) {
+    console.error('Check daily login quest error:', error);
+  }
+}
 
 export default router;

@@ -918,16 +918,7 @@ export async function initDatabase() {
     CREATE TABLE IF NOT EXISTS quest_objectives (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       quest_id INTEGER NOT NULL,
-      objective_type TEXT NOT NULL CHECK(objective_type IN (
-        'kill_monster', 'kill_boss', 'kill_specific_monster',
-        'collect_resource', 'collect_specific_item',
-        'craft_item', 'craft_specific_item', 'craft_equipment',
-        'build_building', 'upgrade_building', 'build_specific_building',
-        'travel_distance', 'visit_location',
-        'reach_level', 'earn_gold', 'spend_gold',
-        'complete_trade', 'send_message',
-        'defeat_player'
-      )),
+      objective_type TEXT NOT NULL,
       target_id INTEGER,
       target_name TEXT,
       required_amount INTEGER DEFAULT 1,
@@ -993,6 +984,9 @@ export async function initDatabase() {
   for (const user of usersWithoutStatistics) {
     await db.run('INSERT INTO user_statistics (user_id) VALUES (?)', [user.id]);
   }
+
+  // Insert default daily login quest
+  await insertDefaultQuests();
 
   // Insert default monsters
   await insertDefaultMonsters();
@@ -1927,6 +1921,46 @@ async function insertDefaultBuildings() {
         // Already has werkbank
       }
     }
+  }
+}
+
+// Insert default quests
+async function insertDefaultQuests() {
+  // Check if daily login quest already exists
+  const existingQuest = await db.get("SELECT id FROM quests WHERE name = 'daily_login'");
+  if (existingQuest) return;
+
+  try {
+    // Create daily login quest
+    const result = await db.run(`
+      INSERT INTO quests (
+        name, display_name, description, category,
+        is_repeatable, cooldown_hours, min_level,
+        reward_gold, reward_experience, sort_order, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      'daily_login',
+      'Täglicher Login',
+      'Logge dich heute ein und erhalte deine tägliche Belohnung!',
+      'daily',
+      1,  // is_repeatable
+      24, // cooldown_hours (24 hours)
+      1,  // min_level
+      10, // reward_gold
+      20, // reward_experience
+      0,  // sort_order (first)
+      1   // is_active
+    ]);
+
+    // Add the login objective
+    await db.run(`
+      INSERT INTO quest_objectives (quest_id, objective_type, required_amount, description, sort_order)
+      VALUES (?, ?, ?, ?, ?)
+    `, [result.lastID, 'daily_login', 1, 'Einmal einloggen', 0]);
+
+    console.log('[DB] Default daily login quest created');
+  } catch (error) {
+    console.error('Error creating default quest:', error);
   }
 }
 

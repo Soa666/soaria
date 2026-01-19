@@ -102,6 +102,7 @@ function Quests() {
 
   const getObjectiveIcon = (type) => {
     const icons = {
+      daily_login: '🌅',
       kill_monster: '⚔️',
       kill_boss: '👑',
       kill_specific_monster: '🎯',

@@ -3,6 +3,7 @@ import api from '../../services/api';
 import './QuestManagement.css';
 
 const OBJECTIVE_TYPES = [
+  { value: 'daily_login', label: 'Täglicher Login', icon: '🌅' },
   { value: 'kill_monster', label: 'Monster töten (beliebig)', icon: '⚔️' },
   { value: 'kill_boss', label: 'Boss töten (beliebig)', icon: '👑' },
   { value: 'kill_specific_monster', label: 'Bestimmtes Monster töten', icon: '🎯' },

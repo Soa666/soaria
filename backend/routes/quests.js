@@ -6,6 +6,18 @@ import { updateStatistic } from '../helpers/statistics.js';
 
 const router = express.Router();
 
+// ============== OBJECTIVE TYPES ==============
+const OBJECTIVE_TYPES = [
+  'kill_monster', 'kill_boss', 'kill_specific_monster',
+  'collect_resource', 'collect_specific_item',
+  'craft_item', 'craft_specific_item', 'craft_equipment',
+  'build_building', 'upgrade_building', 'build_specific_building',
+  'travel_distance', 'visit_location',
+  'reach_level', 'earn_gold', 'spend_gold',
+  'complete_trade', 'send_message',
+  'defeat_player', 'daily_login'
+];
+
 // Get statistics for a user - MUST be before /:questId routes!
 router.get('/statistics', authenticateToken, async (req, res) => {
   try {
