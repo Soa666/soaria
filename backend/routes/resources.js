@@ -513,6 +513,59 @@ router.post('/gather/cancel', authenticateToken, async (req, res) => {
   }
 });
 
+// Clear all stuck/old jobs for user (emergency cleanup)
+router.post('/clear-stuck-jobs', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const results = {
+      gathering: 0,
+      collection: 0,
+      building: 0,
+      crafting: 0
+    };
+
+    // Clear stuck gathering jobs
+    const gatheringResult = await db.run(`
+      UPDATE gathering_jobs SET is_cancelled = 1 
+      WHERE user_id = ? AND is_completed = 0 AND is_cancelled = 0
+    `, [userId]);
+    results.gathering = gatheringResult.changes || 0;
+
+    // Clear stuck collection jobs (mark as collected)
+    const collectionResult = await db.run(`
+      DELETE FROM collection_jobs 
+      WHERE user_id = ? AND completed_at <= datetime('now')
+    `, [userId]);
+    results.collection = collectionResult.changes || 0;
+
+    // Clear stuck building jobs
+    const buildingResult = await db.run(`
+      UPDATE building_jobs SET status = 'cancelled' 
+      WHERE user_id = ? AND status = 'in_progress' AND completed_at <= datetime('now')
+    `, [userId]);
+    results.building = buildingResult.changes || 0;
+
+    // Clear stuck crafting jobs
+    const craftingResult = await db.run(`
+      UPDATE crafting_jobs SET is_completed = 1, is_cancelled = 1 
+      WHERE user_id = ? AND is_completed = 0
+    `, [userId]);
+    results.crafting = craftingResult.changes || 0;
+
+    const total = results.gathering + results.collection + results.building + results.crafting;
+
+    res.json({ 
+      message: total > 0 
+        ? `${total} blockierte Aufträge wurden bereinigt!` 
+        : 'Keine blockierten Aufträge gefunden.',
+      cleared: results
+    });
+  } catch (error) {
+    console.error('Clear stuck jobs error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // ============== TOOL CRAFTING ==============
 
 // Give starter tool (first tool is free)
@@ -618,6 +671,90 @@ router.post('/admin/spawn-nodes', authenticateToken, requirePermission('manage_i
     res.json({ message: `${spawned}x ${nodeType.display_name} gespawnt!` });
   } catch (error) {
     console.error('Spawn nodes error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Add drop to node type (admin)
+router.post('/admin/node-types/:nodeTypeId/drops', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { nodeTypeId } = req.params;
+    const { itemId, dropChance = 100, minQuantity = 1, maxQuantity = 1, minToolTier = 0, isRare = false } = req.body;
+
+    // Verify node type exists
+    const nodeType = await db.get('SELECT * FROM resource_node_types WHERE id = ?', [nodeTypeId]);
+    if (!nodeType) {
+      return res.status(404).json({ error: 'Ressourcen-Typ nicht gefunden' });
+    }
+
+    // Verify item exists
+    const item = await db.get('SELECT * FROM items WHERE id = ?', [itemId]);
+    if (!item) {
+      return res.status(404).json({ error: 'Item nicht gefunden' });
+    }
+
+    // Check if drop already exists
+    const existingDrop = await db.get(
+      'SELECT * FROM resource_node_drops WHERE node_type_id = ? AND item_id = ?',
+      [nodeTypeId, itemId]
+    );
+
+    if (existingDrop) {
+      // Update existing
+      await db.run(`
+        UPDATE resource_node_drops 
+        SET drop_chance = ?, min_quantity = ?, max_quantity = ?, min_tool_tier = ?, is_rare = ?
+        WHERE node_type_id = ? AND item_id = ?
+      `, [dropChance, minQuantity, maxQuantity, minToolTier, isRare ? 1 : 0, nodeTypeId, itemId]);
+      
+      res.json({ message: `Drop für ${item.display_name} aktualisiert!` });
+    } else {
+      // Insert new
+      await db.run(`
+        INSERT INTO resource_node_drops (node_type_id, item_id, drop_chance, min_quantity, max_quantity, min_tool_tier, is_rare)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [nodeTypeId, itemId, dropChance, minQuantity, maxQuantity, minToolTier, isRare ? 1 : 0]);
+
+      res.json({ message: `Drop ${item.display_name} zu ${nodeType.display_name} hinzugefügt!` });
+    }
+  } catch (error) {
+    console.error('Add drop error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete drop from node type (admin)
+router.delete('/admin/node-types/:nodeTypeId/drops/:itemId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { nodeTypeId, itemId } = req.params;
+
+    const result = await db.run(
+      'DELETE FROM resource_node_drops WHERE node_type_id = ? AND item_id = ?',
+      [nodeTypeId, itemId]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Drop nicht gefunden' });
+    }
+
+    res.json({ message: 'Drop entfernt!' });
+  } catch (error) {
+    console.error('Delete drop error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get all items (for dropdown in admin)
+router.get('/admin/items', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const items = await db.all(`
+      SELECT id, name, display_name, type, rarity, image_path 
+      FROM items 
+      ORDER BY type, display_name
+    `);
+    res.json({ items });
+  } catch (error) {
+    console.error('Get items error:', error);
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
