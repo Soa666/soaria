@@ -5,12 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Tileset configuration - OpenGameArt Overworld tileset
-const TILE_SIZE = 16; // 16x16 pixel tiles
-const TILE_MARGIN = 0; // No margin
-const TILE_SPACING = TILE_SIZE; // 16px per tile slot
-const TILESET_COLUMNS = 21; // 336px / 16px = 21 columns
-const TILESET_URL = '/world/overworld.png';
+// Map rendering configuration
+const TILE_SIZE = 16; // Virtual tile size for world grid
 
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
@@ -64,64 +60,35 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
   return value / maxValue;
 }
 
-// Get tile ID based on terrain type and variation
-// OpenGameArt Overworld tileset: 21 columns x 9 rows (336x144 pixels, 16x16 tiles)
-// Row 0: Yellow grass (0-3), green grass (4-5), water edges
-// Row 1: Green grass, house
-// Row 2: Water, grass with trees
-// Row 3-4: Trees/forest
-// Row 5: Mountains
-// Row 6-8: Buildings, items
-function getTileForTerrain(terrain, variation) {
-  const C = 21; // 21 columns
-  
-  const tiles = {
-    // Grass - Row 0 col 4-5, Row 1 col 0-3 (green grass)
-    grass: [
-      0*C + 4, 0*C + 5,           // Row 0: green grass
-      1*C + 0, 1*C + 1, 1*C + 2,  // Row 1: green grass
-    ],
-    // Dirt/path - Use grass edge tiles
-    dirt: [
-      0*C + 0, 0*C + 1, 0*C + 2,  // Yellow grass as dirt
-    ],
-    // Water - Row 0 col 6-8, Row 2 col 0-2
-    water: [
-      2*C + 0, 2*C + 1,  // Water tiles
-    ],
-    deepWater: [
-      2*C + 1, 2*C + 1,  // Center water
-    ],
-    // Forest/Trees - Row 3-4
-    forest: [
-      3*C + 0, 3*C + 1, 3*C + 2, 3*C + 3,  // Tree tops
-      4*C + 0, 4*C + 1, 4*C + 2, 4*C + 3,  // Tree bottoms
-    ],
-    trees: [
-      3*C + 0, 3*C + 2, 4*C + 0, 4*C + 2,
-    ],
-    // Mountains/Cliffs - Row 5
-    cliff: [
-      5*C + 0, 5*C + 1, 5*C + 2, 5*C + 3,
-      5*C + 4, 5*C + 5, 5*C + 6,
-    ],
-    // Flowers - Use grass with details
-    flowers: [
-      1*C + 0, 1*C + 1, 0*C + 4, 0*C + 5,
-    ],
-    // Path - Yellow/tan tiles
-    path: [
-      0*C + 0, 0*C + 1, 0*C + 2, 0*C + 3,
-    ],
-    // Sand - Yellow grass tiles
-    sand: [
-      0*C + 0, 0*C + 1, 0*C + 2, 0*C + 3,
-    ]
+// Get color for terrain type with variation for natural look
+function getTerrainColor(terrain, variation) {
+  // Base colors with slight variations for natural appearance
+  const colors = {
+    // Grass - multiple shades of green
+    grass: ['#4a7c3f', '#5a8c4f', '#4a8040', '#558048', '#4d7842', '#5c8b52'],
+    // Deep forest - darker greens
+    forest: ['#2d5a2d', '#3a6b3a', '#2f5c2f', '#356535', '#325e32', '#3d6d3d'],
+    // Trees/lighter forest
+    trees: ['#3d6b3d', '#4a7a4a', '#3f6d3f', '#457545', '#427042', '#4d7d4d'],
+    // Water - blues
+    water: ['#3a8bbd', '#4a9bcd', '#3590c0', '#4095c5', '#3888b5', '#4598c8'],
+    // Deep water - darker blues  
+    deepWater: ['#1a5a8a', '#2a6a9a', '#1f5f8f', '#256595', '#1c5c8c', '#286898'],
+    // Sand/beach - tan/beige
+    sand: ['#d4b896', '#c9ad8b', '#dfc4a1', '#d0b090', '#dbc09c', '#c5a885'],
+    // Dirt/path - browns
+    dirt: ['#8b7355', '#9b8365', '#806848', '#927a5a', '#856f50', '#9a8060'],
+    // Mountains/cliffs - grays
+    cliff: ['#6b6b6b', '#7a7a7a', '#606060', '#757575', '#686868', '#808080'],
+    // Flowers - grass with hint of color
+    flowers: ['#5a8c5a', '#6a9c6a', '#5f915f', '#659565', '#5b8d5b', '#6b9b6b'],
+    // Path - lighter brown
+    path: ['#a08060', '#b09070', '#9a7a5a', '#a88868', '#9c7c5c', '#ae8c70'],
   };
   
-  const tileSet = tiles[terrain] || tiles.grass;
-  const index = Math.floor(variation * tileSet.length) % tileSet.length;
-  return tileSet[index];
+  const colorSet = colors[terrain] || colors.grass;
+  const index = Math.floor(variation * colorSet.length) % colorSet.length;
+  return colorSet[index];
 }
 
 // Check if terrain is water
@@ -129,82 +96,105 @@ function isWaterTerrain(terrain) {
   return terrain === 'water' || terrain === 'deepWater';
 }
 
-// Generate terrain type based on noise
+// Generate terrain type based on noise - creates a beautiful varied world
 function getTerrainAt(worldX, worldY) {
-  // Large-scale continent noise (very smooth, large features)
-  const continent = fractalNoise(worldX, worldY, 4, 0.5, 0.002, 0);
+  // === NOISE LAYERS ===
+  // Continent shape - very large scale features (islands, continents)
+  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.001, 12345);
   
-  // Medium-scale elevation
-  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.006, 10000);
+  // Elevation - medium scale hills and valleys
+  const elevation = fractalNoise(worldX, worldY, 6, 0.5, 0.004, 54321);
   
-  // Moisture for vegetation
-  const moisture = fractalNoise(worldX, worldY, 4, 0.5, 0.01, 50000);
+  // Moisture - determines vegetation
+  const moisture = fractalNoise(worldX, worldY, 4, 0.5, 0.008, 98765);
   
-  // Detail noise
-  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.025, 100000);
+  // Temperature - varies with latitude (worldY) and elevation
+  const tempBase = fractalNoise(worldX, worldY, 3, 0.5, 0.003, 11111);
+  const temperature = tempBase * 0.7 + (1 - Math.abs(worldY) / 3000) * 0.3;
   
-  // River noise - creates winding rivers (less frequent)
-  const riverBase = fractalNoise(worldX, worldY, 3, 0.6, 0.003, 77777);
-  const riverWind = Math.sin(worldX * 0.004 + riverBase * 3) * 0.5 + 
-                    Math.cos(worldY * 0.004 + riverBase * 3) * 0.5;
-  const riverValue = Math.abs(riverWind + fractalNoise(worldX, worldY, 2, 0.5, 0.008, 88888) * 0.2);
+  // Detail noise for small features
+  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.02, 22222);
   
-  // Combined height value - bias towards land
-  const height = continent * 0.5 + elevation * 0.5;
+  // River system - creates winding rivers from mountains to sea
+  const riverNoise = fractalNoise(worldX, worldY, 4, 0.6, 0.002, 33333);
+  const riverPath = Math.sin(worldX * 0.003 + riverNoise * 4) * 0.5 + 
+                    Math.cos(worldY * 0.003 - riverNoise * 4) * 0.5;
+  const riverStrength = Math.abs(riverPath + fractalNoise(worldX, worldY, 2, 0.5, 0.006, 44444) * 0.15);
   
-  // Ocean - only at very low continent values (less ocean)
-  if (continent < 0.2) {
-    if (continent < 0.12) return 'deepWater';
+  // Combined height
+  const height = continent * 0.6 + elevation * 0.4;
+  
+  // === TERRAIN DETERMINATION ===
+  
+  // Deep Ocean (very low continent values)
+  if (continent < 0.25) {
+    return 'deepWater';
+  }
+  
+  // Shallow Ocean / Coast
+  if (continent < 0.32) {
     return 'water';
   }
   
-  // Small lakes - rare
-  if (height < 0.28 && continent > 0.25 && continent < 0.35 && elevation < 0.3) {
-    return 'water';
-  }
-  
-  // Rivers - thin winding paths (narrower)
-  if (riverValue < 0.04 && height > 0.35 && height < 0.7 && continent > 0.3) {
-    if (riverValue < 0.02) return 'deepWater';
-    return 'water';
-  }
-  
-  // Beach/sand (narrow strip near water)
-  if (continent > 0.2 && continent < 0.28) {
+  // Beach (narrow coastal strip)
+  if (continent < 0.38 && elevation < 0.5) {
     return 'sand';
   }
   
-  // Mountains/cliffs (high elevation)
-  if (height > 0.78) {
+  // Lakes (depressions in land)
+  if (height < 0.35 && continent > 0.4 && elevation < 0.28) {
+    if (elevation < 0.2) return 'deepWater';
+    return 'water';
+  }
+  
+  // Rivers (winding through valleys)
+  if (riverStrength < 0.03 && height > 0.38 && height < 0.7 && continent > 0.4) {
+    return 'water';
+  }
+  
+  // High Mountains (peaks)
+  if (height > 0.82) {
     return 'cliff';
   }
   
-  // Forest (high moisture, medium elevation)
-  if (moisture > 0.55 && height > 0.4 && height < 0.75) {
-    if (moisture > 0.7 && detail > 0.4) return 'forest';
-    if (moisture > 0.6) return 'trees';
-  }
-  
-  // Scattered trees
-  if (detail > 0.72 && moisture > 0.48 && height > 0.4) {
-    return 'trees';
-  }
-  
-  // Paths
-  if (detail > 0.47 && detail < 0.53 && height > 0.38 && height < 0.68) {
-    return 'path';
-  }
-  
-  // Flowers
-  if (detail > 0.85 && moisture > 0.42 && height > 0.4) {
-    return 'flowers';
-  }
-  
-  // Dirt patches
-  if (moisture < 0.32 && height > 0.45 && height < 0.68 && detail > 0.6) {
+  // Mountain slopes
+  if (height > 0.72) {
+    if (detail > 0.6) return 'cliff';
     return 'dirt';
   }
   
+  // Dense Forest (high moisture, moderate elevation)
+  if (moisture > 0.65 && height > 0.4 && height < 0.7 && temperature > 0.35) {
+    return 'forest';
+  }
+  
+  // Light Forest / Woods
+  if (moisture > 0.5 && height > 0.38 && height < 0.72 && temperature > 0.3) {
+    if (detail > 0.5) return 'trees';
+    return 'forest';
+  }
+  
+  // Scattered Trees
+  if (detail > 0.7 && moisture > 0.4 && height > 0.38 && height < 0.7) {
+    return 'trees';
+  }
+  
+  // Flower meadows (specific conditions)
+  if (detail > 0.8 && moisture > 0.45 && moisture < 0.6 && height > 0.4 && height < 0.55) {
+    return 'flowers';
+  }
+  
+  // Dirt/dry areas (low moisture)
+  if (moisture < 0.35 && height > 0.4 && height < 0.65) {
+    if (detail > 0.55) return 'dirt';
+  }
+  
+  // Paths (rare, connects areas)
+  if (detail > 0.48 && detail < 0.52 && height > 0.4 && height < 0.6) {
+    return 'path';
+  }
+  
+  // Default: Grassland
   return 'grass';
 }
 
@@ -239,8 +229,6 @@ function Map() {
   const [pendingTravel, setPendingTravel] = useState(null);
   const [currentUserPosition, setCurrentUserPosition] = useState(null);
   const [npcShopData, setNpcShopData] = useState(null);
-  const [tilesetImage, setTilesetImage] = useState(null);
-  const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [highlightedPlayer, setHighlightedPlayer] = useState(null);
   // Check if we have URL target params on initial load
   const [hasInitialTarget, setHasInitialTarget] = useState(() => {
@@ -251,22 +239,6 @@ function Map() {
   const [selectedResource, setSelectedResource] = useState(null);
   const [gatheringJob, setGatheringJob] = useState(null);
   const [userTools, setUserTools] = useState([]);
-
-  // Load tileset image
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      setTilesetImage(img);
-      setTilesetLoaded(true);
-      console.log('Tileset loaded:', img.width, 'x', img.height);
-    };
-    img.onerror = (e) => {
-      console.error('Failed to load tileset:', e);
-      setTilesetLoaded(false);
-    };
-    img.src = TILESET_URL;
-  }, []);
 
   // Handle URL parameters (e.g., from player profile "Show on map")
   useEffect(() => {
@@ -393,7 +365,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, tilesetLoaded, animationFrame, currentUserPosition, travelStatus, resourceNodes]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes]);
 
   const fetchPlayers = async () => {
     try {
@@ -600,22 +572,6 @@ function Map() {
     }
   };
 
-  // Helper to draw a tile from the tileset
-  const drawTile = (ctx, tileId, destX, destY, destSize) => {
-    if (!tilesetImage || !tilesetLoaded || tileId < 0) return;
-    
-    const col = tileId % TILESET_COLUMNS;
-    const row = Math.floor(tileId / TILESET_COLUMNS);
-    const srcX = col * TILE_SIZE;
-    const srcY = row * TILE_SIZE;
-    
-    ctx.drawImage(
-      tilesetImage,
-      srcX, srcY, TILE_SIZE, TILE_SIZE,
-      destX, destY, destSize, destSize
-    );
-  };
-
   const drawMap = () => {
     try {
       const canvas = canvasRef.current;
@@ -632,8 +588,8 @@ function Map() {
       const centerX = width / 2;
       const centerY = height / 2;
 
-      // Clear canvas with base color
-      ctx.fillStyle = '#2d4a2d';
+      // Clear canvas with ocean color
+      ctx.fillStyle = '#1a5a8a';
       ctx.fillRect(0, 0, width, height);
 
       // Tile size in world units (each tile covers 16x16 world units)
@@ -653,10 +609,7 @@ function Map() {
       const endTileX = Math.ceil(endWorldX / worldTileSize) + 1;
       const endTileY = Math.ceil(endWorldY / worldTileSize) + 1;
 
-      // Enable image smoothing for better tile scaling
-      ctx.imageSmoothingEnabled = false; // Pixelated look for retro style
-
-      // Draw terrain tiles
+      // Draw terrain tiles with color-based rendering
       for (let tileX = startTileX; tileX <= endTileX; tileX++) {
         for (let tileY = startTileY; tileY <= endTileY; tileY++) {
           const terrain = getTerrainAt(tileX, tileY);
@@ -672,25 +625,38 @@ function Map() {
             continue;
           }
 
-          if (tilesetImage && tilesetLoaded) {
-            // Draw from tileset
-            const tileId = getTileForTerrain(terrain, variation);
-            drawTile(ctx, tileId, screenX, screenY, renderTileSize + 0.5); // +0.5 to avoid gaps
-          } else {
-            // Fallback: colored rectangles
-            const colors = {
-              grass: '#4a6b3a',
-              dirt: '#8b7355',
-              water: '#4a90c2',
-              deepWater: '#2a5080',
-              forest: '#2d4a2d',
-              trees: '#3d5c3d',
-              cliff: '#6b6b6b',
-              flowers: '#4a6b3a',
-              path: '#a08060'
-            };
-            ctx.fillStyle = colors[terrain] || colors.grass;
-            ctx.fillRect(screenX, screenY, renderTileSize + 1, renderTileSize + 1);
+          // Draw terrain with varied colors for natural look
+          ctx.fillStyle = getTerrainColor(terrain, variation);
+          ctx.fillRect(screenX, screenY, renderTileSize + 1, renderTileSize + 1);
+          
+          // Add subtle texture/details for certain terrain types
+          if (terrain === 'forest' || terrain === 'trees') {
+            // Add tree-like dots
+            ctx.fillStyle = 'rgba(20, 50, 20, 0.4)';
+            const dotSize = Math.max(2, renderTileSize * 0.2);
+            ctx.beginPath();
+            ctx.arc(screenX + renderTileSize * 0.3, screenY + renderTileSize * 0.4, dotSize, 0, Math.PI * 2);
+            ctx.arc(screenX + renderTileSize * 0.7, screenY + renderTileSize * 0.6, dotSize * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (terrain === 'flowers') {
+            // Add flower dots
+            const colors = ['#ff6b6b', '#ffd93d', '#ff85a2', '#c56cf0'];
+            const flowerColor = colors[Math.floor(variation * colors.length)];
+            ctx.fillStyle = flowerColor;
+            const dotSize = Math.max(1, renderTileSize * 0.1);
+            ctx.fillRect(screenX + renderTileSize * 0.3, screenY + renderTileSize * 0.3, dotSize, dotSize);
+            ctx.fillRect(screenX + renderTileSize * 0.6, screenY + renderTileSize * 0.7, dotSize, dotSize);
+          } else if (terrain === 'cliff') {
+            // Add rocky texture
+            ctx.fillStyle = 'rgba(90, 90, 90, 0.3)';
+            ctx.fillRect(screenX + renderTileSize * 0.2, screenY + renderTileSize * 0.1, renderTileSize * 0.3, renderTileSize * 0.2);
+            ctx.fillStyle = 'rgba(50, 50, 50, 0.3)';
+            ctx.fillRect(screenX + renderTileSize * 0.5, screenY + renderTileSize * 0.6, renderTileSize * 0.4, renderTileSize * 0.3);
+          } else if (terrain === 'water' || terrain === 'deepWater') {
+            // Add wave effect
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            const waveOffset = (tileX + tileY) % 3;
+            ctx.fillRect(screenX + renderTileSize * (0.1 + waveOffset * 0.2), screenY + renderTileSize * 0.5, renderTileSize * 0.3, renderTileSize * 0.05);
           }
         }
       }
