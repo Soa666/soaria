@@ -16,13 +16,14 @@ const TILESET_URL = '/world/tileset_grass.png';
 // We use a simplified 4-bit neighbor system (N, E, S, W)
 
 // Autotile definitions: [startCol, startRow] for each terrain's autotile block
+// Based on visual analysis of the tileset
 const AUTOTILES = {
-  // Water autotile: columns 0-2, rows 4-7 (3x4 block)
-  water: { col: 0, row: 4 },
-  // Swamp autotile: columns 3-5, rows 4-7
+  // Water/Pond autotile: columns 0-2, rows 1-3 (the blue pond in top-left)
+  water: { col: 0, row: 1 },
+  // Swamp autotile: columns 3-5, rows 4-6
   swamp: { col: 3, row: 4 },
-  // Forest autotile: columns 9-11, rows 4-7
-  forest: { col: 9, row: 4 },
+  // Forest autotile: columns 9-11, rows 2-4 (the tree area)
+  forest: { col: 9, row: 2 },
 };
 
 // Grass base tiles (no autotiling needed, just variations)
