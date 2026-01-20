@@ -5,10 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Tileset configuration
+// Tileset configuration - New OpenGameArt tileset
 const TILE_SIZE = 16; // Original tile size in tileset
-const TILESET_COLUMNS = 27;
-const TILESET_URL = '/world/punyworld-overworld-tileset.png';
+const TILESET_COLUMNS = 16; // 256px / 16px = 16 columns
+const TILESET_URL = '/world/tileset.png';
+const WATER_URL = '/world/water.png';
+const MOUNTAINS_URL = '/world/mountains.png';
 
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
@@ -63,18 +65,27 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 }
 
 // Get tile ID based on terrain type and variation
+// New tileset: 16 columns x 21 rows (256x336 pixels, 16x16 tiles)
 function getTileForTerrain(terrain, variation) {
   const tiles = {
-    grass: [1, 2, 3, 28, 29, 30, 55, 56, 57],
-    dirt: [4, 5, 6, 31, 32, 58, 59],
-    water: [271, 272, 273, 298, 299, 300],
-    deepWater: [287, 288, 289, 314, 315, 316],
-    forest: [190, 191, 192, 217, 218, 219, 244, 245, 246],
-    trees: [147, 148, 149, 174, 175, 176],
-    cliff: [109, 110, 111, 136, 137, 138, 163, 164, 165],
-    flowers: [113, 114, 117, 118],
-    path: [85, 86, 87, 88],
-    sand: [23, 24, 25, 50, 51, 52]
+    // Row 0-2: Grass variations
+    grass: [0, 1, 2, 3, 16, 17, 18, 19, 32, 33, 34, 35],
+    // Row 3-4: Dirt/path
+    dirt: [48, 49, 50, 64, 65, 66],
+    // Row 5-6: Water (handled separately with water.png)
+    water: [80, 81, 82, 96, 97, 98],
+    deepWater: [83, 84, 85, 99, 100, 101],
+    // Row 7-9: Trees/forest
+    forest: [112, 113, 114, 128, 129, 130, 144, 145, 146],
+    trees: [115, 116, 131, 132, 147, 148],
+    // Row 10-12: Cliffs/mountains (use mountains.png)
+    cliff: [160, 161, 162, 176, 177, 178, 192, 193, 194],
+    // Row 13: Flowers/details
+    flowers: [208, 209, 210, 211],
+    // Row 14: Paths
+    path: [224, 225, 226, 227],
+    // Row 15-16: Sand/beach
+    sand: [240, 241, 242, 256, 257, 258]
   };
   
   const tileSet = tiles[terrain] || tiles.grass;
