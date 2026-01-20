@@ -11,72 +11,74 @@ const TILE_SIZE = 16;
 const TILESET_COLUMNS = 12;
 const TILESET_URL = '/world/tileset_grass.png';
 
-// Tile IDs based on visual analysis of overworld_tileset_grass.png
-// 12 columns x 21 rows, ID = row * 12 + column
-// Autotile layout: corners at edges, SOLID CENTER at position (1,1) of each 3x3 block
-const TILES = {
-  // Grass variations - solid grass tiles from rows 0-3
-  // These are the plain grass tiles without transitions
-  GRASS: [
-    0, 1, 2, 3,              // Row 0: basic grass variations
-    12, 13, 14, 15,          // Row 1: more grass  
-  ],
-  
-  // Water - SOLID water is the CENTER of the autotile (3x3 block)
-  // Water autotile starts at row 4, col 0. Center = row 5, col 1 = ID 61
-  WATER: [
-    5 * 12 + 1,  // = 61 - solid water center
-  ],
-  
-  // Deep Water - use same water tile
-  DEEP_WATER: [
-    5 * 12 + 1,  // = 61
-  ],
-  
-  // Dense Forest - SOLID forest is CENTER of forest autotile
-  // Forest autotile at row 4-6, col 9-11. Center = row 5, col 10 = ID 70
-  FOREST: [
-    5 * 12 + 10,  // = 70 - solid forest center
-  ],
-  
-  // Individual Trees - the standalone tree graphics (row 2-4, col 9-11)
-  // But these are part of autotile. Use forest center for now
-  TREES: [
-    5 * 12 + 10,  // = 70 - use forest tile
-  ],
-  
-  // Swamp - SOLID swamp is CENTER of swamp autotile  
-  // Swamp autotile at row 4-6, col 3-5. Center = row 5, col 4 = ID 64
-  SWAMP_GRASS: [
-    5 * 12 + 4,  // = 64 - solid swamp center
-  ],
-  
-  // Path/Dirt - use the tan/brown path from bridge area or grass edge
-  // Row 11 has bridge tiles. Use lighter grass for paths
-  PATH: [
-    0, 1,  // Light grass as path substitute
-  ],
-  
-  // Cliffs/Mountains - gray stone tiles from castle area (row 14-17)
-  // Row 14 col 6-8 has gray castle walls
-  CLIFF: [
-    14 * 12 + 6,   // = 174
-    14 * 12 + 7,   // = 175  
-    14 * 12 + 8,   // = 176
-  ],
-  
-  // Flowers - grass tiles with visible flowers/details
-  // The colorful tiles in row 0, right side
-  FLOWERS: [
-    4, 5,   // Grass with some color
-    16, 17, // More detailed grass
-  ],
-  
-  // Sand/Beach - lighter colored grass tiles
-  SAND: [
-    0, 1, 12, 13,  // Light grass as sand substitute
-  ],
+// Autotile system for smooth terrain transitions
+// The tileset uses a 3x4 autotile layout for each terrain type
+// We use a simplified 4-bit neighbor system (N, E, S, W)
+
+// Autotile definitions: [startCol, startRow] for each terrain's autotile block
+const AUTOTILES = {
+  // Water autotile: columns 0-2, rows 4-7 (3x4 block)
+  water: { col: 0, row: 4 },
+  // Swamp autotile: columns 3-5, rows 4-7
+  swamp: { col: 3, row: 4 },
+  // Forest autotile: columns 9-11, rows 4-7
+  forest: { col: 9, row: 4 },
 };
+
+// Grass base tiles (no autotiling needed, just variations)
+const GRASS_TILES = [0, 1, 2, 3, 12, 13, 14, 15];
+
+// 4-bit autotile mapping: based on which neighbors are the SAME terrain
+// Bits: North=8, East=4, South=2, West=1
+// This maps the 16 possible neighbor combinations to positions in a 3x4 autotile block
+const AUTOTILE_MAP = {
+  // All neighbors same (solid center)
+  15: { x: 1, y: 1 },  // NESW all same = solid center
+  
+  // Three neighbors same
+  14: { x: 1, y: 0 },  // NES (no W) = left edge
+  13: { x: 2, y: 1 },  // NEW (no S) = bottom edge
+  11: { x: 1, y: 2 },  // NSW (no E) = right edge
+  7:  { x: 0, y: 1 },  // ESW (no N) = top edge
+  
+  // Two neighbors same (corners)
+  12: { x: 2, y: 0 },  // NE only = bottom-left corner
+  6:  { x: 0, y: 0 },  // ES only = top-left corner
+  3:  { x: 0, y: 2 },  // SW only = top-right corner
+  9:  { x: 2, y: 2 },  // NW only = bottom-right corner
+  
+  // Two opposite neighbors
+  10: { x: 1, y: 1 },  // NS = vertical strip (use center)
+  5:  { x: 1, y: 1 },  // EW = horizontal strip (use center)
+  
+  // One neighbor same
+  8:  { x: 1, y: 2 },  // N only
+  4:  { x: 0, y: 1 },  // E only
+  2:  { x: 1, y: 0 },  // S only
+  1:  { x: 2, y: 1 },  // W only
+  
+  // No neighbors same (isolated)
+  0:  { x: 1, y: 1 },  // Use center for isolated
+};
+
+// Get autotile ID based on terrain type and neighbor mask
+function getAutotileId(terrainType, neighborMask) {
+  const autotile = AUTOTILES[terrainType];
+  if (!autotile) return null;
+  
+  const pos = AUTOTILE_MAP[neighborMask] || { x: 1, y: 1 };
+  const tileCol = autotile.col + pos.x;
+  const tileRow = autotile.row + pos.y;
+  return tileRow * TILESET_COLUMNS + tileCol;
+}
+
+// Simple terrain categories for autotiling
+function getTerrainCategory(terrain) {
+  if (terrain === 'water' || terrain === 'deepWater') return 'water';
+  if (terrain === 'forest' || terrain === 'trees') return 'forest';
+  if (terrain === 'swamp' || terrain === 'dirt') return 'swamp';
+  return 'grass'; // grass, sand, path, flowers, cliff all render on grass base
+}
 
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
@@ -130,24 +132,26 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
   return value / maxValue;
 }
 
-// Get tile ID for terrain type with variation
-function getTileForTerrain(terrain, variation) {
-  const tilesets = {
-    grass: TILES.GRASS,
-    water: TILES.WATER,
-    deepWater: TILES.DEEP_WATER,
-    dirt: TILES.PATH,
-    forest: TILES.FOREST,
-    trees: TILES.TREES,
-    cliff: TILES.CLIFF,
-    flowers: TILES.FLOWERS,
-    path: TILES.PATH,
-    sand: TILES.SAND,
-  };
+// Get tile ID for terrain with autotiling support
+function getTileForTerrainWithNeighbors(terrain, variation, neighbors) {
+  const category = getTerrainCategory(terrain);
   
-  const tiles = tilesets[terrain] || tilesets.grass;
-  const index = Math.floor(variation * tiles.length) % tiles.length;
-  return tiles[index];
+  // For grass-based terrains, just use grass tile variations
+  if (category === 'grass') {
+    const index = Math.floor(variation * GRASS_TILES.length) % GRASS_TILES.length;
+    return GRASS_TILES[index];
+  }
+  
+  // For autotiled terrains (water, forest, swamp), calculate neighbor mask
+  // neighbors = { north, east, south, west } - each is the terrain type
+  let mask = 0;
+  if (getTerrainCategory(neighbors.north) === category) mask |= 8;
+  if (getTerrainCategory(neighbors.east) === category) mask |= 4;
+  if (getTerrainCategory(neighbors.south) === category) mask |= 2;
+  if (getTerrainCategory(neighbors.west) === category) mask |= 1;
+  
+  const tileId = getAutotileId(category, mask);
+  return tileId !== null ? tileId : GRASS_TILES[0];
 }
 
 // Fallback colors for when tileset fails to load
@@ -706,7 +710,7 @@ function Map() {
       // Enable pixelated rendering for crisp tiles
       ctx.imageSmoothingEnabled = false;
 
-      // Draw terrain tiles
+      // Draw terrain tiles with autotiling
       for (let tileX = startTileX; tileX <= endTileX; tileX++) {
         for (let tileY = startTileY; tileY <= endTileY; tileY++) {
           const terrain = getTerrainAt(tileX, tileY);
@@ -723,18 +727,36 @@ function Map() {
           }
 
           if (tilesetImage && tilesetLoaded) {
-            // Draw from tileset
-            const tileId = getTileForTerrain(terrain, variation);
-            const srcCol = tileId % TILESET_COLUMNS;
-            const srcRow = Math.floor(tileId / TILESET_COLUMNS);
-            const srcX = srcCol * TILE_SIZE;
-            const srcY = srcRow * TILE_SIZE;
+            // Get neighbor terrains for autotiling
+            const neighbors = {
+              north: getTerrainAt(tileX, tileY - 1),
+              east: getTerrainAt(tileX + 1, tileY),
+              south: getTerrainAt(tileX, tileY + 1),
+              west: getTerrainAt(tileX - 1, tileY),
+            };
             
+            // First, always draw grass base layer
+            const grassTileId = GRASS_TILES[Math.floor(variation * GRASS_TILES.length) % GRASS_TILES.length];
+            const grassCol = grassTileId % TILESET_COLUMNS;
+            const grassRow = Math.floor(grassTileId / TILESET_COLUMNS);
             ctx.drawImage(
               tilesetImage,
-              srcX, srcY, TILE_SIZE, TILE_SIZE,
+              grassCol * TILE_SIZE, grassRow * TILE_SIZE, TILE_SIZE, TILE_SIZE,
               screenX, screenY, renderTileSize + 0.5, renderTileSize + 0.5
             );
+            
+            // Then draw autotiled terrain on top (water, forest, swamp)
+            const category = getTerrainCategory(terrain);
+            if (category !== 'grass') {
+              const tileId = getTileForTerrainWithNeighbors(terrain, variation, neighbors);
+              const srcCol = tileId % TILESET_COLUMNS;
+              const srcRow = Math.floor(tileId / TILESET_COLUMNS);
+              ctx.drawImage(
+                tilesetImage,
+                srcCol * TILE_SIZE, srcRow * TILE_SIZE, TILE_SIZE, TILE_SIZE,
+                screenX, screenY, renderTileSize + 0.5, renderTileSize + 0.5
+              );
+            }
           } else {
             // Fallback: colored rectangles
             ctx.fillStyle = getTerrainColor(terrain);
