@@ -76,7 +76,7 @@ const categories = [
   { id: 'all', label: '📬 Alle', types: null },
   { id: 'personal', label: '✉️ Spieler', types: ['personal'] },
   { id: 'trade', label: '🤝 Handel', types: ['trade_received', 'trade_sent'] },
-  { id: 'combat', label: '⚔️ Kampf', types: ['attack_received', 'attack_sent'] },
+  { id: 'combat', label: '⚔️ Kampf', types: ['attack_received', 'attack_sent', 'combat'] },
   { id: 'guild', label: '🏰 Gilde', types: ['guild_application', 'guild_accepted', 'guild_rejected'] },
   { id: 'system', label: '📢 System', types: ['system'] },
 ];
@@ -380,6 +380,7 @@ function Messages() {
       case 'trade_sent': return '📤';
       case 'attack_received': return '⚔️';
       case 'attack_sent': return '🗡️';
+      case 'combat': return '⚔️';
       case 'system': return '📢';
       default: return '✉️';
     }
@@ -394,6 +395,7 @@ function Messages() {
       case 'trade_sent': return 'Handel';
       case 'attack_received': return 'Kampf';
       case 'attack_sent': return 'Kampf';
+      case 'combat': return 'Kampf';
       case 'system': return 'System';
       default: return 'Nachricht';
     }

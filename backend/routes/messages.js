@@ -385,7 +385,7 @@ export async function sendSystemMessage(recipientId, subject, content, messageTy
     const processedContent = convertEmojis(content);
     
     // Validate message type - fallback to 'system' if invalid for older databases
-    const validTypes = ['personal', 'guild_application', 'guild_accepted', 'guild_rejected', 'trade_received', 'trade_sent', 'attack_received', 'attack_sent', 'system'];
+    const validTypes = ['personal', 'guild_application', 'guild_accepted', 'guild_rejected', 'trade_received', 'trade_sent', 'attack_received', 'attack_sent', 'combat', 'system'];
     const finalMessageType = validTypes.includes(messageType) ? messageType : 'system';
     
     const result = await db.run(`
