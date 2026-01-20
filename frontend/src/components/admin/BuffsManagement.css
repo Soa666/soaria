@@ -128,13 +128,23 @@
 }
 
 /* User suggestions */
+.form-group {
+  position: relative;
+}
+
 .user-suggestions {
-  background: rgba(20, 15, 30, 0.95);
-  border: 2px solid #5a4a2a;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(20, 15, 30, 0.98);
+  border: 2px solid #d4af37;
   border-top: none;
   border-radius: 0 0 8px 8px;
   max-height: 200px;
   overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .user-suggestions .suggestion {
@@ -142,10 +152,12 @@
   cursor: pointer;
   transition: background 0.2s;
   border-bottom: 1px solid rgba(90, 74, 42, 0.3);
+  color: #e8dcc0;
 }
 
 .user-suggestions .suggestion:hover {
-  background: rgba(74, 44, 26, 0.5);
+  background: rgba(212, 175, 55, 0.3);
+  color: #fff;
 }
 
 .user-suggestions .suggestion.selected {
