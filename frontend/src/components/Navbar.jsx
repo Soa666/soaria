@@ -12,8 +12,8 @@ function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [questCount, setQuestCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const prevUnreadCount = useRef(0);
-  const prevQuestCount = useRef(0);
+  const prevUnreadCount = useRef(null); // null = not yet initialized
+  const prevQuestCount = useRef(null);
 
   // Fetch unread message count and claimable quests
   useEffect(() => {
@@ -34,8 +34,8 @@ function Navbar() {
 
         if (messagesRes.ok) {
           const data = await messagesRes.json();
-          // Notify if new messages arrived
-          if (data.count > prevUnreadCount.current && prevUnreadCount.current !== 0) {
+          // Notify if new messages arrived (skip first load when prevUnreadCount is null)
+          if (prevUnreadCount.current !== null && data.count > prevUnreadCount.current) {
             notify.message('Jemand', 'Du hast neue Nachrichten!');
           }
           prevUnreadCount.current = data.count;
@@ -43,8 +43,8 @@ function Navbar() {
         }
         if (questsRes.ok) {
           const data = await questsRes.json();
-          // Notify if new quest is ready to claim
-          if (data.count > prevQuestCount.current && prevQuestCount.current !== 0) {
+          // Notify if new quest is ready to claim (skip first load)
+          if (prevQuestCount.current !== null && data.count > prevQuestCount.current) {
             notify.quest('Eine Quest ist abgeschlossen!');
           }
           prevQuestCount.current = data.count;
