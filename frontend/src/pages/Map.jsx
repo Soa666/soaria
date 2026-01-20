@@ -200,7 +200,11 @@ function Map() {
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [highlightedPlayer, setHighlightedPlayer] = useState(null);
-  const [hasInitialTarget, setHasInitialTarget] = useState(false); // Track if we have URL target params
+  // Check if we have URL target params on initial load
+  const [hasInitialTarget, setHasInitialTarget] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.has('x') && params.has('y');
+  });
   const [resourceNodes, setResourceNodes] = useState([]);
   const [selectedResource, setSelectedResource] = useState(null);
   const [gatheringJob, setGatheringJob] = useState(null);
