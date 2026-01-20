@@ -67,63 +67,67 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 // Get tile ID based on terrain type and variation
 // Kenney Roguelike tileset: 57 columns x 31 rows (968x526 pixels, 16x16 tiles with 1px margin)
 // Tile IDs are calculated as: row * TILESET_COLUMNS + column
-// Looking at the tileset image:
-// - Top-left area (rows 0-6): Ground tiles (water, grass, dirt, sand, farm)
-// - Row 3 (col 8+): Trees and vegetation
-// - Middle section: Buildings, walls, floors
-// - Right side: Doors, windows, furniture
+// Analyzed from sample_map.tmx and visual inspection:
 function getTileForTerrain(terrain, variation) {
   const C = TILESET_COLUMNS; // 57 columns
   
+  // Based on visual analysis of the Kenney tileset:
+  // Row 0: Water edges, dirt edges, sand
+  // Row 1: Water, dirt, sand variations
+  // Row 2: Water deep, grass edges, farm tiles
+  // Row 3: Trees, bushes, vegetation objects
+  // Row 4: More grass/ground tiles
+  // Row 5: Solid color grounds (green grass, orange, etc)
+  // Row 6: Purple/pink grounds, cyan water
+  
   const tiles = {
-    // Grass - Plain green grass (Row 5, cols 0-5 - the solid green tiles)
+    // Grass - Solid green tiles at row 4, col 3-5 (the uniform green)
+    // These are the solid grass fill tiles
     grass: [
-      5*C + 0, 5*C + 1, 5*C + 2, 5*C + 3, 5*C + 4, 5*C + 5,  // Solid grass
-      4*C + 3, 4*C + 4, 4*C + 5                               // Grass with details
+      4*C + 3, 4*C + 4,  // Solid light green grass
+      4*C + 3, 4*C + 4,  // Repeat for more uniformity
     ],
-    // Dirt/path - Brown dirt tiles (Row 0-1, cols 6-8)
+    // Dirt/path - Brown earth at row 0-1, col 6-8
     dirt: [
-      0*C + 6, 0*C + 7, 0*C + 8,
-      1*C + 6, 1*C + 7, 1*C + 8
+      0*C + 6, 1*C + 6, 1*C + 7
     ],
-    // Water - Cyan/blue water (Row 0-2, cols 0-2 - the water area)
+    // Water - Blue water tiles at row 0-2, col 0-5
+    // Center tiles are solid water (1,1), edges have borders
     water: [
-      0*C + 0, 0*C + 1, 0*C + 2,
-      1*C + 0, 1*C + 1, 1*C + 2,
-      2*C + 0, 2*C + 1, 2*C + 2
+      1*C + 1, 1*C + 2,  // Solid water center
+      2*C + 1, 2*C + 2,
     ],
     deepWater: [
-      1*C + 1, 1*C + 1, 1*C + 1, // Center water tiles (solid blue)
-      2*C + 1, 2*C + 1, 2*C + 1
+      1*C + 1, 1*C + 1,  // Deep solid water
+      2*C + 1, 2*C + 1,
     ],
-    // Trees/forest - Tree sprites (Row 3, cols 8-15)
+    // Trees/forest - Tree objects at row 3, col 8-15
+    // These are the round green trees and pine trees
     forest: [
-      3*C + 8, 3*C + 9, 3*C + 10, 3*C + 11,   // Round trees
-      3*C + 12, 3*C + 13, 3*C + 14, 3*C + 15  // Pine trees
+      3*C + 8, 3*C + 9,   // Green round trees
+      3*C + 10, 3*C + 11, // More trees
+      3*C + 12,           // Pine tree
     ],
     trees: [
-      3*C + 8, 3*C + 10, 3*C + 12, 3*C + 14   // Variety of trees
+      3*C + 8, 3*C + 10, 3*C + 12  // Mix of tree types
     ],
-    // Cliffs/mountains - Gray stone (Row 7-9, cols 17-22)
+    // Cliffs/mountains - Gray stone tiles in middle section
+    // Row 7-10, around col 14-22
     cliff: [
-      7*C + 17, 7*C + 18, 7*C + 19, 7*C + 20,
-      8*C + 17, 8*C + 18, 8*C + 19, 8*C + 20,
-      9*C + 17, 9*C + 18, 9*C + 19, 9*C + 20
+      7*C + 14, 7*C + 15, 7*C + 16,
+      8*C + 14, 8*C + 15, 8*C + 16,
     ],
-    // Flowers/details - Small plants (Row 3, cols 16-19)
+    // Flowers/details - Small decorative plants
     flowers: [
-      3*C + 16, 3*C + 17, 3*C + 18, 3*C + 19,
-      3*C + 20, 3*C + 21, 3*C + 22
+      3*C + 16, 3*C + 17, 3*C + 18
     ],
-    // Path/road - Stone paths (Row 14-15, orange/gray)
+    // Path/road - Brown path tiles
     path: [
-      14*C + 0, 14*C + 1, 14*C + 2, 14*C + 3,
-      15*C + 0, 15*C + 1, 15*C + 2, 15*C + 3
+      1*C + 6, 1*C + 7, 0*C + 7
     ],
-    // Sand/beach - Tan/beige tiles (Row 0, cols 9-11)
+    // Sand/beach - Tan/beige at row 0-1, col 9-11
     sand: [
-      0*C + 9, 0*C + 10, 0*C + 11,
-      1*C + 9, 1*C + 10, 1*C + 11
+      0*C + 9, 0*C + 10, 1*C + 9, 1*C + 10
     ]
   };
   
