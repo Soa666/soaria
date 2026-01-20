@@ -190,11 +190,23 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
     const playerTotalAttack = playerStats.base_attack + equipmentAttack;
     const playerTotalDefense = playerStats.base_defense + equipmentDefense;
     const playerMaxHealthWithEquipment = playerStats.max_health + equipmentHealth;
+    
+    // Calculate effective current health with equipment bonus
+    // If player is at full base health, they get full equipment bonus
+    // Otherwise, add proportional equipment health bonus
+    let effectiveCurrentHealth;
+    if (playerStats.current_health >= playerStats.max_health) {
+      // Full health = full bonus
+      effectiveCurrentHealth = playerMaxHealthWithEquipment;
+    } else {
+      // Partial health = base current + equipment bonus
+      effectiveCurrentHealth = playerStats.current_health + equipmentHealth;
+    }
 
     const attacker = {
       attack: playerTotalAttack,
       defense: playerTotalDefense,
-      current_health: Math.min(playerStats.current_health, playerMaxHealthWithEquipment),
+      current_health: effectiveCurrentHealth,
       max_health: playerMaxHealthWithEquipment
     };
 
@@ -208,9 +220,11 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
     // Fight!
     const result = calculateCombat(attacker, defender);
 
-    // Update player health
+    // Update player health - subtract equipment bonus to get base health
+    // Make sure it doesn't go below 0 or above base max_health
+    const newBaseHealth = Math.max(0, Math.min(playerStats.max_health, result.attackerHealth - equipmentHealth));
     await db.run('UPDATE player_stats SET current_health = ? WHERE user_id = ?', 
-      [result.attackerHealth, userId]);
+      [newBaseHealth, userId]);
 
     let goldGained = 0;
     let expGained = 0;
@@ -333,7 +347,7 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
     res.json({
       result: result.winner,
       playerHealth: result.attackerHealth,
-      playerMaxHealth: playerStats.max_health,
+      playerMaxHealth: playerMaxHealthWithEquipment,
       monsterHealth: result.defenderHealth,
       monsterMaxHealth,
       damageDealt: result.defenderDamageDealt,
