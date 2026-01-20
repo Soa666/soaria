@@ -28,15 +28,13 @@ const AUTOTILES = {
   path: null,
 };
 
-// Grass base tiles - USE ONLY MATCHING TILES (same shade of green)
-// Row 0, col 0-3 are the consistent light-green grass tiles
-const GRASS_TILES = [0, 1, 2, 3];  // Only use tiles that match in color!
+// Grass base tile - USE ONLY ONE TILE for consistent look!
+// Tile 0 (row 0, col 0) is the plain grass without any details
+const GRASS_TILES = [0];  // ONLY tile 0 - completely uniform grass
 
-// Path/dirt tiles - tan/brown colored from the tileset
-// Row 11 col 1-2 appears to be the dirt path
+// Path tiles - the brown dirt path from row 11
 const PATH_TILES = [
-  11 * 12 + 1,  // Row 11, col 1 - path
-  11 * 12 + 2,  // Row 11, col 2 - path
+  11 * 12 + 4,  // Row 11, col 4 - center of path/bridge area
 ];
 
 // 4-bit autotile mapping: based on which neighbors are the SAME terrain
@@ -194,88 +192,57 @@ function isWaterTerrain(terrain) {
   return terrain === 'water' || terrain === 'deepWater';
 }
 
-// Path system - generates paths connecting important locations
-// Uses a simple distance-based approach to main roads
+// Path system - clear visible roads
 function isOnPath(worldX, worldY) {
-  // Main road network - creates grid of major paths
-  const roadSpacing = 200; // Distance between major roads
-  const roadWidth = 2;     // Width of roads in tiles
+  // Main roads every 150 tiles, 3 tiles wide
+  const roadSpacing = 150;
+  const roadWidth = 3;
   
-  // Check distance to nearest major road (grid pattern)
-  const distToVerticalRoad = Math.abs((worldX % roadSpacing) - roadSpacing / 2);
-  const distToHorizontalRoad = Math.abs((worldY % roadSpacing) - roadSpacing / 2);
+  // Vertical roads
+  const distToVRoad = Math.abs(worldX % roadSpacing);
+  const onVRoad = distToVRoad < roadWidth || distToVRoad > (roadSpacing - roadWidth);
   
-  // Winding effect for more natural paths
-  const windX = fractalNoise(worldX, worldY, 2, 0.5, 0.02, 55555) * 8;
-  const windY = fractalNoise(worldX, worldY, 2, 0.5, 0.02, 66666) * 8;
+  // Horizontal roads  
+  const distToHRoad = Math.abs(worldY % roadSpacing);
+  const onHRoad = distToHRoad < roadWidth || distToHRoad > (roadSpacing - roadWidth);
   
-  const isOnVerticalRoad = distToVerticalRoad + windX < roadWidth;
-  const isOnHorizontalRoad = distToHorizontalRoad + windY < roadWidth;
-  
-  return isOnVerticalRoad || isOnHorizontalRoad;
+  return onVRoad || onHRoad;
 }
 
-// Generate terrain type based on noise - creates a beautiful varied world
-// Balanced: lots of grass, some water, forest clusters, paths
+// Generate terrain - SIMPLE: Grass, Water, Forest, Paths
 function getTerrainAt(worldX, worldY) {
-  // === NOISE LAYERS ===
-  // Continent shape - large landmasses with water between
-  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.0015, 12345);
+  // Main noise for landmass
+  const land = fractalNoise(worldX, worldY, 4, 0.5, 0.002, 12345);
   
-  // Elevation for hills
-  const elevation = fractalNoise(worldX, worldY, 4, 0.5, 0.006, 54321);
+  // Forest noise - separate clusters
+  const forest = fractalNoise(worldX, worldY, 3, 0.5, 0.005, 77777);
   
-  // Forest clusters - creates distinct patches of forest
-  const forestNoise = fractalNoise(worldX, worldY, 4, 0.5, 0.006, 77777);
+  // Lake noise
+  const lake = fractalNoise(worldX, worldY, 3, 0.5, 0.004, 88888);
   
-  // Lake/pond noise - creates water bodies
-  const lakeNoise = fractalNoise(worldX, worldY, 3, 0.6, 0.003, 88888);
-  
-  // River noise for winding rivers
-  const riverNoise = fractalNoise(worldX, worldY, 3, 0.5, 0.002, 99999);
-  const riverPath = Math.abs(Math.sin(worldX * 0.005 + riverNoise * 3) + Math.cos(worldY * 0.005));
-  
-  // Combined height
-  const height = continent * 0.6 + elevation * 0.4;
-  
-  // === TERRAIN DETERMINATION ===
-  
-  // Paths - connect areas (grid pattern with winding)
-  if (isOnPath(worldX, worldY) && continent > 0.35 && height > 0.35) {
+  // === PATHS FIRST (cut through everything except deep water) ===
+  if (isOnPath(worldX, worldY) && land > 0.25) {
     return 'path';
   }
   
-  // === WATER (more of it!) ===
+  // === WATER - plenty of it! ===
   
-  // Ocean (low continent)
-  if (continent < 0.30) {
-    if (continent < 0.22) return 'deepWater';
+  // Ocean (about 30% of world)
+  if (land < 0.35) {
     return 'water';
   }
   
-  // Large lakes
-  if (lakeNoise > 0.65 && continent > 0.35 && continent < 0.7) {
+  // Lakes scattered on land (about 15% of land)
+  if (lake > 0.6) {
     return 'water';
   }
   
-  // Rivers (winding through land)
-  if (riverPath < 0.15 && continent > 0.35 && continent < 0.8) {
-    return 'water';
-  }
-  
-  // Small ponds (scattered)
-  if (lakeNoise > 0.72 && elevation < 0.4) {
-    return 'water';
-  }
-  
-  // === LAND ===
-  
-  // Forest clusters (about 25% of land)
-  if (forestNoise > 0.62 && continent > 0.35) {
+  // === FOREST - clusters (about 20% of remaining land) ===
+  if (forest > 0.65 && land > 0.4) {
     return 'forest';
   }
   
-  // Everything else is GRASS (the majority - clean, simple)
+  // === GRASS - everything else ===
   return 'grass';
 }
 
