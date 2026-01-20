@@ -733,6 +733,13 @@
   font-weight: bold;
 }
 
+/* Hide stats bar on mobile - less clutter */
+@media (max-width: 768px) {
+  .player-stats-bar {
+    display: none;
+  }
+}
+
 .btn-heal-small {
   background: rgba(39, 174, 96, 0.3);
   border: 1px solid #27ae60;
@@ -1206,20 +1213,20 @@
 /* ============== MOBILE STYLES ============== */
 @media (max-width: 768px) {
   .map-page {
-    padding: 10px;
+    padding: 5px;
   }
 
   .map-page h1 {
-    font-size: 1.5rem;
-    margin-bottom: 10px;
+    display: none; /* Hide title on mobile */
   }
 
   .map-wrapper {
-    margin: 0.5rem 0;
+    margin: 0;
   }
 
   .map-container {
     border-radius: 8px;
+    border-width: 2px;
   }
 
   .map-container canvas {
@@ -1258,102 +1265,85 @@
 
   /* Smaller overlay panels */
   .overlay-panel {
-    border-radius: 8px;
+    border-radius: 6px;
+    border-width: 1px;
   }
 
+  /* Hide position info on mobile - save space */
   .overlay-panel.position-info {
-    padding: 6px 10px;
-    font-size: 0.85rem;
-  }
-
-  .coord-label {
-    font-size: 1rem;
-  }
-
-  .coord-value {
-    font-size: 0.85rem;
+    display: none;
   }
 
   /* Smaller buttons */
   .overlay-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
   }
 
   .overlay-panel.action-buttons {
-    gap: 4px;
-    padding: 6px;
+    gap: 3px;
+    padding: 4px;
   }
 
-  /* Zoom controls */
+  /* Zoom controls - more compact */
   .overlay-panel.zoom-controls {
-    padding: 6px;
+    padding: 4px;
+    gap: 2px;
   }
 
   .zoom-controls .zoom-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 1.2rem;
+    width: 28px;
+    height: 28px;
+    font-size: 1.1rem;
   }
 
   .zoom-value {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    padding: 2px 0;
   }
 
-  /* Pan controls */
+  /* Hide pan controls on mobile - use touch instead */
   .overlay-panel.pan-controls {
-    padding: 6px;
-  }
-
-  .pan-controls .pan-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
+    display: none;
   }
 
   /* Travel panel */
   .overlay-panel.travel-panel {
-    padding: 10px 12px;
-    min-width: 200px;
-    max-width: calc(100vw - 100px);
+    padding: 8px 10px;
+    min-width: 160px;
+    max-width: calc(100vw - 80px);
+  }
+
+  .travel-header {
+    margin-bottom: 5px;
+  }
+
+  .travel-label {
+    font-size: 0.85rem;
   }
 
   .travel-time {
-    font-size: 0.9rem;
-  }
-
-  .travel-progress-bar {
-    height: 6px;
-  }
-
-  .travel-cancel-btn {
-    padding: 6px 12px;
     font-size: 0.8rem;
   }
 
-  /* Players panel */
+  .travel-progress-bar {
+    height: 5px;
+  }
+
+  .cancel-btn {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Hide players panel on mobile */
   .overlay-panel.players-panel {
-    max-width: calc(100vw - 20px);
-    max-height: 150px;
+    display: none;
   }
 
-  .players-panel h4 {
-    font-size: 0.85rem;
-    padding: 8px 10px;
-  }
-
-  .nearby-list {
-    max-height: 100px;
-  }
-
-  .nearby-player {
-    padding: 6px 10px;
-    font-size: 0.85rem;
-  }
-
-  /* Interaction panel (NPC/Player details) */
-  .interaction-panel {
+  /* NPC Panel - bottom sheet style */
+  .npc-panel {
     position: fixed !important;
     top: auto !important;
     bottom: 0 !important;
@@ -1361,82 +1351,138 @@
     right: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 60vh;
+    max-height: 50vh;
     border-radius: 16px 16px 0 0;
-    z-index: 1000;
-  }
-
-  .interaction-panel .panel-header {
-    padding: 12px 15px;
-  }
-
-  .interaction-panel .panel-header h3 {
-    font-size: 1.1rem;
-  }
-
-  .interaction-panel .panel-content {
-    padding: 12px 15px;
-    max-height: calc(60vh - 100px);
+    transform: none !important;
+    padding: 1rem;
     overflow-y: auto;
   }
 
-  .interaction-panel .panel-actions {
-    padding: 10px 15px;
-    gap: 8px;
+  .npc-panel h3 {
+    font-size: 1.1rem;
   }
 
-  .interaction-panel .panel-actions button {
+  .npc-description {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .monster-stats {
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+  }
+
+  .npc-panel .btn {
     padding: 10px 16px;
     font-size: 0.9rem;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  /* Resource Panel - bottom sheet style */
+  .resource-panel {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 50vh;
+    border-radius: 16px 16px 0 0;
+    overflow-y: auto;
+  }
+
+  .resource-panel h3 {
+    font-size: 1.1rem;
+  }
+
+  .resource-drops, .tool-section {
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+  }
+
+  .resource-panel .btn {
+    width: 100%;
+  }
+
+  /* Gathering panel - top, smaller */
+  .gathering-panel {
+    padding: 0.75rem 1rem;
+    min-width: 180px;
+  }
+
+  .gathering-panel h4 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
   }
 
   /* Shop panel */
-  .shop-section {
-    padding: 10px;
+  .npc-shop {
+    max-height: 150px;
   }
 
   .shop-item {
-    padding: 8px;
+    padding: 6px;
   }
 
-  .shop-item img {
-    width: 32px;
-    height: 32px;
+  .btn-buy, .btn-sell {
+    padding: 3px 6px;
+    font-size: 0.7rem;
   }
 
   /* Combat result */
-  .combat-result {
-    padding: 12px;
+  .combat-result-content {
+    padding: 1.5rem;
+    max-width: 90vw;
   }
 
-  .combat-result h4 {
-    font-size: 1rem;
+  .combat-result-content h3 {
+    font-size: 1.4rem;
+  }
+
+  .combat-stats {
+    padding: 0.75rem;
   }
 }
 
 @media (max-width: 480px) {
-  .map-page h1 {
-    font-size: 1.3rem;
+  .map-page {
+    padding: 2px;
+  }
+
+  .map-container {
+    border-radius: 6px;
   }
 
   .overlay-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 0.9rem;
-  }
-
-  .zoom-controls .zoom-btn,
-  .pan-controls .pan-btn {
     width: 28px;
     height: 28px;
+    font-size: 0.85rem;
+  }
+
+  .overlay-panel.action-buttons {
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .zoom-controls .zoom-btn {
+    width: 26px;
+    height: 26px;
     font-size: 1rem;
   }
 
   .overlay-panel.travel-panel {
-    min-width: 180px;
+    min-width: 140px;
+    padding: 6px 8px;
   }
 
-  .interaction-panel {
-    max-height: 70vh;
+  .npc-panel, .resource-panel {
+    max-height: 60vh;
+    padding: 0.75rem;
+  }
+
+  .npc-panel h3, .resource-panel h3 {
+    font-size: 1rem;
   }
 }
