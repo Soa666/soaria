@@ -3,6 +3,7 @@ import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permissions.js';
 import { updateStatistic } from '../helpers/statistics.js';
+import { sendDiscordWebhook } from '../utils/discord.js';
 
 const router = express.Router();
 
@@ -313,6 +314,33 @@ router.post('/:questId/claim', authenticateToken, async (req, res) => {
 
     // Update statistics
     await updateStatistic(userId, 'quests_completed', 1);
+
+    // Send Discord webhook for achievements
+    if (quest.category === 'achievement') {
+      try {
+        const achievementWebhook = await db.get(
+          "SELECT webhook_url, message_template FROM discord_webhooks WHERE event_type = 'achievement' AND enabled = 1"
+        );
+
+        if (achievementWebhook && achievementWebhook.webhook_url) {
+          const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+          
+          let message = achievementWebhook.message_template || 
+            '🎊🎉 **Erfolg freigeschaltet!** 🎉🎊\n\n**{{username}}** hat den Erfolg erhalten:\n🏆 **{{achievement}}**\n\n_{{description}}_';
+          
+          message = message
+            .replace(/\{\{username\}\}/g, user?.username || 'Unbekannt')
+            .replace(/\{\{achievement\}\}/g, quest.display_name)
+            .replace(/\{\{description\}\}/g, quest.description || '')
+            .replace(/\{\{reward_gold\}\}/g, quest.reward_gold || 0)
+            .replace(/\{\{reward_exp\}\}/g, quest.reward_experience || 0);
+
+          await sendDiscordWebhook(achievementWebhook.webhook_url, message);
+        }
+      } catch (webhookError) {
+        console.error('Error sending achievement Discord webhook:', webhookError);
+      }
+    }
 
     res.json({ 
       message: `Quest "${quest.display_name}" abgeschlossen!`,

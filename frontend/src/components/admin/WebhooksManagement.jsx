@@ -5,11 +5,13 @@ import './WebhooksManagement.css';
 const EVENT_TYPES = [
   { value: 'registration', label: '👤 Registrierung', description: 'Wenn sich ein neuer User registriert', placeholders: ['{{username}}', '{{email}}'] },
   { value: 'feedback', label: '💬 Feedback', description: 'Wenn ein User Feedback/Bug-Report einreicht', placeholders: ['{{icon}}', '{{type}}', '{{username}}', '{{title}}', '{{description}}'] },
+  { value: 'achievement', label: '🏆 Erfolge', description: 'Wenn ein Spieler einen Erfolg freischaltet', placeholders: ['{{username}}', '{{achievement}}', '{{description}}', '{{reward_gold}}', '{{reward_exp}}'] },
 ];
 
 const DEFAULT_TEMPLATES = {
   registration: '🎮 **Neue Registrierung!**\n\n**Benutzername:** {{username}}\n**E-Mail:** {{email}}',
-  feedback: '{{icon}} **Neues Feedback: {{type}}**\n\n**Von:** {{username}}\n**Titel:** {{title}}\n\n**Beschreibung:**\n{{description}}'
+  feedback: '{{icon}} **Neues Feedback: {{type}}**\n\n**Von:** {{username}}\n**Titel:** {{title}}\n\n**Beschreibung:**\n{{description}}',
+  achievement: '🎊🎉 **Erfolg freigeschaltet!** 🎉🎊\n\n**{{username}}** hat den Erfolg erhalten:\n🏆 **{{achievement}}**\n\n_{{description}}_'
 };
 
 function WebhooksManagement() {
