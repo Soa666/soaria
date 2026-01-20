@@ -5,12 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Tileset configuration - Kenney Roguelike tileset
+// Tileset configuration - Original tileset (working)
 const TILE_SIZE = 16; // Original tile size in tileset
-const TILE_MARGIN = 1; // 1px margin between tiles
-const TILE_SPACING = TILE_SIZE + TILE_MARGIN; // 17px per tile slot
-const TILESET_COLUMNS = 56; // 968px / 17px = 56.9 -> 56 columns
-const TILESET_URL = '/world/tileset_kenney.png';
+const TILE_MARGIN = 0; // No margin
+const TILE_SPACING = TILE_SIZE; // 16px per tile slot
+const TILESET_COLUMNS = 16; // 256px / 16px = 16 columns
+const TILESET_URL = '/world/tileset.png';
 
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
@@ -65,79 +65,27 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 }
 
 // Get tile ID based on terrain type and variation
-// Kenney Roguelike tileset: 56 columns x 30 rows (968x526 pixels, 16x16 tiles with 1px margin)
-// Tile IDs are calculated as: row * 56 + column
-// Visual inspection of tileset (left to right, top to bottom):
-// 
-// GROUND TILES (rows 0-6, cols 0-7):
-// Row 0: Col 0-3 water edges top, Col 4-6 dirt
-// Row 1: Col 0-3 water middle, Col 4-6 dirt middle  
-// Row 2: Col 0-3 water bottom, Col 4-6 grass edges
-// Row 3: Col 0-2 grass solid, Col 8-15 TREES
-// Row 4: Col 0-5 solid grass fills (HAUPTGRAS!)
-// Row 5: Col 0-5 orange/tan ground
-//
+// Original tileset: 16 columns x 21 rows (256x336 pixels, 16x16 tiles)
 function getTileForTerrain(terrain, variation) {
-  // 56 columns per row
-  const C = 56;
-  
   const tiles = {
-    // GRASS - Row 4, columns 0-5 are solid light green grass
-    // These uniform green tiles are perfect for grass fields
-    grass: [
-      4*C + 0, 4*C + 1, 4*C + 2, 
-      4*C + 3, 4*C + 4, 4*C + 5,
-    ],
-    
-    // DIRT - Row 1, columns 4-6 (brown/tan earth)
-    dirt: [
-      1*C + 4, 1*C + 5, 1*C + 6,
-      2*C + 4, 2*C + 5
-    ],
-    
-    // WATER - Row 1-2, columns 1-2 (solid blue center tiles)
-    water: [
-      1*C + 1, 1*C + 2,
-      2*C + 1, 2*C + 2,
-    ],
-    
-    // DEEP WATER - Same as water but only center
-    deepWater: [
-      1*C + 1, 2*C + 1,
-    ],
-    
-    // FOREST/TREES - Row 3, columns 8-14 (tree sprites)
-    // These are the round green trees visible in the tileset
-    forest: [
-      3*C + 8, 3*C + 9, 3*C + 10, 
-      3*C + 11, 3*C + 12, 3*C + 13,
-    ],
-    
-    trees: [
-      3*C + 8, 3*C + 10, 3*C + 12
-    ],
-    
-    // CLIFF/MOUNTAINS - Row 7-8 middle section (gray stone)
-    cliff: [
-      7*C + 14, 7*C + 15,
-      8*C + 14, 8*C + 15,
-    ],
-    
-    // FLOWERS - Row 3, small plants after trees
-    flowers: [
-      3*C + 15, 3*C + 16, 3*C + 17
-    ],
-    
-    // PATH - Use dirt tiles
-    path: [
-      1*C + 4, 1*C + 5, 2*C + 4
-    ],
-    
-    // SAND - Row 5, columns 0-5 (tan/orange ground)
-    sand: [
-      5*C + 0, 5*C + 1, 5*C + 2,
-      5*C + 3, 5*C + 4
-    ]
+    // Row 0-2: Grass variations
+    grass: [0, 1, 2, 3, 16, 17, 18, 19, 32, 33, 34, 35],
+    // Row 3-4: Dirt/path
+    dirt: [48, 49, 50, 64, 65, 66],
+    // Row 5-6: Water
+    water: [80, 81, 82, 96, 97, 98],
+    deepWater: [83, 84, 85, 99, 100, 101],
+    // Row 7-9: Trees/forest
+    forest: [112, 113, 114, 128, 129, 130, 144, 145, 146],
+    trees: [115, 116, 131, 132, 147, 148],
+    // Row 10-12: Cliffs/mountains
+    cliff: [160, 161, 162, 176, 177, 178, 192, 193, 194],
+    // Row 13: Flowers/details
+    flowers: [208, 209, 210, 211],
+    // Row 14: Paths
+    path: [224, 225, 226, 227],
+    // Row 15-16: Sand/beach
+    sand: [240, 241, 242, 256, 257, 258]
   };
   
   const tileSet = tiles[terrain] || tiles.grass;
@@ -621,16 +569,14 @@ function Map() {
     }
   };
 
-  // Helper to draw a tile from the tileset (with margin support)
+  // Helper to draw a tile from the tileset
   const drawTile = (ctx, tileId, destX, destY, destSize) => {
     if (!tilesetImage || !tilesetLoaded || tileId < 0) return;
     
-    // Calculate source position with margin
-    // Each tile slot is TILE_SIZE + TILE_MARGIN (17px)
     const col = tileId % TILESET_COLUMNS;
     const row = Math.floor(tileId / TILESET_COLUMNS);
-    const srcX = col * TILE_SPACING;
-    const srcY = row * TILE_SPACING;
+    const srcX = col * TILE_SIZE;
+    const srcY = row * TILE_SIZE;
     
     ctx.drawImage(
       tilesetImage,
