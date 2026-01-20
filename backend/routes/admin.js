@@ -533,4 +533,229 @@ router.post('/smtp/:id/test', authenticateToken, requirePermission('manage_users
   }
 });
 
+// =====================
+// DEBUG / API MANAGEMENT
+// =====================
+
+// Get all active jobs (for debugging)
+router.get('/debug/all-jobs', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    // Get all gathering jobs
+    const gathering = await db.all(`
+      SELECT gj.*, u.username
+      FROM gathering_jobs gj
+      JOIN users u ON gj.user_id = u.id
+      WHERE gj.is_completed = 0 AND gj.is_cancelled = 0
+      ORDER BY gj.started_at DESC
+    `);
+
+    // Get all collection jobs
+    const collection = await db.all(`
+      SELECT cj.*, u.username, i.display_name as item_name
+      FROM collection_jobs cj
+      JOIN users u ON cj.user_id = u.id
+      LEFT JOIN items i ON cj.item_id = i.id
+      WHERE cj.completed_at > datetime('now', '-24 hours')
+      ORDER BY cj.completed_at DESC
+    `);
+
+    // Get all building jobs
+    const building = await db.all(`
+      SELECT bj.*, u.username, bt.display_name
+      FROM building_jobs bj
+      JOIN users u ON bj.user_id = u.id
+      LEFT JOIN building_types bt ON bj.building_type_id = bt.id
+      WHERE bj.status = 'in_progress'
+      ORDER BY bj.started_at DESC
+    `);
+
+    // Get all crafting jobs
+    const crafting = await db.all(`
+      SELECT cj.*, u.username, r.display_name as recipe_name
+      FROM crafting_jobs cj
+      JOIN users u ON cj.user_id = u.id
+      LEFT JOIN recipes r ON cj.recipe_id = r.id
+      WHERE cj.is_completed = 0
+      ORDER BY cj.started_at DESC
+    `);
+
+    res.json({ gathering, collection, building, crafting });
+  } catch (error) {
+    console.error('Get all jobs error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Clear all jobs for a specific user
+router.post('/debug/clear-jobs/:userId', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const results = {
+      gathering: 0,
+      collection: 0,
+      building: 0,
+      crafting: 0
+    };
+
+    // Clear gathering jobs
+    const g = await db.run(`
+      UPDATE gathering_jobs SET is_cancelled = 1 
+      WHERE user_id = ? AND is_completed = 0 AND is_cancelled = 0
+    `, [userId]);
+    results.gathering = g.changes || 0;
+
+    // Clear collection jobs
+    const c = await db.run(`
+      DELETE FROM collection_jobs WHERE user_id = ?
+    `, [userId]);
+    results.collection = c.changes || 0;
+
+    // Clear building jobs
+    const b = await db.run(`
+      UPDATE building_jobs SET status = 'cancelled' 
+      WHERE user_id = ? AND status = 'in_progress'
+    `, [userId]);
+    results.building = b.changes || 0;
+
+    // Clear crafting jobs
+    const cr = await db.run(`
+      UPDATE crafting_jobs SET is_completed = 1, is_cancelled = 1 
+      WHERE user_id = ? AND is_completed = 0
+    `, [userId]);
+    results.crafting = cr.changes || 0;
+
+    const total = results.gathering + results.collection + results.building + results.crafting;
+
+    res.json({ 
+      message: `${total} Jobs für User #${userId} bereinigt`,
+      cleared: results 
+    });
+  } catch (error) {
+    console.error('Clear user jobs error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Clear ALL stuck jobs
+router.post('/debug/clear-all-jobs', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const results = {
+      gathering: 0,
+      collection: 0,
+      building: 0,
+      crafting: 0
+    };
+
+    // Clear all stuck gathering jobs
+    const g = await db.run(`
+      UPDATE gathering_jobs SET is_cancelled = 1 
+      WHERE is_completed = 0 AND is_cancelled = 0
+    `);
+    results.gathering = g.changes || 0;
+
+    // Clear all old collection jobs
+    const c = await db.run(`
+      DELETE FROM collection_jobs WHERE completed_at < datetime('now')
+    `);
+    results.collection = c.changes || 0;
+
+    // Clear all stuck building jobs
+    const b = await db.run(`
+      UPDATE building_jobs SET status = 'cancelled' 
+      WHERE status = 'in_progress' AND completed_at < datetime('now')
+    `);
+    results.building = b.changes || 0;
+
+    // Clear all stuck crafting jobs
+    const cr = await db.run(`
+      UPDATE crafting_jobs SET is_completed = 1, is_cancelled = 1 
+      WHERE is_completed = 0 AND finish_at < datetime('now')
+    `);
+    results.crafting = cr.changes || 0;
+
+    const total = results.gathering + results.collection + results.building + results.crafting;
+
+    res.json({ 
+      message: `${total} blockierte Jobs insgesamt bereinigt`,
+      cleared: results 
+    });
+  } catch (error) {
+    console.error('Clear all jobs error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// User lookup with detailed info
+router.get('/debug/user/:identifier', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    
+    // Find user by ID or username
+    const user = await db.get(`
+      SELECT u.*, ps.level, ps.experience
+      FROM users u
+      LEFT JOIN player_stats ps ON u.id = ps.user_id
+      WHERE u.id = ? OR LOWER(u.username) = LOWER(?)
+    `, [identifier, identifier]);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    // Get user's active jobs
+    const jobs = {
+      gathering: await db.all('SELECT * FROM gathering_jobs WHERE user_id = ? AND is_completed = 0 AND is_cancelled = 0', [user.id]),
+      collection: await db.all('SELECT * FROM collection_jobs WHERE user_id = ?', [user.id]),
+      building: await db.all('SELECT * FROM building_jobs WHERE user_id = ? AND status = "in_progress"', [user.id]),
+      crafting: await db.all('SELECT * FROM crafting_jobs WHERE user_id = ? AND is_completed = 0', [user.id])
+    };
+
+    // Remove sensitive data
+    delete user.password_hash;
+
+    res.json({ user, jobs });
+  } catch (error) {
+    console.error('User lookup error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Execute SELECT query (read-only)
+router.post('/debug/query', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { query } = req.body;
+
+    if (!query) {
+      return res.status(400).json({ error: 'Query erforderlich' });
+    }
+
+    // Security: Only allow SELECT statements
+    const trimmedQuery = query.trim().toUpperCase();
+    if (!trimmedQuery.startsWith('SELECT')) {
+      return res.status(400).json({ error: 'Nur SELECT-Queries erlaubt!' });
+    }
+
+    // Prevent dangerous keywords
+    const dangerous = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE', 'TRUNCATE', 'EXEC', 'EXECUTE'];
+    for (const keyword of dangerous) {
+      if (trimmedQuery.includes(keyword)) {
+        return res.status(400).json({ error: `Verbotenes Keyword: ${keyword}` });
+      }
+    }
+
+    // Execute query with limit
+    const safeQuery = query.includes('LIMIT') ? query : `${query} LIMIT 100`;
+    const rows = await db.all(safeQuery);
+
+    res.json({ 
+      rows, 
+      rowCount: rows.length,
+      query: safeQuery
+    });
+  } catch (error) {
+    console.error('Query error:', error);
+    res.status(400).json({ error: `Query-Fehler: ${error.message}` });
+  }
+});
+
 export default router;

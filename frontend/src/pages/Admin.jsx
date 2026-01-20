@@ -13,6 +13,7 @@ import ReportsManagement from '../components/admin/ReportsManagement';
 import MonsterManagement from '../components/admin/MonsterManagement';
 import NpcManagement from '../components/admin/NpcManagement';
 import QuestManagement from '../components/admin/QuestManagement';
+import ApiManagement from '../components/admin/ApiManagement';
 import './Admin.css';
 
 const menuItems = [
@@ -27,6 +28,7 @@ const menuItems = [
   { id: 'reports', icon: '🚩', label: 'Meldungen', category: 'Verwaltung' },
   { id: 'smtp', icon: '📧', label: 'SMTP E-Mail', category: 'System' },
   { id: 'email', icon: '📝', label: 'E-Mail Vorlagen', category: 'System' },
+  { id: 'api', icon: '🔧', label: 'API & Debug', category: 'System' },
 ];
 
 function Admin() {
@@ -119,6 +121,7 @@ function Admin() {
           {activeTab === 'monsters' && <MonsterManagement />}
           {activeTab === 'npcs' && <NpcManagement />}
           {activeTab === 'quests' && <QuestManagement />}
+          {activeTab === 'api' && <ApiManagement />}
         </div>
       </main>
     </div>
