@@ -29,86 +29,97 @@ const GRASS_FLOWER_TILES = [13, 14, 25, 26, 37, 38];
 // Water autotile - based on the tmx analysis
 // Water uses tiles around 48-62, 72-74, 84-86, 96-98
 // The SOLID water center is tile 61 (terrain="1,1,1,1")
-// Autotile block for water transitions to grass:
+// FIXED: left/right were swapped!
 const WATER_AUTOTILE = {
-  // Format: [N, E, S, W] where 1=water, 0=grass
-  // Key = bitmask: N*8 + E*4 + S*2 + W*1
-  solid: 61,        // All sides water (1111 = 15)
-  top: 49,          // Water below, grass above (0111 = 7) 
-  bottom: 73,       // Water above, grass below (1110 = 14)
-  left: 62,         // Water right, grass left (1011 = 11)
-  right: 60,        // Water left, grass right (1101 = 13)
-  topLeft: 48,      // Corner: grass top-left (0011 = 3)
-  topRight: 50,     // Corner: grass top-right (0110 = 6)
-  bottomLeft: 72,   // Corner: grass bottom-left (1001 = 9)
-  bottomRight: 74,  // Corner: grass bottom-right (1100 = 12)
-  // Inner corners (water with grass poking in)
-  innerTopLeft: 97,     // (0101)
-  innerTopRight: 96,    // (1010)
-  innerBottomLeft: 85,  // 
-  innerBottomRight: 84, //
+  solid: 61,        // All sides water
+  top: 49,          // Grass above, water below
+  bottom: 73,       // Grass below, water above
+  left: 60,         // Grass left, water right (FIXED)
+  right: 62,        // Grass right, water left (FIXED)
+  topLeft: 48,      // Corner: grass top-left
+  topRight: 50,     // Corner: grass top-right
+  bottomLeft: 72,   // Corner: grass bottom-left
+  bottomRight: 74,  // Corner: grass bottom-right
 };
 
 // Forest autotile - trees/forest area
 // Solid forest is tile 70 (terrain="2,2,2,2")
+// FIXED: left/right were swapped!
 const FOREST_AUTOTILE = {
   solid: 70,        // All sides forest
-  top: 58,          // Forest below, grass above
-  bottom: 82,       // Forest above, grass below
-  left: 71,         // Forest right, grass left
-  right: 69,        // Forest left, grass right
+  top: 58,          // Grass above, forest below
+  bottom: 82,       // Grass below, forest above
+  left: 69,         // Grass left, forest right (FIXED)
+  right: 71,        // Grass right, forest left (FIXED)
   topLeft: 57,      // Corner
   topRight: 59,     // Corner
   bottomLeft: 81,   // Corner
   bottomRight: 83,  // Corner
-  // Inner corners
-  innerTopLeft: 106,
-  innerTopRight: 105,
-  innerBottomLeft: 94,
-  innerBottomRight: 93,
 };
 
-// Path/road tiles (from row 11 area - the dirt path)
-// Looking at the map: tiles 5, 6, 7, 17, 29, 41 etc are path-related
+// Path/road tiles - simple dirt path
+// Using grass tile as base, path will just be a slightly different grass
+// Looking at preview: paths seem to use tiles around 5-7 (row 0)
 const PATH_TILES = {
-  horizontal: 6,    // Horizontal path middle
-  vertical: 29,     // Vertical path middle  
-  cross: 17,        // Crossroad
+  horizontal: 6,    // Horizontal path 
+  vertical: 18,     // Vertical path (row 1, col 6)
+  cross: 6,         // Crossroad - just use horizontal
   single: 6,        // Single path tile
 };
 
 // Get the correct autotile based on neighbor mask
-// Bits: North=8, East=4, South=2, West=1 (1 = same terrain, 0 = different)
+// Bits: North=8, East=4, South=2, West=1 (1 = same terrain, 0 = different/grass)
+// When a bit is 0, there's grass on that side, so we need an edge tile
 function getWaterAutotile(mask) {
   const W = WATER_AUTOTILE;
-  switch(mask) {
-    case 15: return W.solid;        // All water
-    case 14: return W.left;         // No west
-    case 13: return W.bottom;       // No south  
-    case 11: return W.right;        // No east
-    case 7:  return W.top;          // No north
-    case 12: return W.bottomLeft;   // NE only
-    case 6:  return W.topLeft;      // ES only
-    case 3:  return W.topRight;     // SW only
-    case 9:  return W.bottomRight;  // NW only
-    default: return W.solid;        // Fallback to solid
-  }
+  
+  const hasN = (mask & 8) !== 0;
+  const hasE = (mask & 4) !== 0;
+  const hasS = (mask & 2) !== 0;
+  const hasW = (mask & 1) !== 0;
+  
+  // All neighbors are water = solid
+  if (hasN && hasE && hasS && hasW) return W.solid;
+  
+  // Edges (one side is grass)
+  if (!hasN && hasE && hasS && hasW) return W.top;      // Grass north
+  if (hasN && !hasE && hasS && hasW) return W.right;    // Grass east
+  if (hasN && hasE && !hasS && hasW) return W.bottom;   // Grass south
+  if (hasN && hasE && hasS && !hasW) return W.left;     // Grass west
+  
+  // Corners (two adjacent sides are grass)
+  if (!hasN && !hasW && hasE && hasS) return W.topLeft;      // Grass NW
+  if (!hasN && !hasE && hasS && hasW) return W.topRight;     // Grass NE
+  if (!hasS && !hasW && hasN && hasE) return W.bottomLeft;   // Grass SW
+  if (!hasS && !hasE && hasN && hasW) return W.bottomRight;  // Grass SE
+  
+  return W.solid;
 }
 
 function getForestAutotile(mask) {
   const F = FOREST_AUTOTILE;
-  switch(mask) {
-    case 15: return F.solid;        // All forest
-    case 14: return F.left;         // No west
-    case 13: return F.bottom;       // No south
-    case 11: return F.right;        // No east
-    case 7:  return F.top;          // No north
-    case 12: return F.bottomLeft;   // NE only
-    case 6:  return F.topLeft;      // ES only
-    case 3:  return F.topRight;     // SW only
-    case 9:  return F.bottomRight;  // NW only
-    default: return F.solid;        // Fallback to solid
-  }
+  
+  const hasN = (mask & 8) !== 0;
+  const hasE = (mask & 4) !== 0;
+  const hasS = (mask & 2) !== 0;
+  const hasW = (mask & 1) !== 0;
+  
+  // All neighbors are forest = solid
+  if (hasN && hasE && hasS && hasW) return F.solid;
+  
+  // Edges (one side is grass)
+  if (!hasN && hasE && hasS && hasW) return F.top;      // Grass north
+  if (hasN && !hasE && hasS && hasW) return F.right;    // Grass east
+  if (hasN && hasE && !hasS && hasW) return F.bottom;   // Grass south
+  if (hasN && hasE && hasS && !hasW) return F.left;     // Grass west
+  
+  // Corners (two adjacent sides are grass)
+  if (!hasN && !hasW && hasE && hasS) return F.topLeft;      // Grass NW
+  if (!hasN && !hasE && hasS && hasW) return F.topRight;     // Grass NE
+  if (!hasS && !hasW && hasN && hasE) return F.bottomLeft;   // Grass SW
+  if (!hasS && !hasE && hasN && hasW) return F.bottomRight;  // Grass SE
+  
+  return F.solid;
 }
 
 // Simple terrain categories for autotiling
