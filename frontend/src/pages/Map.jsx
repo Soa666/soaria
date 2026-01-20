@@ -641,12 +641,13 @@ function Map() {
             continue;
           }
 
-          if (tilesetImage && tilesetLoaded) {
-            // Draw from tileset
+          // TODO: Fix tileset mapping - for now use colored rectangles
+          if (false && tilesetImage && tilesetLoaded) {
+            // Draw from tileset (disabled until tileset is properly mapped)
             const tileId = getTileForTerrain(terrain, variation);
             drawTile(ctx, tileId, screenX, screenY, renderTileSize + 0.5); // +0.5 to avoid gaps
           } else {
-            // Fallback: colored rectangles
+            // Colored rectangles - works reliably
             const colors = {
               grass: '#4a6b3a',
               dirt: '#8b7355',
