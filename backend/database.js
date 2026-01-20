@@ -1209,6 +1209,48 @@ Soaria - Fantasy RPG`
     console.error('Error inserting default email template:', error);
   }
 
+  // ============ BUFF SYSTEM ============
+  // Buff types table - defines all possible buffs
+  // effect_type: attack_percent, attack_flat, defense_percent, defense_flat, 
+  //              health_percent, health_flat, speed_percent, exp_percent, 
+  //              gold_percent, gather_speed, craft_speed, damage_reduction
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS buff_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT DEFAULT '✨',
+      effect_type TEXT NOT NULL,
+      effect_value REAL NOT NULL,
+      stackable INTEGER DEFAULT 0,
+      max_stacks INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // target_type: 'all', 'user', 'guild', 'guildless', 'level_min', 'level_max', 'level_range'
+  // target_id: user_id for 'user', guild_id for 'guild', level for level-based, NULL for 'all'/'guildless'
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS active_buffs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      buff_type_id INTEGER NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id INTEGER,
+      duration_minutes INTEGER,
+      stacks INTEGER DEFAULT 1,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME,
+      is_active INTEGER DEFAULT 1,
+      FOREIGN KEY (buff_type_id) REFERENCES buff_types(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Insert default buff types
+  await insertDefaultBuffTypes();
+
   console.log('Database initialized successfully');
 }
 
@@ -2923,6 +2965,48 @@ async function spawnResourceNodes() {
   }
 
   console.log('[DB] Resource nodes spawned');
+}
+
+// Insert default buff types
+async function insertDefaultBuffTypes() {
+  const existingBuffs = await db.get('SELECT COUNT(*) as count FROM buff_types');
+  if (existingBuffs.count > 0) return;
+
+  const buffTypes = [
+    // Combat buffs
+    { name: 'strength_boost', display_name: 'Stärkeboost', description: 'Erhöht den Angriff', icon: '💪', effect_type: 'attack_percent', effect_value: 20 },
+    { name: 'iron_skin', display_name: 'Eisenhaut', description: 'Erhöht die Verteidigung', icon: '🛡️', effect_type: 'defense_percent', effect_value: 20 },
+    { name: 'vitality', display_name: 'Vitalität', description: 'Erhöht maximale HP', icon: '❤️', effect_type: 'health_percent', effect_value: 25 },
+    { name: 'berserker', display_name: 'Berserker', description: 'Großer Angriffsboost', icon: '🔥', effect_type: 'attack_percent', effect_value: 50 },
+    { name: 'fortress', display_name: 'Festung', description: 'Großer Verteidigungsboost', icon: '🏰', effect_type: 'defense_percent', effect_value: 50 },
+    
+    // Movement buffs
+    { name: 'swift_feet', display_name: 'Schnelle Füße', description: 'Reisen geht schneller', icon: '👟', effect_type: 'speed_percent', effect_value: 25 },
+    { name: 'wind_walker', display_name: 'Windläufer', description: 'Reisen geht viel schneller', icon: '🌪️', effect_type: 'speed_percent', effect_value: 50 },
+    
+    // Economy buffs
+    { name: 'wisdom', display_name: 'Weisheit', description: 'Mehr Erfahrungspunkte', icon: '📚', effect_type: 'exp_percent', effect_value: 25 },
+    { name: 'fortune', display_name: 'Glückspilz', description: 'Mehr Gold bei Drops', icon: '💰', effect_type: 'gold_percent', effect_value: 25 },
+    { name: 'double_exp', display_name: 'Doppelte EP', description: 'Doppelte Erfahrungspunkte', icon: '⭐', effect_type: 'exp_percent', effect_value: 100 },
+    { name: 'gold_rush', display_name: 'Goldrausch', description: 'Doppeltes Gold', icon: '🤑', effect_type: 'gold_percent', effect_value: 100 },
+    
+    // Gathering/Crafting buffs
+    { name: 'efficient_gatherer', display_name: 'Effizienter Sammler', description: 'Schnelleres Sammeln', icon: '⛏️', effect_type: 'gather_speed', effect_value: 25 },
+    { name: 'master_crafter', display_name: 'Meisterhandwerker', description: 'Schnelleres Craften', icon: '🔨', effect_type: 'craft_speed', effect_value: 25 },
+    
+    // Special event buffs
+    { name: 'event_blessing', display_name: 'Segen des Events', description: 'Alle Stats +10%', icon: '🎉', effect_type: 'all_stats', effect_value: 10 },
+    { name: 'vip_bonus', display_name: 'VIP Bonus', description: 'Bonus für VIPs', icon: '👑', effect_type: 'all_stats', effect_value: 15 },
+  ];
+
+  for (const buff of buffTypes) {
+    await db.run(`
+      INSERT OR IGNORE INTO buff_types (name, display_name, description, icon, effect_type, effect_value)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [buff.name, buff.display_name, buff.description, buff.icon, buff.effect_type, buff.effect_value]);
+  }
+
+  console.log('[DB] Default buff types inserted');
 }
 
 export default db;

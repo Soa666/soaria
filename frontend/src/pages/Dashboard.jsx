@@ -99,6 +99,7 @@ function Dashboard() {
   const [equipmentInventory, setEquipmentInventory] = useState([]);
   const [equipmentTotalStats, setEquipmentTotalStats] = useState({ attack: 0, defense: 0, health: 0 });
   const [professions, setProfessions] = useState([]);
+  const [activeBuffs, setActiveBuffs] = useState([]);
   const [activeTab, setActiveTab] = useState('inventory'); // 'inventory', 'equipment', 'professions'
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [message, setMessage] = useState('');
@@ -109,13 +110,14 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [statsRes, inventoryRes, combatRes, equippedRes, equipInvRes, profRes] = await Promise.all([
+      const [statsRes, inventoryRes, combatRes, equippedRes, equipInvRes, profRes, buffsRes] = await Promise.all([
         api.get('/npcs/player/stats'),
         api.get('/inventory'),
         api.get('/combat/history').catch(() => ({ data: { history: [] } })),
         api.get('/equipment/equipped').catch(() => ({ data: { equippedBySlot: {}, totalStats: {} } })),
         api.get('/equipment/inventory').catch(() => ({ data: { equipment: [] } })),
-        api.get('/equipment/professions').catch(() => ({ data: { professions: [] } }))
+        api.get('/equipment/professions').catch(() => ({ data: { professions: [] } })),
+        api.get('/buffs/my').catch(() => ({ data: { buffs: [] } }))
       ]);
       
       setPlayerStats(statsRes.data.stats);
@@ -125,6 +127,7 @@ function Dashboard() {
       setEquipmentTotalStats(equippedRes.data.totalStats || { attack: 0, defense: 0, health: 0 });
       setEquipmentInventory(equipInvRes.data.equipment || []);
       setProfessions(profRes.data.professions || []);
+      setActiveBuffs(buffsRes.data.buffs || []);
     } catch (error) {
       console.error('Fehler beim Laden:', error);
     } finally {
@@ -432,6 +435,22 @@ function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Active Buffs */}
+        {activeBuffs.length > 0 && (
+          <div className="active-buffs">
+            <h3>✨ Aktive Buffs</h3>
+            <div className="buffs-list">
+              {activeBuffs.map((buff, idx) => (
+                <div key={idx} className="buff-item" title={buff.description}>
+                  <span className="buff-icon">{buff.icon}</span>
+                  <span className="buff-name">{buff.display_name}</span>
+                  <span className="buff-value">+{buff.effect_value * buff.stacks}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Combat History */}
         <div className="combat-history">

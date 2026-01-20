@@ -3,6 +3,7 @@ import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendSystemMessage } from './messages.js';
 import { trackKill, updateStatistic, updateMultipleStats } from '../helpers/statistics.js';
+import { getBuffMultipliers } from './buffs.js';
 
 const router = express.Router();
 
@@ -186,12 +187,15 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
     const monsterAttack = worldNpc.base_attack + (monsterLevel - 1) * worldNpc.attack_per_level;
     const monsterDefense = worldNpc.base_defense + (monsterLevel - 1) * worldNpc.defense_per_level;
 
-    // Player total stats = base + equipment
-    const playerTotalAttack = playerStats.base_attack + equipmentAttack;
-    const playerTotalDefense = playerStats.base_defense + equipmentDefense;
-    const playerMaxHealthWithEquipment = playerStats.max_health + equipmentHealth;
+    // Get buff multipliers
+    const buffMultipliers = await getBuffMultipliers(userId);
+
+    // Player total stats = (base + equipment) * buff multipliers
+    const playerTotalAttack = Math.floor((playerStats.base_attack + equipmentAttack) * buffMultipliers.attack + buffMultipliers.attackFlat);
+    const playerTotalDefense = Math.floor((playerStats.base_defense + equipmentDefense) * buffMultipliers.defense + buffMultipliers.defenseFlat);
+    const playerMaxHealthWithEquipment = Math.floor((playerStats.max_health + equipmentHealth) * buffMultipliers.health + buffMultipliers.healthFlat);
     
-    // Calculate effective current health with equipment bonus
+    // Calculate effective current health with equipment bonus and buffs
     // If player is at full base health, they get full equipment bonus
     // Otherwise, add proportional equipment health bonus
     let effectiveCurrentHealth;
@@ -199,8 +203,8 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
       // Full health = full bonus
       effectiveCurrentHealth = playerMaxHealthWithEquipment;
     } else {
-      // Partial health = base current + equipment bonus
-      effectiveCurrentHealth = playerStats.current_health + equipmentHealth;
+      // Partial health = base current + equipment bonus, scaled by buff
+      effectiveCurrentHealth = Math.floor((playerStats.current_health + equipmentHealth) * buffMultipliers.health + buffMultipliers.healthFlat);
     }
 
     const attacker = {
@@ -236,8 +240,8 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
         UPDATE world_npcs SET is_active = 0, current_health = 0, last_killed_at = datetime('now') WHERE id = ?
       `, [npcId]);
 
-      // Calculate rewards
-      expGained = Math.floor(10 * monsterLevel * (worldNpc.is_boss ? 5 : 1));
+      // Calculate rewards with buff multipliers
+      expGained = Math.floor(10 * monsterLevel * (worldNpc.is_boss ? 5 : 1) * buffMultipliers.exp);
       
       // Get loot
       const lootTable = await db.all(`
@@ -245,9 +249,10 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
       `, [worldNpc.monster_type_id]);
 
       for (const loot of lootTable) {
-        // Gold
+        // Gold (with buff multiplier)
         if (loot.gold_min > 0 || loot.gold_max > 0) {
-          goldGained += Math.floor(Math.random() * (loot.gold_max - loot.gold_min + 1)) + loot.gold_min;
+          const baseGold = Math.floor(Math.random() * (loot.gold_max - loot.gold_min + 1)) + loot.gold_min;
+          goldGained += Math.floor(baseGold * buffMultipliers.gold);
         }
         
         // Item drop

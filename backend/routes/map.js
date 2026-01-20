@@ -3,6 +3,7 @@ import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendSystemMessage } from './messages.js';
 import { trackTravel } from '../helpers/statistics.js';
+import { getBuffMultipliers } from './buffs.js';
 
 const router = express.Router();
 
@@ -213,10 +214,11 @@ function isWaterAt(worldX, worldY) {
 const TRAVEL_SPEED_LAND = 50;  // 50 units per minute on land
 const TRAVEL_SPEED_WATER = 80; // 80 units per minute with boat (faster)
 
-// Calculate travel time in minutes
-function calculateTravelTime(fromX, fromY, toX, toY, hasBoat, targetIsWater) {
+// Calculate travel time in minutes (with optional speed multiplier from buffs)
+function calculateTravelTime(fromX, fromY, toX, toY, hasBoat, targetIsWater, speedMultiplier = 1.0) {
   const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
-  const speed = targetIsWater && hasBoat ? TRAVEL_SPEED_WATER : TRAVEL_SPEED_LAND;
+  const baseSpeed = targetIsWater && hasBoat ? TRAVEL_SPEED_WATER : TRAVEL_SPEED_LAND;
+  const speed = baseSpeed * speedMultiplier;
   return Math.max(1, Math.ceil(distance / speed)); // Minimum 1 minute
 }
 
@@ -478,11 +480,15 @@ router.put('/coordinates', authenticateToken, async (req, res) => {
       });
     }
 
-    // Calculate travel time
+    // Get buff multipliers for travel speed
+    const buffMultipliers = await getBuffMultipliers(req.user.id);
+
+    // Calculate travel time with speed buff
     const travelMinutes = calculateTravelTime(
       user.world_x, user.world_y, 
       targetX, targetY, 
-      !!hasBoat, targetIsWater
+      !!hasBoat, targetIsWater,
+      buffMultipliers.speed
     );
 
     const now = new Date();
@@ -550,8 +556,11 @@ router.post('/travel/home', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Du bist bereits zu Hause!' });
     }
 
-    // Calculate travel time to home
-    const travelMinutes = calculateTravelTime(user.world_x, user.world_y, homeX, homeY, false, false);
+    // Get buff multipliers for travel speed
+    const buffMultipliers = await getBuffMultipliers(req.user.id);
+
+    // Calculate travel time to home with speed buff
+    const travelMinutes = calculateTravelTime(user.world_x, user.world_y, homeX, homeY, false, false, buffMultipliers.speed);
 
     const now = new Date();
     const endTime = new Date(now.getTime() + travelMinutes * 60000);

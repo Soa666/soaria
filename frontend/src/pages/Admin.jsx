@@ -17,6 +17,7 @@ import ApiManagement from '../components/admin/ApiManagement';
 import FeedbackManagement from '../components/admin/FeedbackManagement';
 import WebhooksManagement from '../components/admin/WebhooksManagement';
 import OnlineUsers from '../components/admin/OnlineUsers';
+import BuffsManagement from '../components/admin/BuffsManagement';
 import './Admin.css';
 
 const menuItems = [
@@ -31,6 +32,7 @@ const menuItems = [
   { id: 'groups', icon: '🛡️', label: 'Gruppen', category: 'Verwaltung' },
   { id: 'reports', icon: '🚩', label: 'Meldungen', category: 'Verwaltung' },
   { id: 'feedback', icon: '💬', label: 'Feedback', category: 'Verwaltung' },
+  { id: 'buffs', icon: '✨', label: 'Buffs', category: 'Verwaltung' },
   { id: 'smtp', icon: '📧', label: 'SMTP E-Mail', category: 'System' },
   { id: 'email', icon: '📝', label: 'E-Mail Vorlagen', category: 'System' },
   { id: 'webhooks', icon: '🔔', label: 'Discord Webhooks', category: 'System' },
@@ -131,6 +133,7 @@ function Admin() {
           {activeTab === 'api' && <ApiManagement />}
           {activeTab === 'feedback' && <FeedbackManagement />}
           {activeTab === 'webhooks' && <WebhooksManagement />}
+          {activeTab === 'buffs' && <BuffsManagement />}
         </div>
       </main>
     </div>

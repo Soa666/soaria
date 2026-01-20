@@ -186,6 +186,52 @@
   margin-top: 0.25rem;
 }
 
+/* Active Buffs */
+.active-buffs {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(0, 0, 0, 0.2));
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #d4af37;
+  margin-bottom: 1rem;
+}
+
+.active-buffs h3 {
+  color: #d4af37;
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.active-buffs .buffs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.buff-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: help;
+}
+
+.buff-item .buff-icon {
+  font-size: 1rem;
+}
+
+.buff-item .buff-name {
+  color: #e8dcc0;
+}
+
+.buff-item .buff-value {
+  color: #2ecc71;
+  font-weight: bold;
+}
+
 /* Combat History */
 .combat-history {
   background: rgba(0, 0, 0, 0.2);

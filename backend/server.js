@@ -25,6 +25,7 @@ import equipmentRoutes from './routes/equipment.js';
 import questsRoutes from './routes/quests.js';
 import resourcesRoutes from './routes/resources.js';
 import feedbackRoutes from './routes/feedback.js';
+import buffsRoutes from './routes/buffs.js';
 
 dotenv.config();
 
@@ -80,6 +81,7 @@ app.use('/api/equipment', equipmentRoutes);
 app.use('/api/quests', questsRoutes);
 app.use('/api/resources', resourcesRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/buffs', buffsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
