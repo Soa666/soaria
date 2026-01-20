@@ -359,14 +359,17 @@ function Profile() {
           )}
         </div>
 
-        {/* Admin Link */}
-        {profile?.role === 'admin' && (
-          <div className="admin-link-section">
+        {/* Quick Links */}
+        <div className="profile-links-section">
+          <Link to="/statistics" className="btn btn-secondary">
+            📊 Statistiken
+          </Link>
+          {profile?.role === 'admin' && (
             <Link to="/admin" className="btn btn-admin">
-              🔧 Admin-Panel öffnen
+              🔧 Admin-Panel
             </Link>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Logout Button */}
         <div className="logout-section">

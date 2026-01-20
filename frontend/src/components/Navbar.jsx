@@ -96,7 +96,6 @@ function Navbar() {
               <span className="quest-badge">{questCount > 99 ? '99+' : questCount}</span>
             )}
           </Link>
-          <Link to="/statistics" onClick={closeMenu}>Statistik</Link>
           <Link to="/players" onClick={closeMenu}>Spieler</Link>
           <Link to="/guilds" onClick={closeMenu}>Gilden</Link>
           <Link to="/messages" className="navbar-messages desktop-messages" onClick={closeMenu}>

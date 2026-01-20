@@ -300,12 +300,34 @@
 }
 
 
-/* Admin Link Section */
-.admin-link-section {
+/* Profile Links Section */
+.profile-links-section {
   margin-top: 2rem;
   padding-top: 2rem;
   border-top: 2px solid #5a4a2a;
-  text-align: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.profile-links-section .btn-secondary {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #2a3a4a, #3a4a5a);
+  border: 2px solid #4a6a8a;
+  border-radius: 8px;
+  color: #8ac;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.profile-links-section .btn-secondary:hover {
+  background: linear-gradient(135deg, #3a4a5a, #4a5a6a);
+  border-color: #6a9aca;
+  transform: translateY(-2px);
 }
 
 .btn-admin {
