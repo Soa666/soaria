@@ -22,10 +22,6 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-      '/world': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
     },
   },
   preview: {
@@ -51,10 +47,6 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/buildings': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/world': {
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
