@@ -57,6 +57,19 @@ export function requireRole(...roles) {
   };
 }
 
+// Shortcut for admin-only routes
+export function requireAdmin(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Nicht authentifiziert' });
+  }
+  
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin-Berechtigung erforderlich' });
+  }
+  
+  next();
+}
+
 export function requirePermission(permissionName) {
   return async (req, res, next) => {
     if (!req.user) {
