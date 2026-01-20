@@ -24,10 +24,20 @@ const AUTOTILES = {
   swamp: { col: 3, row: 4 },
   // Forest autotile: columns 9-11, rows 2-4 (the tree area)
   forest: { col: 9, row: 2 },
+  // Path uses dirt/brown tiles - no autotile, single tiles
+  path: null,
 };
 
 // Grass base tiles (no autotiling needed, just variations)
 const GRASS_TILES = [0, 1, 2, 3, 12, 13, 14, 15];
+
+// Path/dirt tiles - tan/brown colored from the tileset
+// Looking at tileset: row 11 has bridge/path, we use lighter grass-edge tiles
+const PATH_TILES = [
+  11 * 12 + 3,  // Row 11, col 3 - bridge/path area
+  11 * 12 + 4,  // Row 11, col 4
+  11 * 12 + 5,  // Row 11, col 5
+];
 
 // 4-bit autotile mapping: based on which neighbors are the SAME terrain
 // Bits: North=8, East=4, South=2, West=1
@@ -77,8 +87,9 @@ function getAutotileId(terrainType, neighborMask) {
 function getTerrainCategory(terrain) {
   if (terrain === 'water' || terrain === 'deepWater') return 'water';
   if (terrain === 'forest' || terrain === 'trees') return 'forest';
-  if (terrain === 'swamp' || terrain === 'dirt') return 'swamp';
-  return 'grass'; // grass, sand, path, flowers, cliff all render on grass base
+  if (terrain === 'swamp') return 'swamp';
+  if (terrain === 'path' || terrain === 'dirt') return 'path';
+  return 'grass'; // grass, sand, flowers, cliff all render on grass base
 }
 
 // Seeded random number generator for consistent terrain
@@ -143,6 +154,12 @@ function getTileForTerrainWithNeighbors(terrain, variation, neighbors) {
     return GRASS_TILES[index];
   }
   
+  // For paths, use path tiles (no autotiling)
+  if (category === 'path') {
+    const index = Math.floor(variation * PATH_TILES.length) % PATH_TILES.length;
+    return PATH_TILES[index];
+  }
+  
   // For autotiled terrains (water, forest, swamp), calculate neighbor mask
   // neighbors = { north, east, south, west } - each is the terrain type
   let mask = 0;
@@ -177,100 +194,108 @@ function isWaterTerrain(terrain) {
   return terrain === 'water' || terrain === 'deepWater';
 }
 
+// Path system - generates paths connecting important locations
+// Uses a simple distance-based approach to main roads
+function isOnPath(worldX, worldY) {
+  // Main road network - creates grid of major paths
+  const roadSpacing = 200; // Distance between major roads
+  const roadWidth = 2;     // Width of roads in tiles
+  
+  // Check distance to nearest major road (grid pattern)
+  const distToVerticalRoad = Math.abs((worldX % roadSpacing) - roadSpacing / 2);
+  const distToHorizontalRoad = Math.abs((worldY % roadSpacing) - roadSpacing / 2);
+  
+  // Winding effect for more natural paths
+  const windX = fractalNoise(worldX, worldY, 2, 0.5, 0.02, 55555) * 8;
+  const windY = fractalNoise(worldX, worldY, 2, 0.5, 0.02, 66666) * 8;
+  
+  const isOnVerticalRoad = distToVerticalRoad + windX < roadWidth;
+  const isOnHorizontalRoad = distToHorizontalRoad + windY < roadWidth;
+  
+  return isOnVerticalRoad || isOnHorizontalRoad;
+}
+
 // Generate terrain type based on noise - creates a beautiful varied world
+// Optimized for more open grassland, scattered forests, and connecting paths
 function getTerrainAt(worldX, worldY) {
   // === NOISE LAYERS ===
   // Continent shape - very large scale features (islands, continents)
-  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.001, 12345);
+  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.0008, 12345);
   
   // Elevation - medium scale hills and valleys
-  const elevation = fractalNoise(worldX, worldY, 6, 0.5, 0.004, 54321);
+  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.005, 54321);
   
-  // Moisture - determines vegetation
-  const moisture = fractalNoise(worldX, worldY, 4, 0.5, 0.008, 98765);
-  
-  // Temperature - varies with latitude (worldY) and elevation
-  const tempBase = fractalNoise(worldX, worldY, 3, 0.5, 0.003, 11111);
-  const temperature = tempBase * 0.7 + (1 - Math.abs(worldY) / 3000) * 0.3;
+  // Forest clusters - creates patches of forest, not continuous
+  const forestNoise = fractalNoise(worldX, worldY, 4, 0.6, 0.008, 77777);
   
   // Detail noise for small features
-  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.02, 22222);
+  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.03, 22222);
   
-  // River system - creates winding rivers from mountains to sea
-  const riverNoise = fractalNoise(worldX, worldY, 4, 0.6, 0.002, 33333);
-  const riverPath = Math.sin(worldX * 0.003 + riverNoise * 4) * 0.5 + 
-                    Math.cos(worldY * 0.003 - riverNoise * 4) * 0.5;
-  const riverStrength = Math.abs(riverPath + fractalNoise(worldX, worldY, 2, 0.5, 0.006, 44444) * 0.15);
+  // Lake noise - creates scattered ponds and lakes
+  const lakeNoise = fractalNoise(worldX, worldY, 3, 0.5, 0.004, 88888);
   
   // Combined height
   const height = continent * 0.6 + elevation * 0.4;
   
   // === TERRAIN DETERMINATION ===
   
+  // Paths first - they cut through most terrain
+  if (isOnPath(worldX, worldY) && continent > 0.3 && height > 0.35 && height < 0.75) {
+    return 'path';
+  }
+  
   // Deep Ocean (very low continent values)
-  if (continent < 0.25) {
+  if (continent < 0.22) {
     return 'deepWater';
   }
   
   // Shallow Ocean / Coast
-  if (continent < 0.32) {
+  if (continent < 0.30) {
     return 'water';
   }
   
-  // Beach (narrow coastal strip)
-  if (continent < 0.38 && elevation < 0.5) {
-    return 'sand';
-  }
-  
-  // Lakes (depressions in land)
-  if (height < 0.35 && continent > 0.4 && elevation < 0.28) {
-    if (elevation < 0.2) return 'deepWater';
+  // Scattered Lakes and Ponds (small water bodies inland)
+  if (lakeNoise > 0.72 && continent > 0.35 && height > 0.35 && height < 0.6) {
     return 'water';
   }
   
-  // Rivers (winding through valleys)
-  if (riverStrength < 0.03 && height > 0.38 && height < 0.7 && continent > 0.4) {
-    return 'water';
-  }
-  
-  // High Mountains (peaks)
-  if (height > 0.82) {
+  // High Mountains (rare peaks)
+  if (height > 0.85) {
     return 'cliff';
   }
   
-  // Mountain slopes
-  if (height > 0.72) {
-    if (detail > 0.6) return 'cliff';
-    return 'dirt';
-  }
-  
-  // Dense Forest (high moisture, moderate elevation)
-  if (moisture > 0.65 && height > 0.4 && height < 0.7 && temperature > 0.35) {
+  // Forest CLUSTERS - not continuous, creates patches
+  // Only ~20% of land should be forest
+  if (forestNoise > 0.65 && height > 0.38 && height < 0.75 && continent > 0.35) {
+    // Dense forest in cluster centers
+    if (forestNoise > 0.75) {
+      return 'forest';
+    }
+    // Forest edges - scattered trees
     return 'forest';
   }
   
-  // Light Forest / Woods
-  if (moisture > 0.5 && height > 0.38 && height < 0.72 && temperature > 0.3) {
-    if (detail > 0.5) return 'trees';
-    return 'forest';
-  }
-  
-  // Scattered Trees
-  if (detail > 0.7 && moisture > 0.4 && height > 0.38 && height < 0.7) {
+  // Scattered individual trees on grassland (rare)
+  if (detail > 0.82 && forestNoise > 0.45 && height > 0.4 && height < 0.7) {
     return 'trees';
   }
   
-  // Flower meadows (specific conditions)
-  if (detail > 0.8 && moisture > 0.45 && moisture < 0.6 && height > 0.4 && height < 0.55) {
+  // Flower meadows (on open grassland)
+  if (detail > 0.78 && detail < 0.85 && forestNoise < 0.5 && height > 0.4 && height < 0.6) {
     return 'flowers';
   }
   
-  // Dirt/dry areas (low moisture)
-  if (moisture < 0.35 && height > 0.4 && height < 0.65) {
-    if (detail > 0.55) return 'dirt';
+  // Dirt patches (dry areas)
+  if (detail > 0.85 && forestNoise < 0.35 && height > 0.45 && height < 0.65) {
+    return 'dirt';
   }
   
-  // Paths (rare, connects areas)
+  // Everything else is open grassland (the majority!)
+  return 'grass';
+}
+
+// Legacy path check for backwards compatibility
+function legacyPathCheck(detail, height) {
   if (detail > 0.48 && detail < 0.52 && height > 0.4 && height < 0.6) {
     return 'path';
   }
