@@ -675,6 +675,61 @@ router.post('/admin/spawn-nodes', authenticateToken, requirePermission('manage_i
   }
 });
 
+// Delete a specific node (admin)
+router.delete('/admin/nodes/:nodeId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { nodeId } = req.params;
+
+    const node = await db.get(`
+      SELECT wrn.*, rnt.display_name 
+      FROM world_resource_nodes wrn
+      JOIN resource_node_types rnt ON wrn.node_type_id = rnt.id
+      WHERE wrn.id = ?
+    `, [nodeId]);
+
+    if (!node) {
+      return res.status(404).json({ error: 'Node nicht gefunden' });
+    }
+
+    await db.run('DELETE FROM world_resource_nodes WHERE id = ?', [nodeId]);
+
+    res.json({ message: `${node.display_name} bei (${node.world_x}, ${node.world_y}) gelöscht!` });
+  } catch (error) {
+    console.error('Delete node error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Move a node to new position (admin)
+router.put('/admin/nodes/:nodeId/move', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { nodeId } = req.params;
+    const { x, y } = req.body;
+
+    if (x === undefined || y === undefined) {
+      return res.status(400).json({ error: 'x und y Koordinaten erforderlich' });
+    }
+
+    const node = await db.get(`
+      SELECT wrn.*, rnt.display_name 
+      FROM world_resource_nodes wrn
+      JOIN resource_node_types rnt ON wrn.node_type_id = rnt.id
+      WHERE wrn.id = ?
+    `, [nodeId]);
+
+    if (!node) {
+      return res.status(404).json({ error: 'Node nicht gefunden' });
+    }
+
+    await db.run('UPDATE world_resource_nodes SET world_x = ?, world_y = ? WHERE id = ?', [x, y, nodeId]);
+
+    res.json({ message: `${node.display_name} von (${node.world_x}, ${node.world_y}) nach (${x}, ${y}) verschoben!` });
+  } catch (error) {
+    console.error('Move node error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // Add drop to node type (admin)
 router.post('/admin/node-types/:nodeTypeId/drops', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {
