@@ -57,14 +57,27 @@ const FOREST_AUTOTILE = {
   bottomRight: 83,  // Corner
 };
 
-// Path/road tiles - simple dirt path
-// Using grass tile as base, path will just be a slightly different grass
-// Looking at preview: paths seem to use tiles around 5-7 (row 0)
+// Path/road tiles - dirt paths
+// From analyzing the tileset:
+// Row 0: 5=path left end, 6=path horizontal middle, 7=path right end
+// Row 1: 17=path top end, 18=?, 19=?
+// Row 2: 29=path vertical middle
+// Row 3: 41=path bottom end
+// Corners would be around those areas
 const PATH_TILES = {
-  horizontal: 6,    // Horizontal path 
-  vertical: 18,     // Vertical path (row 1, col 6)
-  cross: 6,         // Crossroad - just use horizontal
-  single: 6,        // Single path tile
+  horizontal: 6,     // Horizontal path middle (row 0, col 6)
+  vertical: 29,      // Vertical path middle (row 2, col 5)
+  // Ends
+  endLeft: 5,        // Left end (row 0, col 5) 
+  endRight: 7,       // Right end (row 0, col 7)
+  endTop: 17,        // Top end (row 1, col 5)
+  endBottom: 41,     // Bottom end (row 3, col 5)
+  // Corners - need to find these in tileset
+  cornerNE: 19,      // Coming from south, turning east
+  cornerNW: 17,      // Coming from south, turning west  
+  cornerSE: 31,      // Coming from north, turning east
+  cornerSW: 29,      // Coming from north, turning west
+  cross: 29,         // Crossroad
 };
 
 // Get the correct autotile based on neighbor mask
@@ -192,16 +205,36 @@ function getTileForTerrainWithNeighbors(terrain, variation, neighbors) {
     return GRASS_TILES[index];
   }
   
-  // For paths, check neighbors to determine path direction
+  // For paths, use the correct directional tile
   if (category === 'path') {
     const nPath = getTerrainCategory(neighbors.north) === 'path';
     const sPath = getTerrainCategory(neighbors.south) === 'path';
     const ePath = getTerrainCategory(neighbors.east) === 'path';
     const wPath = getTerrainCategory(neighbors.west) === 'path';
     
-    // Determine path type based on neighbors
-    if ((nPath || sPath) && (ePath || wPath)) return PATH_TILES.cross;
-    if (nPath || sPath) return PATH_TILES.vertical;
+    // Count connections
+    const connections = (nPath ? 1 : 0) + (sPath ? 1 : 0) + (ePath ? 1 : 0) + (wPath ? 1 : 0);
+    
+    // Crossroad (3+ connections)
+    if (connections >= 3) return PATH_TILES.cross;
+    
+    // Straight paths
+    if (nPath && sPath && !ePath && !wPath) return PATH_TILES.vertical;
+    if (ePath && wPath && !nPath && !sPath) return PATH_TILES.horizontal;
+    
+    // Corners (2 connections, adjacent)
+    if (nPath && ePath && !sPath && !wPath) return PATH_TILES.cornerNE;
+    if (nPath && wPath && !sPath && !ePath) return PATH_TILES.cornerNW;
+    if (sPath && ePath && !nPath && !wPath) return PATH_TILES.cornerSE;
+    if (sPath && wPath && !nPath && !ePath) return PATH_TILES.cornerSW;
+    
+    // End pieces (1 connection)
+    if (nPath && !sPath && !ePath && !wPath) return PATH_TILES.endBottom;
+    if (sPath && !nPath && !ePath && !wPath) return PATH_TILES.endTop;
+    if (ePath && !nPath && !sPath && !wPath) return PATH_TILES.endLeft;
+    if (wPath && !nPath && !sPath && !ePath) return PATH_TILES.endRight;
+    
+    // Default to horizontal
     return PATH_TILES.horizontal;
   }
   
@@ -246,24 +279,28 @@ function isWaterTerrain(terrain) {
   return terrain === 'water' || terrain === 'deepWater';
 }
 
-// Path system - creates a network of dirt roads
-function isOnPath(worldX, worldY) {
-  // Main roads every 200 tiles
+// Path system - creates a network of dirt roads (1 tile wide!)
+function getPathInfo(worldX, worldY) {
   const roadSpacing = 200;
-  const roadWidth = 2;
   
-  // Add some winding to paths
-  const wind = fractalNoise(worldX, worldY, 2, 0.5, 0.01, 55555) * 5;
+  // Check if on vertical road (x is multiple of roadSpacing)
+  const onVertical = Math.abs(worldX % roadSpacing) === 0;
   
-  // Vertical roads
-  const vRoadPos = (worldX % roadSpacing);
-  const onVRoad = Math.abs(vRoadPos - roadSpacing/2 + wind) < roadWidth;
+  // Check if on horizontal road (y is multiple of roadSpacing)  
+  const onHorizontal = Math.abs(worldY % roadSpacing) === 0;
   
-  // Horizontal roads  
-  const hRoadPos = (worldY % roadSpacing);
-  const onHRoad = Math.abs(hRoadPos - roadSpacing/2 + wind) < roadWidth;
-  
-  return onVRoad || onHRoad;
+  if (onVertical && onHorizontal) {
+    return 'cross';      // Intersection
+  } else if (onVertical) {
+    return 'vertical';   // Vertical road
+  } else if (onHorizontal) {
+    return 'horizontal'; // Horizontal road
+  }
+  return null;
+}
+
+function isOnPath(worldX, worldY) {
+  return getPathInfo(worldX, worldY) !== null;
 }
 
 // Generate terrain - balanced world like the preview image
