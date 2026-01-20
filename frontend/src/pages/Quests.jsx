@@ -190,7 +190,11 @@ function Quests() {
                       {status === 'available' && 'Verfügbar'}
                       {status === 'active' && 'Aktiv'}
                       {status === 'claimable' && '✓ Fertig!'}
-                      {status === 'completed' && '✓ Abgeschlossen'}
+                      {status === 'completed' && (
+                        quest.objectives?.some(o => o.objective_type === 'daily_login') 
+                          ? '🌅 Morgen wieder' 
+                          : '✓ Abgeschlossen'
+                      )}
                     </span>
                   </div>
                   
@@ -308,7 +312,11 @@ function Quests() {
                 </button>
               )}
               {getQuestStatus(selectedQuest) === 'completed' && (
-                <p className="completed-text">✓ Quest abgeschlossen am {new Date(selectedQuest.claimed_at).toLocaleDateString()}</p>
+                selectedQuest.objectives?.some(o => o.objective_type === 'daily_login') ? (
+                  <p className="completed-text">✓ Heute bereits abgeschlossen! Morgen wieder verfügbar.</p>
+                ) : (
+                  <p className="completed-text">✓ Quest abgeschlossen am {new Date(selectedQuest.claimed_at).toLocaleDateString('de-DE')}</p>
+                )
               )}
             </div>
           </div>

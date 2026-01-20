@@ -421,6 +421,20 @@ router.post('/resend-activation', async (req, res) => {
   }
 });
 
+// Helper: Check if a new day has started (resets at midnight)
+function isNewDay(lastDate) {
+  if (!lastDate) return true;
+  
+  const last = new Date(lastDate);
+  const now = new Date();
+  
+  // Compare dates (ignoring time) - reset at midnight
+  const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  return today > lastDay;
+}
+
 // Helper: Check and complete daily login quest
 async function checkDailyLoginQuest(userId) {
   try {
@@ -437,33 +451,35 @@ async function checkDailyLoginQuest(userId) {
     for (const quest of dailyLoginQuests) {
       // Check current user quest status
       const userQuest = await db.get(`
-        SELECT status, claimed_at FROM user_quests WHERE user_id = ? AND quest_id = ?
+        SELECT status, claimed_at, completed_at FROM user_quests WHERE user_id = ? AND quest_id = ?
       `, [userId, quest.id]);
 
       console.log(`[DAILY] Quest ${quest.id} status for user ${userId}:`, userQuest);
 
-      // If already completed (ready to claim), skip
+      // If already completed TODAY (ready to claim), skip
       if (userQuest?.status === 'completed') {
         console.log(`[DAILY] Quest ${quest.id} already completed, waiting for claim`);
         continue;
       }
 
-      // If claimed, check if cooldown has passed
+      // If claimed, check if a new day has started (midnight reset)
       if (userQuest?.status === 'claimed' && userQuest.claimed_at) {
         const claimedAt = new Date(userQuest.claimed_at);
         const now = new Date();
-        const hoursSinceClaim = (now - claimedAt) / (1000 * 60 * 60);
         
-        console.log(`[DAILY] Quest ${quest.id} claimed ${hoursSinceClaim.toFixed(2)} hours ago, cooldown: ${quest.cooldown_hours}h`);
+        console.log(`[DAILY] Quest ${quest.id} claimed at ${claimedAt.toLocaleString('de-DE')}, checking if new day...`);
         
-        if (hoursSinceClaim < (quest.cooldown_hours || 24)) {
-          // Still on cooldown, skip this quest
-          console.log(`[DAILY] Quest ${quest.id} still on cooldown`);
+        // Check if it's still the same day
+        if (!isNewDay(userQuest.claimed_at)) {
+          // Still the same day, skip this quest
+          console.log(`[DAILY] Quest ${quest.id} already claimed today, skipping`);
           continue;
         }
+        
+        console.log(`[DAILY] New day detected! Quest ${quest.id} can be completed again.`);
       }
 
-      // Quest is either: new (no userQuest), active, or cooldown passed
+      // Quest is either: new (no userQuest), active, or new day has started
       // Complete it immediately!
       console.log(`[DAILY] Completing quest ${quest.id} for user ${userId}`);
       
