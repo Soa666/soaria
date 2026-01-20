@@ -24,6 +24,7 @@ import adminNpcsRoutes from './routes/adminNpcs.js';
 import equipmentRoutes from './routes/equipment.js';
 import questsRoutes from './routes/quests.js';
 import resourcesRoutes from './routes/resources.js';
+import feedbackRoutes from './routes/feedback.js';
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ app.use('/api/admin/npcs', adminNpcsRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/quests', questsRoutes);
 app.use('/api/resources', resourcesRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

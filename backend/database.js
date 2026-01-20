@@ -579,6 +579,27 @@ export async function initDatabase() {
     ON messages(recipient_id, is_read)
   `);
 
+  // Feedback/Bug Reports table
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      type TEXT NOT NULL CHECK(type IN ('bug', 'suggestion', 'other')),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      page_url TEXT,
+      browser_info TEXT,
+      status TEXT DEFAULT 'new' CHECK(status IN ('new', 'in_progress', 'resolved', 'wont_fix', 'duplicate')),
+      priority TEXT DEFAULT 'normal' CHECK(priority IN ('low', 'normal', 'high', 'critical')),
+      admin_notes TEXT,
+      reviewed_by INTEGER,
+      reviewed_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
   // Add gold column to users (Currency system)
   try {
     await db.run(`ALTER TABLE users ADD COLUMN gold INTEGER DEFAULT 100`);

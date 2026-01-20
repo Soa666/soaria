@@ -22,6 +22,7 @@ import Quests from './pages/Quests';
 import Statistics from './pages/Statistics';
 import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
+import FeedbackButton from './components/FeedbackButton';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -40,6 +41,7 @@ function AppRoutes() {
   return (
     <>
       {user && <Navbar />}
+      {user && <FeedbackButton />}
       <Routes>
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
