@@ -31,9 +31,21 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy (for nginx X-Forwarded-For headers)
+app.set('trust proxy', true);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Helper to get real client IP
+export function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() 
+    || req.headers['x-real-ip'] 
+    || req.ip 
+    || req.connection?.remoteAddress 
+    || 'unknown';
+}
 
 // Serve static files (item images and character images)
 import path from 'path';

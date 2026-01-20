@@ -16,7 +16,9 @@ router.get('/users', authenticateToken, requirePermission('manage_users'), async
         role,
         is_activated,
         created_at,
-        last_login
+        last_login,
+        last_ip,
+        registration_ip
       FROM users
       ORDER BY created_at DESC
     `);

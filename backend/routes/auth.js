@@ -7,6 +7,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { sendActivationEmail } from '../utils/email.js';
 import { sendDiscordRegistrationNotification } from '../utils/discord.js';
 import { updateStatistic, updateQuestObjectiveProgress } from '../helpers/statistics.js';
+import { getClientIP } from '../server.js';
 
 const router = express.Router();
 
@@ -93,9 +94,10 @@ router.post('/register', async (req, res) => {
 
     // Create user (inactive by default)
     // Set home_x and home_y to the spawn position (this is where their Grundstück is)
+    const registrationIP = getClientIP(req);
     const result = await db.run(
-      'INSERT INTO users (username, email, password_hash, role, world_x, world_y, home_x, home_y, is_activated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)',
-      [username, email, passwordHash, 'user', worldX, worldY, worldX, worldY]
+      'INSERT INTO users (username, email, password_hash, role, world_x, world_y, home_x, home_y, is_activated, registration_ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)',
+      [username, email, passwordHash, 'user', worldX, worldY, worldX, worldY, registrationIP]
     );
 
     // Create initial workbench
@@ -188,8 +190,9 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Update last login
-    await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+    // Update last login and IP
+    const clientIP = getClientIP(req);
+    await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP, last_ip = ? WHERE id = ?', [clientIP, user.id]);
 
     // Track login statistics
     await updateStatistic(user.id, 'logins', 1);

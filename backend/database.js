@@ -76,7 +76,9 @@ export async function initDatabase() {
       world_y INTEGER DEFAULT 0,
       is_activated INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_login DATETIME
+      last_login DATETIME,
+      last_ip TEXT,
+      registration_ip TEXT
     )
   `);
 
@@ -90,6 +92,14 @@ export async function initDatabase() {
   } catch (e) {
     // Column might already exist
   }
+
+  // Add IP columns to existing users table
+  try {
+    await db.run(`ALTER TABLE users ADD COLUMN last_ip TEXT`);
+  } catch (e) { /* Column might already exist */ }
+  try {
+    await db.run(`ALTER TABLE users ADD COLUMN registration_ip TEXT`);
+  } catch (e) { /* Column might already exist */ }
 
   // Activation tokens table
   await db.run(`
