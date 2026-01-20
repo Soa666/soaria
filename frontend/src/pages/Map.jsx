@@ -5,8 +5,47 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Map rendering configuration
-const TILE_SIZE = 16; // Virtual tile size for world grid
+// Tileset configuration - Blarumyrran's 16x16 tileset
+// 272x304 pixels = 17 columns x 19 rows of 16x16 tiles
+const TILE_SIZE = 16;
+const TILESET_COLUMNS = 17;
+const TILESET_URL = '/world/tileset_simple.png';
+
+// Tile IDs for the tileset (row * 17 + col)
+// The tileset has autotile sections for transitions
+const TILES = {
+  // Solid grass tiles (around column 5, various rows)
+  GRASS_SOLID: [5, 17 + 5, 34 + 5, 51 + 5],  // Different grass variations
+  
+  // Solid water tiles (row 4-7, col 5 area)
+  WATER_SOLID: [4 * 17 + 5, 5 * 17 + 5],
+  
+  // Deep water (row 12-15, col 5)
+  DEEP_WATER_SOLID: [12 * 17 + 5, 13 * 17 + 5],
+  
+  // Dirt solid (row 8-11, col 5)
+  DIRT_SOLID: [8 * 17 + 5, 9 * 17 + 5],
+  
+  // Trees (right side of tileset, around col 9-11)
+  TREE_TOP: [0 * 17 + 9, 0 * 17 + 10, 0 * 17 + 11],
+  TREE_BOTTOM: [1 * 17 + 9, 1 * 17 + 10, 1 * 17 + 11],
+  PINE_TREE: [0 * 17 + 14, 1 * 17 + 14],
+  
+  // Forest floor (dense trees)
+  FOREST: [2 * 17 + 9, 2 * 17 + 10, 3 * 17 + 9],
+  
+  // House tiles (around row 0, col 7-8)
+  HOUSE: [0 * 17 + 7, 0 * 17 + 8, 1 * 17 + 7, 1 * 17 + 8],
+  
+  // Rocks/cliffs (around row 2-3, col 11-13)
+  ROCKS: [2 * 17 + 11, 2 * 17 + 12, 3 * 17 + 11, 3 * 17 + 12],
+  
+  // Flowers/bushes (around row 2-4, col 10)
+  FLOWERS: [2 * 17 + 10, 3 * 17 + 10, 4 * 17 + 10],
+  
+  // Path/sand (use light dirt)
+  PATH: [8 * 17 + 2, 8 * 17 + 3, 9 * 17 + 2],
+};
 
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
@@ -60,35 +99,41 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
   return value / maxValue;
 }
 
-// Get color for terrain type with variation for natural look
-function getTerrainColor(terrain, variation) {
-  // Base colors with slight variations for natural appearance
-  const colors = {
-    // Grass - multiple shades of green
-    grass: ['#4a7c3f', '#5a8c4f', '#4a8040', '#558048', '#4d7842', '#5c8b52'],
-    // Deep forest - darker greens
-    forest: ['#2d5a2d', '#3a6b3a', '#2f5c2f', '#356535', '#325e32', '#3d6d3d'],
-    // Trees/lighter forest
-    trees: ['#3d6b3d', '#4a7a4a', '#3f6d3f', '#457545', '#427042', '#4d7d4d'],
-    // Water - blues
-    water: ['#3a8bbd', '#4a9bcd', '#3590c0', '#4095c5', '#3888b5', '#4598c8'],
-    // Deep water - darker blues  
-    deepWater: ['#1a5a8a', '#2a6a9a', '#1f5f8f', '#256595', '#1c5c8c', '#286898'],
-    // Sand/beach - tan/beige
-    sand: ['#d4b896', '#c9ad8b', '#dfc4a1', '#d0b090', '#dbc09c', '#c5a885'],
-    // Dirt/path - browns
-    dirt: ['#8b7355', '#9b8365', '#806848', '#927a5a', '#856f50', '#9a8060'],
-    // Mountains/cliffs - grays
-    cliff: ['#6b6b6b', '#7a7a7a', '#606060', '#757575', '#686868', '#808080'],
-    // Flowers - grass with hint of color
-    flowers: ['#5a8c5a', '#6a9c6a', '#5f915f', '#659565', '#5b8d5b', '#6b9b6b'],
-    // Path - lighter brown
-    path: ['#a08060', '#b09070', '#9a7a5a', '#a88868', '#9c7c5c', '#ae8c70'],
+// Get tile ID for terrain type with variation
+function getTileForTerrain(terrain, variation) {
+  const tilesets = {
+    grass: TILES.GRASS_SOLID,
+    water: TILES.WATER_SOLID,
+    deepWater: TILES.DEEP_WATER_SOLID,
+    dirt: TILES.DIRT_SOLID,
+    forest: TILES.FOREST,
+    trees: TILES.TREE_TOP,
+    cliff: TILES.ROCKS,
+    flowers: TILES.FLOWERS,
+    path: TILES.PATH,
+    sand: TILES.PATH,
   };
   
-  const colorSet = colors[terrain] || colors.grass;
-  const index = Math.floor(variation * colorSet.length) % colorSet.length;
-  return colorSet[index];
+  const tiles = tilesets[terrain] || tilesets.grass;
+  const index = Math.floor(variation * tiles.length) % tiles.length;
+  return tiles[index];
+}
+
+// Fallback colors for when tileset fails to load
+function getTerrainColor(terrain) {
+  const colors = {
+    grass: '#4a7c3f',
+    forest: '#2d5a2d',
+    trees: '#3d6b3d',
+    water: '#3a8bbd',
+    deepWater: '#1a5a8a',
+    sand: '#d4b896',
+    dirt: '#8b7355',
+    cliff: '#6b6b6b',
+    flowers: '#5a8c5a',
+    path: '#a08060',
+  };
+  return colors[terrain] || colors.grass;
 }
 
 // Check if terrain is water
@@ -239,6 +284,24 @@ function Map() {
   const [selectedResource, setSelectedResource] = useState(null);
   const [gatheringJob, setGatheringJob] = useState(null);
   const [userTools, setUserTools] = useState([]);
+  const [tilesetImage, setTilesetImage] = useState(null);
+  const [tilesetLoaded, setTilesetLoaded] = useState(false);
+
+  // Load tileset image
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      setTilesetImage(img);
+      setTilesetLoaded(true);
+      console.log('Tileset loaded successfully:', img.width, 'x', img.height);
+    };
+    img.onerror = (e) => {
+      console.error('Failed to load tileset, using color fallback:', e);
+      setTilesetLoaded(false);
+    };
+    img.src = TILESET_URL;
+  }, []);
 
   // Handle URL parameters (e.g., from player profile "Show on map")
   useEffect(() => {
@@ -365,7 +428,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes, tilesetLoaded]);
 
   const fetchPlayers = async () => {
     try {
@@ -609,7 +672,10 @@ function Map() {
       const endTileX = Math.ceil(endWorldX / worldTileSize) + 1;
       const endTileY = Math.ceil(endWorldY / worldTileSize) + 1;
 
-      // Draw terrain tiles with color-based rendering
+      // Enable pixelated rendering for crisp tiles
+      ctx.imageSmoothingEnabled = false;
+
+      // Draw terrain tiles
       for (let tileX = startTileX; tileX <= endTileX; tileX++) {
         for (let tileY = startTileY; tileY <= endTileY; tileY++) {
           const terrain = getTerrainAt(tileX, tileY);
@@ -625,38 +691,23 @@ function Map() {
             continue;
           }
 
-          // Draw terrain with varied colors for natural look
-          ctx.fillStyle = getTerrainColor(terrain, variation);
-          ctx.fillRect(screenX, screenY, renderTileSize + 1, renderTileSize + 1);
-          
-          // Add subtle texture/details for certain terrain types
-          if (terrain === 'forest' || terrain === 'trees') {
-            // Add tree-like dots
-            ctx.fillStyle = 'rgba(20, 50, 20, 0.4)';
-            const dotSize = Math.max(2, renderTileSize * 0.2);
-            ctx.beginPath();
-            ctx.arc(screenX + renderTileSize * 0.3, screenY + renderTileSize * 0.4, dotSize, 0, Math.PI * 2);
-            ctx.arc(screenX + renderTileSize * 0.7, screenY + renderTileSize * 0.6, dotSize * 0.8, 0, Math.PI * 2);
-            ctx.fill();
-          } else if (terrain === 'flowers') {
-            // Add flower dots
-            const colors = ['#ff6b6b', '#ffd93d', '#ff85a2', '#c56cf0'];
-            const flowerColor = colors[Math.floor(variation * colors.length)];
-            ctx.fillStyle = flowerColor;
-            const dotSize = Math.max(1, renderTileSize * 0.1);
-            ctx.fillRect(screenX + renderTileSize * 0.3, screenY + renderTileSize * 0.3, dotSize, dotSize);
-            ctx.fillRect(screenX + renderTileSize * 0.6, screenY + renderTileSize * 0.7, dotSize, dotSize);
-          } else if (terrain === 'cliff') {
-            // Add rocky texture
-            ctx.fillStyle = 'rgba(90, 90, 90, 0.3)';
-            ctx.fillRect(screenX + renderTileSize * 0.2, screenY + renderTileSize * 0.1, renderTileSize * 0.3, renderTileSize * 0.2);
-            ctx.fillStyle = 'rgba(50, 50, 50, 0.3)';
-            ctx.fillRect(screenX + renderTileSize * 0.5, screenY + renderTileSize * 0.6, renderTileSize * 0.4, renderTileSize * 0.3);
-          } else if (terrain === 'water' || terrain === 'deepWater') {
-            // Add wave effect
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            const waveOffset = (tileX + tileY) % 3;
-            ctx.fillRect(screenX + renderTileSize * (0.1 + waveOffset * 0.2), screenY + renderTileSize * 0.5, renderTileSize * 0.3, renderTileSize * 0.05);
+          if (tilesetImage && tilesetLoaded) {
+            // Draw from tileset
+            const tileId = getTileForTerrain(terrain, variation);
+            const srcCol = tileId % TILESET_COLUMNS;
+            const srcRow = Math.floor(tileId / TILESET_COLUMNS);
+            const srcX = srcCol * TILE_SIZE;
+            const srcY = srcRow * TILE_SIZE;
+            
+            ctx.drawImage(
+              tilesetImage,
+              srcX, srcY, TILE_SIZE, TILE_SIZE,
+              screenX, screenY, renderTileSize + 0.5, renderTileSize + 0.5
+            );
+          } else {
+            // Fallback: colored rectangles
+            ctx.fillStyle = getTerrainColor(terrain);
+            ctx.fillRect(screenX, screenY, renderTileSize + 1, renderTileSize + 1);
           }
         }
       }
