@@ -1,0 +1,118 @@
+.notification-settings {
+  background: rgba(20, 15, 30, 0.6);
+  border: 2px solid rgba(139, 105, 20, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.notification-settings h3 {
+  color: #d4af37;
+  margin: 0 0 15px 0;
+  font-size: 1.1em;
+}
+
+.not-supported {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* Permission Request */
+.permission-request {
+  text-align: center;
+  padding: 15px;
+}
+
+.permission-request p {
+  color: #e8dcc0;
+  margin: 0 0 15px 0;
+}
+
+.permission-denied {
+  color: #f87171 !important;
+  font-size: 13px;
+}
+
+.btn-enable {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #4a2c1a, #6b4423);
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  color: #d4af37;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-enable:hover {
+  background: linear-gradient(135deg, #6b4423, #8b5a2b);
+  transform: translateY(-2px);
+}
+
+/* Settings List */
+.settings-list {
+  margin-top: 15px;
+  border-top: 1px solid rgba(139, 105, 20, 0.2);
+  padding-top: 15px;
+}
+
+.settings-list.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.setting-item {
+  margin-bottom: 12px;
+}
+
+.setting-item.main-toggle {
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(139, 105, 20, 0.2);
+  margin-bottom: 15px;
+}
+
+.setting-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.setting-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #d4af37;
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #e8dcc0;
+  font-size: 14px;
+}
+
+.toggle-label strong {
+  color: #d4af37;
+}
+
+.toggle-label small {
+  color: #8b7a5a;
+  font-size: 12px;
+}
+
+.info-text {
+  margin-top: 20px;
+  padding: 12px;
+  background: rgba(212, 175, 55, 0.1);
+  border-radius: 8px;
+  color: #8b7a5a;
+  font-size: 13px;
+  text-align: center;
+}

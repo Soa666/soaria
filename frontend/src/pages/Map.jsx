@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
 // Tileset configuration
@@ -167,6 +168,7 @@ function getTerrainAt(worldX, worldY) {
 
 function Map() {
   const { user, setUser } = useAuth();
+  const { notify } = useNotificationContext();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [players, setPlayers] = useState([]);
@@ -424,6 +426,8 @@ function Map() {
       if (response.data.arrived) {
         setMessage('Du bist angekommen!');
         setTimeout(() => setMessage(''), 3000);
+        // Send notification
+        notify.travel();
         // Refresh user profile to get updated coordinates
         try {
           const profileResponse = await api.get('/auth/profile');
@@ -492,6 +496,8 @@ function Map() {
         if (statusRes.data.job?.is_ready) {
           clearInterval(pollInterval);
           setGatheringJob(statusRes.data.job);
+          // Send notification when gathering is complete
+          notify.gathering(statusRes.data.job.display_name || 'Ressourcen', 1);
         } else if (!statusRes.data.job) {
           clearInterval(pollInterval);
           setGatheringJob(null);

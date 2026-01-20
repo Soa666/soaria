@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotificationContext } from '../context/NotificationContext';
 import Logo from './Logo';
 import './Navbar.css';
 
 function Navbar() {
   const { user, logout } = useAuth();
+  const { notify } = useNotificationContext();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const [questCount, setQuestCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const prevUnreadCount = useRef(0);
+  const prevQuestCount = useRef(0);
 
   // Fetch unread message count and claimable quests
   useEffect(() => {
@@ -30,10 +34,20 @@ function Navbar() {
 
         if (messagesRes.ok) {
           const data = await messagesRes.json();
+          // Notify if new messages arrived
+          if (data.count > prevUnreadCount.current && prevUnreadCount.current !== 0) {
+            notify.message('Jemand', 'Du hast neue Nachrichten!');
+          }
+          prevUnreadCount.current = data.count;
           setUnreadCount(data.count);
         }
         if (questsRes.ok) {
           const data = await questsRes.json();
+          // Notify if new quest is ready to claim
+          if (data.count > prevQuestCount.current && prevQuestCount.current !== 0) {
+            notify.quest('Eine Quest ist abgeschlossen!');
+          }
+          prevQuestCount.current = data.count;
           setQuestCount(data.count);
         }
       } catch (err) {
@@ -47,7 +61,7 @@ function Navbar() {
       const interval = setInterval(fetchCounts, 30000);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, notify]);
 
   const handleLogout = () => {
     logout();

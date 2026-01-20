@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import NotificationSettings from '../components/NotificationSettings';
 import './Profile.css';
 
 const getImageUrl = (imagePath) => {
@@ -133,6 +134,12 @@ function Profile() {
             onClick={() => setActiveTab('password')}
           >
             Passwort ändern
+          </button>
+          <button
+            className={`profile-tab ${activeTab === 'notifications' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notifications')}
+          >
+            🔔 Benachrichtigungen
           </button>
         </div>
 
@@ -345,6 +352,10 @@ function Profile() {
                 </button>
               </form>
             </div>
+          )}
+
+          {activeTab === 'notifications' && (
+            <NotificationSettings />
           )}
         </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -178,9 +179,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <div className="App">
-        <AppRoutes />
-      </div>
+      <NotificationProvider>
+        <div className="App">
+          <AppRoutes />
+        </div>
+      </NotificationProvider>
     </AuthProvider>
   );
 }
