@@ -13,49 +13,69 @@ const TILESET_URL = '/world/tileset_grass.png';
 
 // Tile IDs based on visual analysis of overworld_tileset_grass.png
 // 12 columns x 21 rows, ID = row * 12 + column
+// Autotile layout: corners at edges, SOLID CENTER at position (1,1) of each 3x3 block
 const TILES = {
-  // Grass variations - Row 0-1, various solid grass tiles
-  // Looking at the tileset: solid grass is around col 0-4 in early rows
+  // Grass variations - solid grass tiles from rows 0-3
+  // These are the plain grass tiles without transitions
   GRASS: [
-    0, 1, 2, 3, 4,           // Row 0: grass variations
-    12, 13, 14,              // Row 1: more grass
-    24, 25,                  // Row 2: grass
+    0, 1, 2, 3,              // Row 0: basic grass variations
+    12, 13, 14, 15,          // Row 1: more grass  
   ],
   
-  // Water - Row 5, Col 1 is the solid water center
-  // The autotile center is at position 61 (row 5, col 1)
-  WATER: [61],
+  // Water - SOLID water is the CENTER of the autotile (3x3 block)
+  // Water autotile starts at row 4, col 0. Center = row 5, col 1 = ID 61
+  WATER: [
+    5 * 12 + 1,  // = 61 - solid water center
+  ],
   
-  // Deep Water - same tile, rendered darker
-  DEEP_WATER: [61],
+  // Deep Water - use same water tile
+  DEEP_WATER: [
+    5 * 12 + 1,  // = 61
+  ],
   
-  // Dense Forest - Row 5-6, Col 9-10 area has forest tiles
-  // Solid forest around ID 70 (row 5, col 10) and nearby
-  FOREST: [70, 82, 94],  // Dense tree canopy tiles
+  // Dense Forest - SOLID forest is CENTER of forest autotile
+  // Forest autotile at row 4-6, col 9-11. Center = row 5, col 10 = ID 70
+  FOREST: [
+    5 * 12 + 10,  // = 70 - solid forest center
+  ],
   
-  // Individual Trees - Row 8-10 has tree tops
-  // Tree tops visible around row 8-9, col 9-11
+  // Individual Trees - the standalone tree graphics (row 2-4, col 9-11)
+  // But these are part of autotile. Use forest center for now
   TREES: [
-    105, 106, 107,  // Row 8, right side - tree tops
-    117, 118, 119,  // Row 9 - tree middles  
-    129, 130, 131,  // Row 10 - tree bottoms
+    5 * 12 + 10,  // = 70 - use forest tile
   ],
   
-  // High Grass / Swamp grass - Row 8-10, col 0-5
-  SWAMP_GRASS: [96, 97, 98, 108, 109, 110],
+  // Swamp - SOLID swamp is CENTER of swamp autotile  
+  // Swamp autotile at row 4-6, col 3-5. Center = row 5, col 4 = ID 64
+  SWAMP_GRASS: [
+    5 * 12 + 4,  // = 64 - solid swamp center
+  ],
   
-  // Path/Dirt - lighter tiles, use some grass edge or bridge tiles
-  // Row 11 has bridge/path tiles
-  PATH: [132, 133, 134, 144, 145],
+  // Path/Dirt - use the tan/brown path from bridge area or grass edge
+  // Row 11 has bridge tiles. Use lighter grass for paths
+  PATH: [
+    0, 1,  // Light grass as path substitute
+  ],
   
-  // Cliffs/Mountains - Use castle/stone tiles from row 17-18
-  CLIFF: [204, 205, 206, 216, 217, 218],
+  // Cliffs/Mountains - gray stone tiles from castle area (row 14-17)
+  // Row 14 col 6-8 has gray castle walls
+  CLIFF: [
+    14 * 12 + 6,   // = 174
+    14 * 12 + 7,   // = 175  
+    14 * 12 + 8,   // = 176
+  ],
   
-  // Flowers - grass tiles with flower details (row 0, col 8-11)
-  FLOWERS: [8, 9, 10, 11, 20, 21, 22, 23],
+  // Flowers - grass tiles with visible flowers/details
+  // The colorful tiles in row 0, right side
+  FLOWERS: [
+    4, 5,   // Grass with some color
+    16, 17, // More detailed grass
+  ],
   
-  // Sand/Beach - lighter colored tiles
-  SAND: [5, 6, 7, 17, 18, 19],
+  // Sand/Beach - lighter colored grass tiles
+  SAND: [
+    0, 1, 12, 13,  // Light grass as sand substitute
+  ],
 };
 
 // Seeded random number generator for consistent terrain
