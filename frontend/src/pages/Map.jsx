@@ -5,46 +5,57 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Tileset configuration - Blarumyrran's 16x16 tileset
-// 272x304 pixels = 17 columns x 19 rows of 16x16 tiles
+// Tileset configuration - Grass Biome Overworld Tileset
+// 192x336 pixels = 12 columns x 21 rows of 16x16 tiles (252 tiles total)
 const TILE_SIZE = 16;
-const TILESET_COLUMNS = 17;
-const TILESET_URL = '/world/tileset_simple.png';
+const TILESET_COLUMNS = 12;
+const TILESET_URL = '/world/tileset_grass.png';
 
-// Tile IDs for the tileset (row * 17 + col)
-// The tileset has autotile sections for transitions
+// Tile IDs based on visual analysis of overworld_tileset_grass.png
+// 12 columns x 21 rows, ID = row * 12 + column
 const TILES = {
-  // Solid grass tiles (around column 5, various rows)
-  GRASS_SOLID: [5, 17 + 5, 34 + 5, 51 + 5],  // Different grass variations
+  // Grass variations - Row 0-1, various solid grass tiles
+  // Looking at the tileset: solid grass is around col 0-4 in early rows
+  GRASS: [
+    0, 1, 2, 3, 4,           // Row 0: grass variations
+    12, 13, 14,              // Row 1: more grass
+    24, 25,                  // Row 2: grass
+  ],
   
-  // Solid water tiles (row 4-7, col 5 area)
-  WATER_SOLID: [4 * 17 + 5, 5 * 17 + 5],
+  // Water - Row 5, Col 1 is the solid water center
+  // The autotile center is at position 61 (row 5, col 1)
+  WATER: [61],
   
-  // Deep water (row 12-15, col 5)
-  DEEP_WATER_SOLID: [12 * 17 + 5, 13 * 17 + 5],
+  // Deep Water - same tile, rendered darker
+  DEEP_WATER: [61],
   
-  // Dirt solid (row 8-11, col 5)
-  DIRT_SOLID: [8 * 17 + 5, 9 * 17 + 5],
+  // Dense Forest - Row 5-6, Col 9-10 area has forest tiles
+  // Solid forest around ID 70 (row 5, col 10) and nearby
+  FOREST: [70, 82, 94],  // Dense tree canopy tiles
   
-  // Trees (right side of tileset, around col 9-11)
-  TREE_TOP: [0 * 17 + 9, 0 * 17 + 10, 0 * 17 + 11],
-  TREE_BOTTOM: [1 * 17 + 9, 1 * 17 + 10, 1 * 17 + 11],
-  PINE_TREE: [0 * 17 + 14, 1 * 17 + 14],
+  // Individual Trees - Row 8-10 has tree tops
+  // Tree tops visible around row 8-9, col 9-11
+  TREES: [
+    105, 106, 107,  // Row 8, right side - tree tops
+    117, 118, 119,  // Row 9 - tree middles  
+    129, 130, 131,  // Row 10 - tree bottoms
+  ],
   
-  // Forest floor (dense trees)
-  FOREST: [2 * 17 + 9, 2 * 17 + 10, 3 * 17 + 9],
+  // High Grass / Swamp grass - Row 8-10, col 0-5
+  SWAMP_GRASS: [96, 97, 98, 108, 109, 110],
   
-  // House tiles (around row 0, col 7-8)
-  HOUSE: [0 * 17 + 7, 0 * 17 + 8, 1 * 17 + 7, 1 * 17 + 8],
+  // Path/Dirt - lighter tiles, use some grass edge or bridge tiles
+  // Row 11 has bridge/path tiles
+  PATH: [132, 133, 134, 144, 145],
   
-  // Rocks/cliffs (around row 2-3, col 11-13)
-  ROCKS: [2 * 17 + 11, 2 * 17 + 12, 3 * 17 + 11, 3 * 17 + 12],
+  // Cliffs/Mountains - Use castle/stone tiles from row 17-18
+  CLIFF: [204, 205, 206, 216, 217, 218],
   
-  // Flowers/bushes (around row 2-4, col 10)
-  FLOWERS: [2 * 17 + 10, 3 * 17 + 10, 4 * 17 + 10],
+  // Flowers - grass tiles with flower details (row 0, col 8-11)
+  FLOWERS: [8, 9, 10, 11, 20, 21, 22, 23],
   
-  // Path/sand (use light dirt)
-  PATH: [8 * 17 + 2, 8 * 17 + 3, 9 * 17 + 2],
+  // Sand/Beach - lighter colored tiles
+  SAND: [5, 6, 7, 17, 18, 19],
 };
 
 // Seeded random number generator for consistent terrain
@@ -102,16 +113,16 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 // Get tile ID for terrain type with variation
 function getTileForTerrain(terrain, variation) {
   const tilesets = {
-    grass: TILES.GRASS_SOLID,
-    water: TILES.WATER_SOLID,
-    deepWater: TILES.DEEP_WATER_SOLID,
-    dirt: TILES.DIRT_SOLID,
+    grass: TILES.GRASS,
+    water: TILES.WATER,
+    deepWater: TILES.DEEP_WATER,
+    dirt: TILES.PATH,
     forest: TILES.FOREST,
-    trees: TILES.TREE_TOP,
-    cliff: TILES.ROCKS,
+    trees: TILES.TREES,
+    cliff: TILES.CLIFF,
     flowers: TILES.FLOWERS,
     path: TILES.PATH,
-    sand: TILES.PATH,
+    sand: TILES.SAND,
   };
   
   const tiles = tilesets[terrain] || tilesets.grass;
