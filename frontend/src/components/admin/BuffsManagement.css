@@ -158,6 +158,17 @@
   font-size: 0.85rem;
 }
 
+.selected-indicator {
+  color: #2ecc71;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.form-group input.has-selection {
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.1);
+}
+
 /* Buttons */
 .btn-apply {
   width: 100%;

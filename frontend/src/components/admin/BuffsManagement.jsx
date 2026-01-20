@@ -110,7 +110,13 @@ function BuffsManagement() {
 
     const targetConfig = TARGET_TYPES.find(t => t.value === targetType);
     if (targetConfig?.needsId && !targetId) {
-      setMessage('Bitte wähle ein Ziel');
+      if (targetType === 'user') {
+        setMessage('Bitte wähle einen Spieler aus der Liste');
+      } else if (targetType === 'guild') {
+        setMessage('Bitte wähle eine Gilde');
+      } else {
+        setMessage('Bitte gib ein Level ein');
+      }
       return;
     }
 
@@ -121,6 +127,7 @@ function BuffsManagement() {
         target_id: targetConfig?.needsId ? parseInt(targetId) : null,
         duration_minutes: duration
       });
+      console.log('Buff applied:', res.data);
       setMessage(res.data.message);
       fetchData();
       // Reset form
@@ -279,12 +286,20 @@ function BuffsManagement() {
           {/* User search */}
           {targetType === 'user' && (
             <div className="form-group">
-              <label>Spieler suchen</label>
+              <label>Spieler suchen {targetId && <span className="selected-indicator">✓ Ausgewählt</span>}</label>
               <input
                 type="text"
                 value={userSearch}
-                onChange={(e) => { setUserSearch(e.target.value); searchUsers(e.target.value); }}
+                onChange={(e) => { 
+                  setUserSearch(e.target.value); 
+                  searchUsers(e.target.value);
+                  // Clear targetId when typing new search
+                  if (e.target.value !== userSearch) {
+                    setTargetId('');
+                  }
+                }}
                 placeholder="Spielername eingeben..."
+                className={targetId ? 'has-selection' : ''}
               />
               {userSuggestions.length > 0 && (
                 <div className="user-suggestions">
@@ -292,7 +307,11 @@ function BuffsManagement() {
                     <div 
                       key={user.id} 
                       className={`suggestion ${targetId === String(user.id) ? 'selected' : ''}`}
-                      onClick={() => { setTargetId(String(user.id)); setUserSearch(user.username); setUserSuggestions([]); }}
+                      onClick={() => { 
+                        setTargetId(String(user.id)); 
+                        setUserSearch(user.username); 
+                        setUserSuggestions([]); 
+                      }}
                     >
                       {user.username} <span className="role">({user.role})</span>
                     </div>
