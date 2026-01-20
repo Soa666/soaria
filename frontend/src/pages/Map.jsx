@@ -5,12 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Tileset configuration - Original tileset (working)
-const TILE_SIZE = 16; // Original tile size in tileset
+// Tileset configuration - OpenGameArt Overworld tileset
+const TILE_SIZE = 16; // 16x16 pixel tiles
 const TILE_MARGIN = 0; // No margin
 const TILE_SPACING = TILE_SIZE; // 16px per tile slot
-const TILESET_COLUMNS = 16; // 256px / 16px = 16 columns
-const TILESET_URL = '/world/tileset.png';
+const TILESET_COLUMNS = 21; // 336px / 16px = 21 columns
+const TILESET_URL = '/world/overworld.png';
 
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
@@ -65,27 +65,58 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 }
 
 // Get tile ID based on terrain type and variation
-// Original tileset: 16 columns x 21 rows (256x336 pixels, 16x16 tiles)
+// OpenGameArt Overworld tileset: 21 columns x 9 rows (336x144 pixels, 16x16 tiles)
+// Row 0: Yellow grass (0-3), green grass (4-5), water edges
+// Row 1: Green grass, house
+// Row 2: Water, grass with trees
+// Row 3-4: Trees/forest
+// Row 5: Mountains
+// Row 6-8: Buildings, items
 function getTileForTerrain(terrain, variation) {
+  const C = 21; // 21 columns
+  
   const tiles = {
-    // Row 0-2: Grass variations
-    grass: [0, 1, 2, 3, 16, 17, 18, 19, 32, 33, 34, 35],
-    // Row 3-4: Dirt/path
-    dirt: [48, 49, 50, 64, 65, 66],
-    // Row 5-6: Water
-    water: [80, 81, 82, 96, 97, 98],
-    deepWater: [83, 84, 85, 99, 100, 101],
-    // Row 7-9: Trees/forest
-    forest: [112, 113, 114, 128, 129, 130, 144, 145, 146],
-    trees: [115, 116, 131, 132, 147, 148],
-    // Row 10-12: Cliffs/mountains
-    cliff: [160, 161, 162, 176, 177, 178, 192, 193, 194],
-    // Row 13: Flowers/details
-    flowers: [208, 209, 210, 211],
-    // Row 14: Paths
-    path: [224, 225, 226, 227],
-    // Row 15-16: Sand/beach
-    sand: [240, 241, 242, 256, 257, 258]
+    // Grass - Row 0 col 4-5, Row 1 col 0-3 (green grass)
+    grass: [
+      0*C + 4, 0*C + 5,           // Row 0: green grass
+      1*C + 0, 1*C + 1, 1*C + 2,  // Row 1: green grass
+    ],
+    // Dirt/path - Use grass edge tiles
+    dirt: [
+      0*C + 0, 0*C + 1, 0*C + 2,  // Yellow grass as dirt
+    ],
+    // Water - Row 0 col 6-8, Row 2 col 0-2
+    water: [
+      2*C + 0, 2*C + 1,  // Water tiles
+    ],
+    deepWater: [
+      2*C + 1, 2*C + 1,  // Center water
+    ],
+    // Forest/Trees - Row 3-4
+    forest: [
+      3*C + 0, 3*C + 1, 3*C + 2, 3*C + 3,  // Tree tops
+      4*C + 0, 4*C + 1, 4*C + 2, 4*C + 3,  // Tree bottoms
+    ],
+    trees: [
+      3*C + 0, 3*C + 2, 4*C + 0, 4*C + 2,
+    ],
+    // Mountains/Cliffs - Row 5
+    cliff: [
+      5*C + 0, 5*C + 1, 5*C + 2, 5*C + 3,
+      5*C + 4, 5*C + 5, 5*C + 6,
+    ],
+    // Flowers - Use grass with details
+    flowers: [
+      1*C + 0, 1*C + 1, 0*C + 4, 0*C + 5,
+    ],
+    // Path - Yellow/tan tiles
+    path: [
+      0*C + 0, 0*C + 1, 0*C + 2, 0*C + 3,
+    ],
+    // Sand - Yellow grass tiles
+    sand: [
+      0*C + 0, 0*C + 1, 0*C + 2, 0*C + 3,
+    ]
   };
   
   const tileSet = tiles[terrain] || tiles.grass;
@@ -641,13 +672,12 @@ function Map() {
             continue;
           }
 
-          // TODO: Fix tileset mapping - for now use colored rectangles
-          if (false && tilesetImage && tilesetLoaded) {
-            // Draw from tileset (disabled until tileset is properly mapped)
+          if (tilesetImage && tilesetLoaded) {
+            // Draw from tileset
             const tileId = getTileForTerrain(terrain, variation);
             drawTile(ctx, tileId, screenX, screenY, renderTileSize + 0.5); // +0.5 to avoid gaps
           } else {
-            // Colored rectangles - works reliably
+            // Fallback: colored rectangles
             const colors = {
               grass: '#4a6b3a',
               dirt: '#8b7355',
