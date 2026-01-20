@@ -15,6 +15,7 @@ import NpcManagement from '../components/admin/NpcManagement';
 import QuestManagement from '../components/admin/QuestManagement';
 import ApiManagement from '../components/admin/ApiManagement';
 import FeedbackManagement from '../components/admin/FeedbackManagement';
+import WebhooksManagement from '../components/admin/WebhooksManagement';
 import './Admin.css';
 
 const menuItems = [
@@ -30,6 +31,7 @@ const menuItems = [
   { id: 'feedback', icon: '💬', label: 'Feedback', category: 'Verwaltung' },
   { id: 'smtp', icon: '📧', label: 'SMTP E-Mail', category: 'System' },
   { id: 'email', icon: '📝', label: 'E-Mail Vorlagen', category: 'System' },
+  { id: 'webhooks', icon: '🔔', label: 'Discord Webhooks', category: 'System' },
   { id: 'api', icon: '🔧', label: 'API & Debug', category: 'System' },
 ];
 
@@ -125,6 +127,7 @@ function Admin() {
           {activeTab === 'quests' && <QuestManagement />}
           {activeTab === 'api' && <ApiManagement />}
           {activeTab === 'feedback' && <FeedbackManagement />}
+          {activeTab === 'webhooks' && <WebhooksManagement />}
         </div>
       </main>
     </div>

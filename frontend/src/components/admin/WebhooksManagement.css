@@ -1,0 +1,377 @@
+.webhooks-management {
+  padding: 20px;
+}
+
+.webhooks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 25px;
+  gap: 20px;
+}
+
+.webhooks-header h2 {
+  margin: 0 0 5px 0;
+  color: #d4af37;
+}
+
+.header-description {
+  color: #8b7a5a;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Messages */
+.success-message, .error-message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.success-message {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+/* Event Types Info */
+.event-types-info {
+  background: rgba(20, 15, 30, 0.5);
+  border: 1px solid rgba(139, 105, 20, 0.2);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 25px;
+}
+
+.event-types-info h3 {
+  color: #d4af37;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+}
+
+.event-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.event-type-card {
+  background: rgba(30, 20, 40, 0.5);
+  border: 1px solid rgba(139, 105, 20, 0.15);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.event-type-label {
+  font-weight: 600;
+  color: #e8dcc0;
+  margin-bottom: 5px;
+}
+
+.event-type-desc {
+  font-size: 13px;
+  color: #8b7a5a;
+  margin-bottom: 10px;
+}
+
+.event-type-placeholders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.event-type-placeholders code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #d4af37;
+}
+
+/* Form */
+.webhook-form-card {
+  background: rgba(20, 15, 30, 0.6);
+  border: 2px solid rgba(139, 105, 20, 0.3);
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.webhook-form-card h3 {
+  color: #d4af37;
+  margin: 0 0 20px 0;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  color: #d4af37;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(20, 15, 30, 0.8);
+  border: 2px solid rgba(139, 105, 20, 0.3);
+  border-radius: 8px;
+  color: #e8dcc0;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #d4af37;
+}
+
+.form-group small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b5a4a;
+}
+
+.form-group small code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #8b7a5a;
+  margin: 0 2px;
+}
+
+.code-textarea {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: #e8dcc0;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4a2c1a, #6b4423);
+  border-color: #8b6914;
+  color: #d4af37;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #6b4423, #8b5a2b);
+}
+
+.btn-secondary {
+  background: rgba(139, 105, 20, 0.2);
+  border-color: rgba(139, 105, 20, 0.4);
+  color: #d4af37;
+}
+
+.btn-secondary:hover {
+  background: rgba(139, 105, 20, 0.3);
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* Webhooks List */
+.webhooks-list {
+  margin-top: 25px;
+}
+
+.webhooks-list h3 {
+  color: #d4af37;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+}
+
+.no-webhooks {
+  background: rgba(20, 15, 30, 0.5);
+  border: 1px dashed rgba(139, 105, 20, 0.3);
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+  color: #8b7a5a;
+}
+
+.no-webhooks p:first-child {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+/* Webhook Card */
+.webhook-card {
+  background: rgba(20, 15, 30, 0.5);
+  border: 1px solid rgba(139, 105, 20, 0.2);
+  border-radius: 10px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.webhook-card.disabled {
+  opacity: 0.7;
+}
+
+.webhook-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  gap: 15px;
+}
+
+.webhook-info h4 {
+  margin: 0 0 8px 0;
+  color: #e8dcc0;
+  font-size: 15px;
+}
+
+.webhook-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.status-badge.inactive {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+.event-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  background: rgba(139, 105, 20, 0.2);
+  color: #d4af37;
+}
+
+.webhook-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.webhook-details {
+  padding: 15px 20px;
+}
+
+.webhook-url {
+  font-size: 13px;
+  color: #8b7a5a;
+  margin-bottom: 12px;
+}
+
+.webhook-url code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #6b5a4a;
+  margin-left: 8px;
+}
+
+.webhook-template {
+  font-size: 13px;
+  color: #8b7a5a;
+}
+
+.webhook-template pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 6px;
+  margin: 8px 0 0 0;
+  font-size: 12px;
+  color: #8b7a5a;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #8b7a5a;
+}
