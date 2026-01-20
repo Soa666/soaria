@@ -1,50 +1,80 @@
-/* Floating Button */
-.feedback-floating-btn {
+/* Floating Buttons Container */
+.floating-buttons {
   position: fixed;
   bottom: 20px;
   right: 20px;
   z-index: 1000;
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Base Floating Button */
+.floating-btn {
+  display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 18px;
-  background: linear-gradient(135deg, #4a2c1a 0%, #6b4423 50%, #4a2c1a 100%);
-  border: 2px solid #d4af37;
   border-radius: 50px;
-  color: #d4af37;
   font-weight: bold;
   font-size: 14px;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 20px rgba(212, 175, 55, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
+  text-decoration: none;
 }
 
-.feedback-floating-btn:hover {
+.floating-btn:hover {
   transform: translateY(-3px) scale(1.05);
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+.btn-text {
+  font-family: inherit;
+}
+
+/* Discord Button */
+.discord-btn {
+  background: linear-gradient(135deg, #5865F2 0%, #7289da 50%, #5865F2 100%);
+  border: 2px solid #7289da;
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 20px rgba(88, 101, 242, 0.3);
+}
+
+.discord-btn:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 30px rgba(88, 101, 242, 0.5);
+  background: linear-gradient(135deg, #7289da 0%, #99aab5 50%, #7289da 100%);
+  color: white;
+}
+
+/* Feedback Button */
+.feedback-btn {
+  background: linear-gradient(135deg, #4a2c1a 0%, #6b4423 50%, #4a2c1a 100%);
+  border: 2px solid #d4af37;
+  color: #d4af37;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 20px rgba(212, 175, 55, 0.2);
+}
+
+.feedback-btn:hover {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 30px rgba(212, 175, 55, 0.3);
   background: linear-gradient(135deg, #6b4423 0%, #8b5a2b 50%, #6b4423 100%);
 }
 
-.feedback-icon {
-  font-size: 18px;
-}
-
-.feedback-text {
-  font-family: inherit;
-}
-
-/* On mobile, show only icon */
+/* On mobile, show only icons */
 @media (max-width: 600px) {
-  .feedback-floating-btn {
+  .floating-btn {
     padding: 14px;
     border-radius: 50%;
   }
   
-  .feedback-text {
+  .btn-text {
     display: none;
   }
   
-  .feedback-icon {
+  .btn-icon {
     font-size: 22px;
   }
 }

@@ -49,15 +49,30 @@ function FeedbackButton() {
 
   return (
     <>
-      {/* Floating Button */}
-      <button 
-        className="feedback-floating-btn"
-        onClick={() => setIsOpen(true)}
-        title="Bug melden oder Vorschlag einreichen"
-      >
-        <span className="feedback-icon">💬</span>
-        <span className="feedback-text">Feedback</span>
-      </button>
+      {/* Floating Buttons Container */}
+      <div className="floating-buttons">
+        {/* Discord Button */}
+        <a 
+          href="https://discord.soa666.de"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="floating-btn discord-btn"
+          title="Tritt unserem Discord bei!"
+        >
+          <span className="btn-icon">🎮</span>
+          <span className="btn-text">Discord</span>
+        </a>
+
+        {/* Feedback Button */}
+        <button 
+          className="floating-btn feedback-btn"
+          onClick={() => setIsOpen(true)}
+          title="Bug melden oder Vorschlag einreichen"
+        >
+          <span className="btn-icon">💬</span>
+          <span className="btn-text">Feedback</span>
+        </button>
+      </div>
 
       {/* Modal */}
       {isOpen && (
