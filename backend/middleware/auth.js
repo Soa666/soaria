@@ -1,7 +1,26 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import db from '../database.js';
 
 dotenv.config();
+
+// Track last activity - update at most every 30 seconds per user
+const activityCache = new Map();
+const ACTIVITY_UPDATE_INTERVAL = 30000; // 30 seconds
+
+async function updateLastActivity(userId) {
+  const now = Date.now();
+  const lastUpdate = activityCache.get(userId) || 0;
+  
+  if (now - lastUpdate > ACTIVITY_UPDATE_INTERVAL) {
+    activityCache.set(userId, now);
+    try {
+      await db.run('UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE id = ?', [userId]);
+    } catch (error) {
+      console.error('Error updating last_activity:', error);
+    }
+  }
+}
 
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -16,6 +35,10 @@ export function authenticateToken(req, res, next) {
       return res.status(403).json({ error: 'Ungültiger Token' });
     }
     req.user = user;
+    
+    // Update last activity (non-blocking)
+    updateLastActivity(user.id);
+    
     next();
   });
 }
@@ -33,9 +56,6 @@ export function requireRole(...roles) {
     next();
   };
 }
-
-// Import db for permission checking
-import db from '../database.js';
 
 export function requirePermission(permissionName) {
   return async (req, res, next) => {

@@ -16,9 +16,11 @@ import QuestManagement from '../components/admin/QuestManagement';
 import ApiManagement from '../components/admin/ApiManagement';
 import FeedbackManagement from '../components/admin/FeedbackManagement';
 import WebhooksManagement from '../components/admin/WebhooksManagement';
+import OnlineUsers from '../components/admin/OnlineUsers';
 import './Admin.css';
 
 const menuItems = [
+  { id: 'online', icon: '🟢', label: 'Online Spieler', category: 'Übersicht' },
   { id: 'items', icon: '📦', label: 'Items', category: 'Spielinhalte' },
   { id: 'recipes', icon: '📜', label: 'Rezepte', category: 'Spielinhalte' },
   { id: 'buildings', icon: '🏠', label: 'Gebäude', category: 'Spielinhalte' },
@@ -38,7 +40,7 @@ const menuItems = [
 function Admin() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('items');
+  const [activeTab, setActiveTab] = useState('online');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -114,6 +116,7 @@ function Admin() {
         </header>
 
         <div className="admin-content">
+          {activeTab === 'online' && <OnlineUsers />}
           {activeTab === 'items' && <ItemsManagement />}
           {activeTab === 'recipes' && <RecipesManagement />}
           {activeTab === 'users' && <UsersManagement />}

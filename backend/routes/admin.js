@@ -534,6 +534,66 @@ router.post('/smtp/:id/test', authenticateToken, requirePermission('manage_users
 });
 
 // =====================
+// ONLINE USERS
+// =====================
+
+// Get online users (active in last 5 minutes)
+router.get('/online-users', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const minutes = parseInt(req.query.minutes) || 5;
+    
+    const onlineUsers = await db.all(`
+      SELECT 
+        u.id,
+        u.username,
+        u.role,
+        u.avatar_path,
+        u.world_x,
+        u.world_y,
+        u.last_activity,
+        u.last_login,
+        ps.level
+      FROM users u
+      LEFT JOIN player_stats ps ON u.id = ps.user_id
+      WHERE u.last_activity > datetime('now', '-${minutes} minutes')
+      ORDER BY u.last_activity DESC
+    `);
+
+    // Get total registered users
+    const totalUsers = await db.get('SELECT COUNT(*) as count FROM users WHERE is_activated = 1');
+
+    // Get users active in last 24 hours
+    const activeToday = await db.get(`
+      SELECT COUNT(*) as count FROM users 
+      WHERE last_activity > datetime('now', '-24 hours')
+    `);
+
+    res.json({ 
+      online: onlineUsers,
+      count: onlineUsers.length,
+      totalUsers: totalUsers.count,
+      activeToday: activeToday.count
+    });
+  } catch (error) {
+    console.error('Get online users error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get online count only (lightweight)
+router.get('/online-count', authenticateToken, async (req, res) => {
+  try {
+    const result = await db.get(`
+      SELECT COUNT(*) as count FROM users 
+      WHERE last_activity > datetime('now', '-5 minutes')
+    `);
+    res.json({ count: result.count });
+  } catch (error) {
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// =====================
 // DEBUG / API MANAGEMENT
 // =====================
 

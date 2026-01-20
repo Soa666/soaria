@@ -627,6 +627,13 @@ export async function initDatabase() {
     // Columns might already exist
   }
 
+  // Add last_activity column for online tracking
+  try {
+    await db.run(`ALTER TABLE users ADD COLUMN last_activity DATETIME`);
+  } catch (e) {
+    // Column might already exist
+  }
+
   // Monster types table (Monster-Typen für Admin-Verwaltung)
   await db.run(`
     CREATE TABLE IF NOT EXISTS monster_types (
