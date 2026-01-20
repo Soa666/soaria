@@ -5,12 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Tileset configuration - New OpenGameArt tileset
+// Tileset configuration - Kenney Roguelike tileset
 const TILE_SIZE = 16; // Original tile size in tileset
-const TILESET_COLUMNS = 16; // 256px / 16px = 16 columns
-const TILESET_URL = '/world/tileset.png';
-const WATER_URL = '/world/water.png';
-const MOUNTAINS_URL = '/world/mountains.png';
+const TILE_MARGIN = 1; // 1px margin between tiles
+const TILE_SPACING = TILE_SIZE + TILE_MARGIN; // 17px per tile slot
+const TILESET_COLUMNS = 57; // 968px / 17px = 57 columns
+const TILESET_URL = '/world/tileset_kenney.png';
 
 // Seeded random number generator for consistent terrain
 function seededRandom(seed) {
@@ -65,27 +65,66 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 }
 
 // Get tile ID based on terrain type and variation
-// New tileset: 16 columns x 21 rows (256x336 pixels, 16x16 tiles)
+// Kenney Roguelike tileset: 57 columns x 31 rows (968x526 pixels, 16x16 tiles with 1px margin)
+// Tile IDs are calculated as: row * TILESET_COLUMNS + column
+// Looking at the tileset image:
+// - Top-left area (rows 0-6): Ground tiles (water, grass, dirt, sand, farm)
+// - Row 3 (col 8+): Trees and vegetation
+// - Middle section: Buildings, walls, floors
+// - Right side: Doors, windows, furniture
 function getTileForTerrain(terrain, variation) {
+  const C = TILESET_COLUMNS; // 57 columns
+  
   const tiles = {
-    // Row 0-2: Grass variations
-    grass: [0, 1, 2, 3, 16, 17, 18, 19, 32, 33, 34, 35],
-    // Row 3-4: Dirt/path
-    dirt: [48, 49, 50, 64, 65, 66],
-    // Row 5-6: Water (handled separately with water.png)
-    water: [80, 81, 82, 96, 97, 98],
-    deepWater: [83, 84, 85, 99, 100, 101],
-    // Row 7-9: Trees/forest
-    forest: [112, 113, 114, 128, 129, 130, 144, 145, 146],
-    trees: [115, 116, 131, 132, 147, 148],
-    // Row 10-12: Cliffs/mountains (use mountains.png)
-    cliff: [160, 161, 162, 176, 177, 178, 192, 193, 194],
-    // Row 13: Flowers/details
-    flowers: [208, 209, 210, 211],
-    // Row 14: Paths
-    path: [224, 225, 226, 227],
-    // Row 15-16: Sand/beach
-    sand: [240, 241, 242, 256, 257, 258]
+    // Grass - Plain green grass (Row 5, cols 0-5 - the solid green tiles)
+    grass: [
+      5*C + 0, 5*C + 1, 5*C + 2, 5*C + 3, 5*C + 4, 5*C + 5,  // Solid grass
+      4*C + 3, 4*C + 4, 4*C + 5                               // Grass with details
+    ],
+    // Dirt/path - Brown dirt tiles (Row 0-1, cols 6-8)
+    dirt: [
+      0*C + 6, 0*C + 7, 0*C + 8,
+      1*C + 6, 1*C + 7, 1*C + 8
+    ],
+    // Water - Cyan/blue water (Row 0-2, cols 0-2 - the water area)
+    water: [
+      0*C + 0, 0*C + 1, 0*C + 2,
+      1*C + 0, 1*C + 1, 1*C + 2,
+      2*C + 0, 2*C + 1, 2*C + 2
+    ],
+    deepWater: [
+      1*C + 1, 1*C + 1, 1*C + 1, // Center water tiles (solid blue)
+      2*C + 1, 2*C + 1, 2*C + 1
+    ],
+    // Trees/forest - Tree sprites (Row 3, cols 8-15)
+    forest: [
+      3*C + 8, 3*C + 9, 3*C + 10, 3*C + 11,   // Round trees
+      3*C + 12, 3*C + 13, 3*C + 14, 3*C + 15  // Pine trees
+    ],
+    trees: [
+      3*C + 8, 3*C + 10, 3*C + 12, 3*C + 14   // Variety of trees
+    ],
+    // Cliffs/mountains - Gray stone (Row 7-9, cols 17-22)
+    cliff: [
+      7*C + 17, 7*C + 18, 7*C + 19, 7*C + 20,
+      8*C + 17, 8*C + 18, 8*C + 19, 8*C + 20,
+      9*C + 17, 9*C + 18, 9*C + 19, 9*C + 20
+    ],
+    // Flowers/details - Small plants (Row 3, cols 16-19)
+    flowers: [
+      3*C + 16, 3*C + 17, 3*C + 18, 3*C + 19,
+      3*C + 20, 3*C + 21, 3*C + 22
+    ],
+    // Path/road - Stone paths (Row 14-15, orange/gray)
+    path: [
+      14*C + 0, 14*C + 1, 14*C + 2, 14*C + 3,
+      15*C + 0, 15*C + 1, 15*C + 2, 15*C + 3
+    ],
+    // Sand/beach - Tan/beige tiles (Row 0, cols 9-11)
+    sand: [
+      0*C + 9, 0*C + 10, 0*C + 11,
+      1*C + 9, 1*C + 10, 1*C + 11
+    ]
   };
   
   const tileSet = tiles[terrain] || tiles.grass;
@@ -569,14 +608,16 @@ function Map() {
     }
   };
 
-  // Helper to draw a tile from the tileset
+  // Helper to draw a tile from the tileset (with margin support)
   const drawTile = (ctx, tileId, destX, destY, destSize) => {
-    if (!tilesetImage || !tilesetLoaded || tileId < 1) return;
+    if (!tilesetImage || !tilesetLoaded || tileId < 0) return;
     
-    // Tiled uses 1-indexed tile IDs, convert to 0-indexed
-    const id = tileId - 1;
-    const srcX = (id % TILESET_COLUMNS) * TILE_SIZE;
-    const srcY = Math.floor(id / TILESET_COLUMNS) * TILE_SIZE;
+    // Calculate source position with margin
+    // Each tile slot is TILE_SIZE + TILE_MARGIN (17px)
+    const col = tileId % TILESET_COLUMNS;
+    const row = Math.floor(tileId / TILESET_COLUMNS);
+    const srcX = col * TILE_SPACING;
+    const srcY = row * TILE_SPACING;
     
     ctx.drawImage(
       tilesetImage,
