@@ -197,6 +197,9 @@ router.post('/login', async (req, res) => {
     // Check for daily login quests
     await checkDailyLoginQuest(user.id);
 
+    // Auto-activate achievement quests
+    await activateAchievementQuests(user.id);
+
     // Generate token
     const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
     const token = jwt.sign(
@@ -508,6 +511,50 @@ async function checkDailyLoginQuest(userId) {
     }
   } catch (error) {
     console.error('Check daily login quest error:', error);
+  }
+}
+
+// Helper: Auto-activate all achievement quests for a user
+async function activateAchievementQuests(userId) {
+  try {
+    // Get user's level
+    const userStats = await db.get('SELECT level FROM player_stats WHERE user_id = ?', [userId]);
+    const userLevel = userStats?.level || 1;
+
+    // Find all achievement quests that the user hasn't started yet and meets level requirement
+    const availableAchievements = await db.all(`
+      SELECT q.id, q.display_name
+      FROM quests q
+      WHERE q.category = 'achievement' 
+        AND q.is_active = 1
+        AND q.min_level <= ?
+        AND q.id NOT IN (
+          SELECT quest_id FROM user_quests WHERE user_id = ?
+        )
+    `, [userLevel, userId]);
+
+    if (availableAchievements.length === 0) return;
+
+    console.log(`[ACHIEVEMENTS] Activating ${availableAchievements.length} new achievements for user ${userId}`);
+
+    for (const quest of availableAchievements) {
+      // Start the quest (set to active)
+      await db.run(`
+        INSERT INTO user_quests (user_id, quest_id, status, started_at)
+        VALUES (?, ?, 'active', CURRENT_TIMESTAMP)
+      `, [userId, quest.id]);
+
+      // Initialize progress for all objectives
+      const objectives = await db.all('SELECT id FROM quest_objectives WHERE quest_id = ?', [quest.id]);
+      for (const obj of objectives) {
+        await db.run(`
+          INSERT OR IGNORE INTO user_quest_progress (user_id, quest_id, objective_id, current_amount, is_completed)
+          VALUES (?, ?, ?, 0, 0)
+        `, [userId, quest.id, obj.id]);
+      }
+    }
+  } catch (error) {
+    console.error('Activate achievement quests error:', error);
   }
 }
 

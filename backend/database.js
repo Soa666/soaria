@@ -2093,6 +2093,463 @@ async function insertDefaultQuests() {
   } catch (error) {
     console.error('Error creating default quest:', error);
   }
+
+  // Create achievement quests (auto-active achievements)
+  await insertAchievementQuests();
+}
+
+// Insert achievement quests that are auto-active
+async function insertAchievementQuests() {
+  // Get monster types for specific kill achievements
+  const wolf = await db.get("SELECT id FROM monster_types WHERE name = 'wolf'");
+  const goblin = await db.get("SELECT id FROM monster_types WHERE name = 'goblin'");
+  const skeleton = await db.get("SELECT id FROM monster_types WHERE name = 'skeleton'");
+  const orc = await db.get("SELECT id FROM monster_types WHERE name = 'orc'");
+  const troll = await db.get("SELECT id FROM monster_types WHERE name = 'troll'");
+  const dragonHatchling = await db.get("SELECT id FROM monster_types WHERE name = 'dragon_hatchling'");
+  const lichKing = await db.get("SELECT id FROM monster_types WHERE name = 'lich_king'");
+  const ancientDragon = await db.get("SELECT id FROM monster_types WHERE name = 'ancient_dragon'");
+
+  const achievements = [
+    // ===== Monster Kill Achievements (general) =====
+    {
+      name: 'achievement_first_blood',
+      display_name: 'Erstes Blut',
+      description: 'Besiege dein erstes Monster!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 25,
+      reward_experience: 50,
+      sort_order: 100,
+      objectives: [
+        { type: 'kill_monster', amount: 1, description: 'Besiege 1 Monster' }
+      ]
+    },
+    {
+      name: 'achievement_monster_slayer_10',
+      display_name: 'Monsterjäger',
+      description: 'Besiege 10 Monster in der Wildnis.',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 50,
+      reward_experience: 100,
+      sort_order: 101,
+      objectives: [
+        { type: 'kill_monster', amount: 10, description: 'Besiege 10 Monster' }
+      ]
+    },
+    {
+      name: 'achievement_monster_slayer_50',
+      display_name: 'Erfahrener Jäger',
+      description: 'Besiege 50 Monster.',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 150,
+      reward_experience: 300,
+      sort_order: 102,
+      objectives: [
+        { type: 'kill_monster', amount: 50, description: 'Besiege 50 Monster' }
+      ]
+    },
+    {
+      name: 'achievement_monster_slayer_100',
+      display_name: 'Legendärer Jäger',
+      description: 'Besiege 100 Monster - eine beeindruckende Leistung!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 300,
+      reward_experience: 500,
+      sort_order: 103,
+      objectives: [
+        { type: 'kill_monster', amount: 100, description: 'Besiege 100 Monster' }
+      ]
+    },
+    {
+      name: 'achievement_monster_slayer_500',
+      display_name: 'Monster-Vernichter',
+      description: 'Besiege 500 Monster!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 1000,
+      reward_experience: 1500,
+      sort_order: 104,
+      objectives: [
+        { type: 'kill_monster', amount: 500, description: 'Besiege 500 Monster' }
+      ]
+    },
+
+    // ===== Wolf Achievements =====
+    {
+      name: 'achievement_wolf_hunter_5',
+      display_name: 'Wolfsjäger',
+      description: 'Die Wölfe fürchten dich!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 30,
+      reward_experience: 60,
+      sort_order: 110,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: wolf?.id, amount: 5, description: 'Besiege 5 Wölfe' }
+      ]
+    },
+    {
+      name: 'achievement_wolf_hunter_25',
+      display_name: 'Wolfsschreck',
+      description: 'Die Wölfe erzählen Geschichten über dich.',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 100,
+      reward_experience: 200,
+      sort_order: 111,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: wolf?.id, amount: 25, description: 'Besiege 25 Wölfe' }
+      ]
+    },
+
+    // ===== Goblin Achievements =====
+    {
+      name: 'achievement_goblin_slayer_5',
+      display_name: 'Goblin-Bekämpfer',
+      description: 'Die Goblins wissen, wer du bist.',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 40,
+      reward_experience: 80,
+      sort_order: 120,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: goblin?.id, amount: 5, description: 'Besiege 5 Goblins' }
+      ]
+    },
+    {
+      name: 'achievement_goblin_slayer_25',
+      display_name: 'Goblin-Jäger',
+      description: 'Goblins fliehen bei deinem Anblick!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 120,
+      reward_experience: 250,
+      sort_order: 121,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: goblin?.id, amount: 25, description: 'Besiege 25 Goblins' }
+      ]
+    },
+
+    // ===== Skeleton Achievements =====
+    {
+      name: 'achievement_skeleton_crusher_10',
+      display_name: 'Knochenbrecher',
+      description: 'Du weißt, wie man Skelette zerlegt.',
+      category: 'achievement',
+      min_level: 3,
+      reward_gold: 60,
+      reward_experience: 120,
+      sort_order: 130,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: skeleton?.id, amount: 10, description: 'Besiege 10 Skelette' }
+      ]
+    },
+
+    // ===== Orc Achievements =====
+    {
+      name: 'achievement_orc_slayer_10',
+      display_name: 'Ork-Bezwinger',
+      description: 'Die Orks respektieren deine Stärke.',
+      category: 'achievement',
+      min_level: 5,
+      reward_gold: 100,
+      reward_experience: 200,
+      sort_order: 140,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: orc?.id, amount: 10, description: 'Besiege 10 Orks' }
+      ]
+    },
+
+    // ===== Troll Achievement =====
+    {
+      name: 'achievement_troll_slayer_5',
+      display_name: 'Trollbezwinger',
+      description: 'Selbst Trolle sind vor dir nicht sicher!',
+      category: 'achievement',
+      min_level: 8,
+      reward_gold: 150,
+      reward_experience: 300,
+      sort_order: 150,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: troll?.id, amount: 5, description: 'Besiege 5 Trolle' }
+      ]
+    },
+
+    // ===== Boss Achievements =====
+    {
+      name: 'achievement_boss_slayer_1',
+      display_name: 'Boss-Bezwinger',
+      description: 'Besiege deinen ersten Boss!',
+      category: 'achievement',
+      min_level: 5,
+      reward_gold: 200,
+      reward_experience: 400,
+      sort_order: 200,
+      objectives: [
+        { type: 'kill_boss', amount: 1, description: 'Besiege 1 Boss' }
+      ]
+    },
+    {
+      name: 'achievement_boss_slayer_5',
+      display_name: 'Boss-Jäger',
+      description: 'Besiege 5 Bosse!',
+      category: 'achievement',
+      min_level: 5,
+      reward_gold: 500,
+      reward_experience: 800,
+      sort_order: 201,
+      objectives: [
+        { type: 'kill_boss', amount: 5, description: 'Besiege 5 Bosse' }
+      ]
+    },
+    {
+      name: 'achievement_boss_slayer_10',
+      display_name: 'Boss-Vernichter',
+      description: 'Die mächtigsten Kreaturen fallen vor dir!',
+      category: 'achievement',
+      min_level: 5,
+      reward_gold: 1000,
+      reward_experience: 1500,
+      sort_order: 202,
+      objectives: [
+        { type: 'kill_boss', amount: 10, description: 'Besiege 10 Bosse' }
+      ]
+    },
+
+    // ===== Specific Boss Achievements =====
+    {
+      name: 'achievement_dragon_hatchling',
+      display_name: 'Drachentöter-Lehrling',
+      description: 'Du hast ein Drachenjunges besiegt!',
+      category: 'achievement',
+      min_level: 10,
+      reward_gold: 300,
+      reward_experience: 500,
+      sort_order: 210,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: dragonHatchling?.id, amount: 1, description: 'Besiege das Drachenjunge' }
+      ]
+    },
+    {
+      name: 'achievement_lich_king',
+      display_name: 'Lichkönig-Bezwinger',
+      description: 'Du hast den Lichkönig in die ewige Ruhe geschickt!',
+      category: 'achievement',
+      min_level: 15,
+      reward_gold: 500,
+      reward_experience: 800,
+      sort_order: 211,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: lichKing?.id, amount: 1, description: 'Besiege den Lichkönig' }
+      ]
+    },
+    {
+      name: 'achievement_ancient_dragon',
+      display_name: 'Drachentöter',
+      description: 'Du hast den uralten Drachen besiegt - eine legendäre Tat!',
+      category: 'achievement',
+      min_level: 25,
+      reward_gold: 2000,
+      reward_experience: 3000,
+      sort_order: 212,
+      objectives: [
+        { type: 'kill_specific_monster', target_id: ancientDragon?.id, amount: 1, description: 'Besiege den uralten Drachen' }
+      ]
+    },
+
+    // ===== Resource Collection Achievements =====
+    {
+      name: 'achievement_gatherer_10',
+      display_name: 'Sammler',
+      description: 'Sammle deine ersten Ressourcen!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 20,
+      reward_experience: 40,
+      sort_order: 300,
+      objectives: [
+        { type: 'collect_resource', amount: 10, description: 'Sammle 10 Ressourcen' }
+      ]
+    },
+    {
+      name: 'achievement_gatherer_100',
+      display_name: 'Fleißiger Sammler',
+      description: 'Du bist ein erfahrener Sammler geworden.',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 100,
+      reward_experience: 200,
+      sort_order: 301,
+      objectives: [
+        { type: 'collect_resource', amount: 100, description: 'Sammle 100 Ressourcen' }
+      ]
+    },
+
+    // ===== Crafting Achievements =====
+    {
+      name: 'achievement_crafter_5',
+      display_name: 'Handwerker-Lehrling',
+      description: 'Stelle deine ersten Items her!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 30,
+      reward_experience: 60,
+      sort_order: 310,
+      objectives: [
+        { type: 'craft_item', amount: 5, description: 'Stelle 5 Items her' }
+      ]
+    },
+    {
+      name: 'achievement_crafter_25',
+      display_name: 'Meisterhandwerker',
+      description: 'Du hast das Handwerk gemeistert!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 150,
+      reward_experience: 300,
+      sort_order: 311,
+      objectives: [
+        { type: 'craft_item', amount: 25, description: 'Stelle 25 Items her' }
+      ]
+    },
+
+    // ===== Building Achievements =====
+    {
+      name: 'achievement_builder_1',
+      display_name: 'Baumeister',
+      description: 'Errichte dein erstes Gebäude!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 50,
+      reward_experience: 100,
+      sort_order: 320,
+      objectives: [
+        { type: 'build_building', amount: 1, description: 'Baue 1 Gebäude' }
+      ]
+    },
+    {
+      name: 'achievement_builder_5',
+      display_name: 'Siedler',
+      description: 'Dein Grundstück nimmt Form an!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 200,
+      reward_experience: 400,
+      sort_order: 321,
+      objectives: [
+        { type: 'build_building', amount: 5, description: 'Baue 5 Gebäude' }
+      ]
+    },
+
+    // ===== Gold Achievements =====
+    {
+      name: 'achievement_rich_100',
+      display_name: 'Sparschwein',
+      description: 'Verdiene insgesamt 100 Gold.',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 25,
+      reward_experience: 50,
+      sort_order: 330,
+      objectives: [
+        { type: 'earn_gold', amount: 100, description: 'Verdiene 100 Gold' }
+      ]
+    },
+    {
+      name: 'achievement_rich_1000',
+      display_name: 'Wohlhabend',
+      description: 'Verdiene insgesamt 1000 Gold!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 100,
+      reward_experience: 200,
+      sort_order: 331,
+      objectives: [
+        { type: 'earn_gold', amount: 1000, description: 'Verdiene 1000 Gold' }
+      ]
+    },
+    {
+      name: 'achievement_rich_10000',
+      display_name: 'Reichtum',
+      description: 'Du hast ein kleines Vermögen angehäuft!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 500,
+      reward_experience: 1000,
+      sort_order: 332,
+      objectives: [
+        { type: 'earn_gold', amount: 10000, description: 'Verdiene 10000 Gold' }
+      ]
+    },
+
+    // ===== Travel Achievements =====
+    {
+      name: 'achievement_traveler_1000',
+      display_name: 'Wanderer',
+      description: 'Lege 1000 Felder zurück.',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 30,
+      reward_experience: 60,
+      sort_order: 340,
+      objectives: [
+        { type: 'travel_distance', amount: 1000, description: 'Laufe 1000 Felder' }
+      ]
+    },
+    {
+      name: 'achievement_traveler_10000',
+      display_name: 'Entdecker',
+      description: 'Lege 10000 Felder zurück!',
+      category: 'achievement',
+      min_level: 1,
+      reward_gold: 150,
+      reward_experience: 300,
+      sort_order: 341,
+      objectives: [
+        { type: 'travel_distance', amount: 10000, description: 'Laufe 10000 Felder' }
+      ]
+    },
+  ];
+
+  for (const achievement of achievements) {
+    // Skip if no valid target_id for specific monster kills
+    if (achievement.objectives[0].type === 'kill_specific_monster' && !achievement.objectives[0].target_id) {
+      continue;
+    }
+
+    // Check if achievement already exists
+    const existing = await db.get('SELECT id FROM quests WHERE name = ?', [achievement.name]);
+    if (existing) continue;
+
+    try {
+      const result = await db.run(`
+        INSERT INTO quests (
+          name, display_name, description, category,
+          is_repeatable, min_level, reward_gold, reward_experience, sort_order, is_active
+        ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, 1)
+      `, [
+        achievement.name, achievement.display_name, achievement.description, achievement.category,
+        achievement.min_level, achievement.reward_gold, achievement.reward_experience, achievement.sort_order
+      ]);
+
+      // Add objectives
+      for (let i = 0; i < achievement.objectives.length; i++) {
+        const obj = achievement.objectives[i];
+        await db.run(`
+          INSERT INTO quest_objectives (quest_id, objective_type, target_id, required_amount, description, sort_order)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [result.lastID, obj.type, obj.target_id || null, obj.amount, obj.description, i]);
+      }
+
+      console.log(`[DB] Achievement created: ${achievement.display_name}`);
+    } catch (error) {
+      console.error(`Error creating achievement ${achievement.name}:`, error);
+    }
+  }
 }
 
 // Insert default resource node types

@@ -2,6 +2,7 @@ import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/permissions.js';
+import { sendDiscordWebhook } from '../utils/discord.js';
 
 const router = express.Router();
 
@@ -29,6 +30,47 @@ router.post('/', authenticateToken, async (req, res) => {
       INSERT INTO feedback (user_id, type, title, description, page_url, browser_info)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [userId, type, title.trim(), description.trim(), pageUrl || null, browserInfo || null]);
+
+    // Send Discord webhook notification
+    try {
+      const feedbackWebhook = await db.get(
+        "SELECT webhook_url, message_template FROM discord_webhooks WHERE event_type = 'feedback' AND enabled = 1"
+      );
+
+      if (feedbackWebhook && feedbackWebhook.webhook_url) {
+        // Get username
+        const user = userId ? await db.get('SELECT username FROM users WHERE id = ?', [userId]) : null;
+        const username = user?.username || 'Anonym';
+
+        // Type icons
+        const typeIcons = {
+          bug: '🐛',
+          suggestion: '💡',
+          other: '📋'
+        };
+        const typeNames = {
+          bug: 'Bug-Report',
+          suggestion: 'Vorschlag',
+          other: 'Sonstiges'
+        };
+
+        // Build message
+        let message = feedbackWebhook.message_template || 
+          '{{icon}} **Neues Feedback: {{type}}**\n\n**Von:** {{username}}\n**Titel:** {{title}}\n\n**Beschreibung:**\n{{description}}';
+        
+        message = message
+          .replace(/\{\{icon\}\}/g, typeIcons[type] || '📝')
+          .replace(/\{\{type\}\}/g, typeNames[type] || type)
+          .replace(/\{\{username\}\}/g, username)
+          .replace(/\{\{title\}\}/g, title.trim())
+          .replace(/\{\{description\}\}/g, description.trim().substring(0, 500));
+
+        await sendDiscordWebhook(feedbackWebhook.webhook_url, message);
+      }
+    } catch (webhookError) {
+      console.error('Error sending feedback Discord webhook:', webhookError);
+      // Don't fail the feedback submission if webhook fails
+    }
 
     res.status(201).json({ 
       message: type === 'bug' 
