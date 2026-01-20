@@ -39,15 +39,6 @@ app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 
-// Helper to get real client IP
-export function getClientIP(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() 
-    || req.headers['x-real-ip'] 
-    || req.ip 
-    || req.connection?.remoteAddress 
-    || 'unknown';
-}
-
 // Serve static files (item images and character images)
 import path from 'path';
 import { fileURLToPath } from 'url';

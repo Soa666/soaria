@@ -7,7 +7,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { sendActivationEmail } from '../utils/email.js';
 import { sendDiscordRegistrationNotification } from '../utils/discord.js';
 import { updateStatistic, updateQuestObjectiveProgress } from '../helpers/statistics.js';
-import { getClientIP } from '../server.js';
+import { getClientIP } from '../utils/network.js';
 
 const router = express.Router();
 
