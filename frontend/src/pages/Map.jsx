@@ -200,6 +200,7 @@ function Map() {
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [highlightedPlayer, setHighlightedPlayer] = useState(null);
+  const [hasInitialTarget, setHasInitialTarget] = useState(false); // Track if we have URL target params
   const [resourceNodes, setResourceNodes] = useState([]);
   const [selectedResource, setSelectedResource] = useState(null);
   const [gatheringJob, setGatheringJob] = useState(null);
@@ -230,6 +231,9 @@ function Map() {
     if (targetX && targetY) {
       const x = parseInt(targetX);
       const y = parseInt(targetY);
+      
+      // Mark that we have a target from URL - prevents auto-centering on user
+      setHasInitialTarget(true);
       
       // Center view on target coordinates
       setViewCenter({ x, y });
@@ -269,14 +273,17 @@ function Map() {
     return () => clearInterval(refreshInterval);
   }, []);
 
-  // Center view when user coordinates are available
+  // Center view when user coordinates are available (only if no URL target)
   useEffect(() => {
+    // Skip if we have a target from URL parameters
+    if (hasInitialTarget) return;
+    
     if (user?.world_x !== undefined && user?.world_y !== undefined && (user.world_x !== 0 || user.world_y !== 0)) {
       setViewCenter({ x: user.world_x, y: user.world_y });
     } else {
       setViewCenter({ x: 0, y: 0 });
     }
-  }, [user?.id]); // Only re-center when user changes, not on every coordinate update
+  }, [user?.id, hasInitialTarget]); // Only re-center when user changes, not on every coordinate update
 
   // Poll travel status every 10 seconds while traveling
   useEffect(() => {
