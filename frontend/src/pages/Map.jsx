@@ -28,15 +28,15 @@ const AUTOTILES = {
   path: null,
 };
 
-// Grass base tiles (no autotiling needed, just variations)
-const GRASS_TILES = [0, 1, 2, 3, 12, 13, 14, 15];
+// Grass base tiles - USE ONLY MATCHING TILES (same shade of green)
+// Row 0, col 0-3 are the consistent light-green grass tiles
+const GRASS_TILES = [0, 1, 2, 3];  // Only use tiles that match in color!
 
 // Path/dirt tiles - tan/brown colored from the tileset
-// Looking at tileset: row 11 has bridge/path, we use lighter grass-edge tiles
+// Row 11 col 1-2 appears to be the dirt path
 const PATH_TILES = [
-  11 * 12 + 3,  // Row 11, col 3 - bridge/path area
-  11 * 12 + 4,  // Row 11, col 4
-  11 * 12 + 5,  // Row 11, col 5
+  11 * 12 + 1,  // Row 11, col 1 - path
+  11 * 12 + 2,  // Row 11, col 2 - path
 ];
 
 // 4-bit autotile mapping: based on which neighbors are the SAME terrain
@@ -216,81 +216,66 @@ function isOnPath(worldX, worldY) {
 }
 
 // Generate terrain type based on noise - creates a beautiful varied world
-// Optimized for more open grassland, scattered forests, and connecting paths
+// Balanced: lots of grass, some water, forest clusters, paths
 function getTerrainAt(worldX, worldY) {
   // === NOISE LAYERS ===
-  // Continent shape - very large scale features (islands, continents)
-  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.0008, 12345);
+  // Continent shape - large landmasses with water between
+  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.0015, 12345);
   
-  // Elevation - medium scale hills and valleys
-  const elevation = fractalNoise(worldX, worldY, 5, 0.5, 0.005, 54321);
+  // Elevation for hills
+  const elevation = fractalNoise(worldX, worldY, 4, 0.5, 0.006, 54321);
   
-  // Forest clusters - creates patches of forest, not continuous
-  const forestNoise = fractalNoise(worldX, worldY, 4, 0.6, 0.008, 77777);
+  // Forest clusters - creates distinct patches of forest
+  const forestNoise = fractalNoise(worldX, worldY, 4, 0.5, 0.006, 77777);
   
-  // Detail noise for small features
-  const detail = fractalNoise(worldX, worldY, 3, 0.5, 0.03, 22222);
+  // Lake/pond noise - creates water bodies
+  const lakeNoise = fractalNoise(worldX, worldY, 3, 0.6, 0.003, 88888);
   
-  // Lake noise - creates scattered ponds and lakes
-  const lakeNoise = fractalNoise(worldX, worldY, 3, 0.5, 0.004, 88888);
+  // River noise for winding rivers
+  const riverNoise = fractalNoise(worldX, worldY, 3, 0.5, 0.002, 99999);
+  const riverPath = Math.abs(Math.sin(worldX * 0.005 + riverNoise * 3) + Math.cos(worldY * 0.005));
   
   // Combined height
   const height = continent * 0.6 + elevation * 0.4;
   
   // === TERRAIN DETERMINATION ===
   
-  // Paths first - they cut through most terrain
-  if (isOnPath(worldX, worldY) && continent > 0.3 && height > 0.35 && height < 0.75) {
+  // Paths - connect areas (grid pattern with winding)
+  if (isOnPath(worldX, worldY) && continent > 0.35 && height > 0.35) {
     return 'path';
   }
   
-  // Deep Ocean (very low continent values)
-  if (continent < 0.22) {
-    return 'deepWater';
-  }
+  // === WATER (more of it!) ===
   
-  // Shallow Ocean / Coast
+  // Ocean (low continent)
   if (continent < 0.30) {
+    if (continent < 0.22) return 'deepWater';
     return 'water';
   }
   
-  // Scattered Lakes and Ponds (small water bodies inland)
-  if (lakeNoise > 0.72 && continent > 0.35 && height > 0.35 && height < 0.6) {
+  // Large lakes
+  if (lakeNoise > 0.65 && continent > 0.35 && continent < 0.7) {
     return 'water';
   }
   
-  // High Mountains (rare peaks)
-  if (height > 0.85) {
-    return 'cliff';
+  // Rivers (winding through land)
+  if (riverPath < 0.15 && continent > 0.35 && continent < 0.8) {
+    return 'water';
   }
   
-  // Forest CLUSTERS - not continuous, creates patches
-  // Only ~20% of land should be forest
-  if (forestNoise > 0.65 && height > 0.38 && height < 0.75 && continent > 0.35) {
-    // Dense forest in cluster centers
-    if (forestNoise > 0.75) {
-      return 'forest';
-    }
-    // Forest edges - scattered trees
+  // Small ponds (scattered)
+  if (lakeNoise > 0.72 && elevation < 0.4) {
+    return 'water';
+  }
+  
+  // === LAND ===
+  
+  // Forest clusters (about 25% of land)
+  if (forestNoise > 0.62 && continent > 0.35) {
     return 'forest';
   }
   
-  // Scattered individual trees on grassland (rare)
-  if (detail > 0.82 && forestNoise > 0.45 && height > 0.4 && height < 0.7) {
-    return 'trees';
-  }
-  
-  // Flower meadows (on open grassland)
-  if (detail > 0.78 && detail < 0.85 && forestNoise < 0.5 && height > 0.4 && height < 0.6) {
-    return 'flowers';
-  }
-  
-  // Dirt patches (dry areas)
-  if (detail > 0.85 && forestNoise < 0.35 && height > 0.45 && height < 0.65) {
-    return 'dirt';
-  }
-  
-  // Everything else is open grassland (the majority!)
+  // Everything else is GRASS (the majority - clean, simple)
   return 'grass';
 }
 
