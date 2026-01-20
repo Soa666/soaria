@@ -355,7 +355,13 @@ function Messages() {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
+    // SQLite stores CURRENT_TIMESTAMP as UTC without timezone indicator
+    // Append 'Z' if no timezone info to ensure correct parsing as UTC
+    let normalizedDateString = dateString;
+    if (dateString && !dateString.includes('Z') && !dateString.includes('+')) {
+      normalizedDateString = dateString.replace(' ', 'T') + 'Z';
+    }
+    const date = new Date(normalizedDateString);
     const now = new Date();
     const diff = now - date;
     
@@ -523,7 +529,7 @@ function Messages() {
                         : `An: ${selectedMessage.recipient_name}`
                       }
                     </span>
-                    <span>{new Date(selectedMessage.created_at).toLocaleString('de-DE')}</span>
+                    <span>{new Date(selectedMessage.created_at.includes('Z') || selectedMessage.created_at.includes('+') ? selectedMessage.created_at : selectedMessage.created_at.replace(' ', 'T') + 'Z').toLocaleString('de-DE')}</span>
                   </div>
                   {selectedMessage.message_type !== 'personal' && (
                     <div className="detail-type">
