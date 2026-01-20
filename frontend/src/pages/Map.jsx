@@ -15,79 +15,108 @@ const TILESET_URL = '/world/tileset_grass.png';
 // The tileset uses a 3x4 autotile layout for each terrain type
 // We use a simplified 4-bit neighbor system (N, E, S, W)
 
-// Autotile definitions: [startCol, startRow] for each terrain's autotile block
-// Based on visual analysis of the tileset
-const AUTOTILES = {
-  // Water/Pond autotile: columns 0-2, rows 1-3 (the blue pond in top-left)
-  water: { col: 0, row: 1 },
-  // Swamp autotile: columns 3-5, rows 4-6
-  swamp: { col: 3, row: 4 },
-  // Forest autotile: columns 9-11, rows 2-4 (the tree area)
-  forest: { col: 9, row: 2 },
-  // Path uses dirt/brown tiles - no autotile, single tiles
-  path: null,
+// ============================================================
+// TILE DEFINITIONS based on grass_biome.tsx and map1.tmx
+// ============================================================
+
+// Grass tiles - plain grass without too much variation
+// From tsx: tiles with terrain="0,0,0,0" (all grass corners)
+const GRASS_TILES = [0, 1, 2, 3, 4];  // Row 0: basic grass
+
+// Grass with flowers/details (for decoration, used sparingly)
+const GRASS_FLOWER_TILES = [13, 14, 25, 26, 37, 38];
+
+// Water autotile - based on the tmx analysis
+// Water uses tiles around 48-62, 72-74, 84-86, 96-98
+// The SOLID water center is tile 61 (terrain="1,1,1,1")
+// Autotile block for water transitions to grass:
+const WATER_AUTOTILE = {
+  // Format: [N, E, S, W] where 1=water, 0=grass
+  // Key = bitmask: N*8 + E*4 + S*2 + W*1
+  solid: 61,        // All sides water (1111 = 15)
+  top: 49,          // Water below, grass above (0111 = 7) 
+  bottom: 73,       // Water above, grass below (1110 = 14)
+  left: 62,         // Water right, grass left (1011 = 11)
+  right: 60,        // Water left, grass right (1101 = 13)
+  topLeft: 48,      // Corner: grass top-left (0011 = 3)
+  topRight: 50,     // Corner: grass top-right (0110 = 6)
+  bottomLeft: 72,   // Corner: grass bottom-left (1001 = 9)
+  bottomRight: 74,  // Corner: grass bottom-right (1100 = 12)
+  // Inner corners (water with grass poking in)
+  innerTopLeft: 97,     // (0101)
+  innerTopRight: 96,    // (1010)
+  innerBottomLeft: 85,  // 
+  innerBottomRight: 84, //
 };
 
-// Grass base tile - USE ONLY ONE TILE for consistent look!
-// Tile 0 (row 0, col 0) is the plain grass without any details
-const GRASS_TILES = [0];  // ONLY tile 0 - completely uniform grass
-
-// Path tiles - the brown dirt path from row 11
-const PATH_TILES = [
-  11 * 12 + 4,  // Row 11, col 4 - center of path/bridge area
-];
-
-// 4-bit autotile mapping: based on which neighbors are the SAME terrain
-// Bits: North=8, East=4, South=2, West=1
-// This maps the 16 possible neighbor combinations to positions in a 3x4 autotile block
-const AUTOTILE_MAP = {
-  // All neighbors same (solid center)
-  15: { x: 1, y: 1 },  // NESW all same = solid center
-  
-  // Three neighbors same
-  14: { x: 1, y: 0 },  // NES (no W) = left edge
-  13: { x: 2, y: 1 },  // NEW (no S) = bottom edge
-  11: { x: 1, y: 2 },  // NSW (no E) = right edge
-  7:  { x: 0, y: 1 },  // ESW (no N) = top edge
-  
-  // Two neighbors same (corners)
-  12: { x: 2, y: 0 },  // NE only = bottom-left corner
-  6:  { x: 0, y: 0 },  // ES only = top-left corner
-  3:  { x: 0, y: 2 },  // SW only = top-right corner
-  9:  { x: 2, y: 2 },  // NW only = bottom-right corner
-  
-  // Two opposite neighbors
-  10: { x: 1, y: 1 },  // NS = vertical strip (use center)
-  5:  { x: 1, y: 1 },  // EW = horizontal strip (use center)
-  
-  // One neighbor same
-  8:  { x: 1, y: 2 },  // N only
-  4:  { x: 0, y: 1 },  // E only
-  2:  { x: 1, y: 0 },  // S only
-  1:  { x: 2, y: 1 },  // W only
-  
-  // No neighbors same (isolated)
-  0:  { x: 1, y: 1 },  // Use center for isolated
+// Forest autotile - trees/forest area
+// Solid forest is tile 70 (terrain="2,2,2,2")
+const FOREST_AUTOTILE = {
+  solid: 70,        // All sides forest
+  top: 58,          // Forest below, grass above
+  bottom: 82,       // Forest above, grass below
+  left: 71,         // Forest right, grass left
+  right: 69,        // Forest left, grass right
+  topLeft: 57,      // Corner
+  topRight: 59,     // Corner
+  bottomLeft: 81,   // Corner
+  bottomRight: 83,  // Corner
+  // Inner corners
+  innerTopLeft: 106,
+  innerTopRight: 105,
+  innerBottomLeft: 94,
+  innerBottomRight: 93,
 };
 
-// Get autotile ID based on terrain type and neighbor mask
-function getAutotileId(terrainType, neighborMask) {
-  const autotile = AUTOTILES[terrainType];
-  if (!autotile) return null;
-  
-  const pos = AUTOTILE_MAP[neighborMask] || { x: 1, y: 1 };
-  const tileCol = autotile.col + pos.x;
-  const tileRow = autotile.row + pos.y;
-  return tileRow * TILESET_COLUMNS + tileCol;
+// Path/road tiles (from row 11 area - the dirt path)
+// Looking at the map: tiles 5, 6, 7, 17, 29, 41 etc are path-related
+const PATH_TILES = {
+  horizontal: 6,    // Horizontal path middle
+  vertical: 29,     // Vertical path middle  
+  cross: 17,        // Crossroad
+  single: 6,        // Single path tile
+};
+
+// Get the correct autotile based on neighbor mask
+// Bits: North=8, East=4, South=2, West=1 (1 = same terrain, 0 = different)
+function getWaterAutotile(mask) {
+  const W = WATER_AUTOTILE;
+  switch(mask) {
+    case 15: return W.solid;        // All water
+    case 14: return W.left;         // No west
+    case 13: return W.bottom;       // No south  
+    case 11: return W.right;        // No east
+    case 7:  return W.top;          // No north
+    case 12: return W.bottomLeft;   // NE only
+    case 6:  return W.topLeft;      // ES only
+    case 3:  return W.topRight;     // SW only
+    case 9:  return W.bottomRight;  // NW only
+    default: return W.solid;        // Fallback to solid
+  }
+}
+
+function getForestAutotile(mask) {
+  const F = FOREST_AUTOTILE;
+  switch(mask) {
+    case 15: return F.solid;        // All forest
+    case 14: return F.left;         // No west
+    case 13: return F.bottom;       // No south
+    case 11: return F.right;        // No east
+    case 7:  return F.top;          // No north
+    case 12: return F.bottomLeft;   // NE only
+    case 6:  return F.topLeft;      // ES only
+    case 3:  return F.topRight;     // SW only
+    case 9:  return F.bottomRight;  // NW only
+    default: return F.solid;        // Fallback to solid
+  }
 }
 
 // Simple terrain categories for autotiling
 function getTerrainCategory(terrain) {
   if (terrain === 'water' || terrain === 'deepWater') return 'water';
   if (terrain === 'forest' || terrain === 'trees') return 'forest';
-  if (terrain === 'swamp') return 'swamp';
-  if (terrain === 'path' || terrain === 'dirt') return 'path';
-  return 'grass'; // grass, sand, flowers, cliff all render on grass base
+  if (terrain === 'path') return 'path';
+  return 'grass';
 }
 
 // Seeded random number generator for consistent terrain
@@ -146,28 +175,42 @@ function fractalNoise(x, y, octaves = 4, persistence = 0.5, scale = 0.01, seed =
 function getTileForTerrainWithNeighbors(terrain, variation, neighbors) {
   const category = getTerrainCategory(terrain);
   
-  // For grass-based terrains, just use grass tile variations
+  // For grass, use grass tiles
   if (category === 'grass') {
     const index = Math.floor(variation * GRASS_TILES.length) % GRASS_TILES.length;
     return GRASS_TILES[index];
   }
   
-  // For paths, use path tiles (no autotiling)
+  // For paths, check neighbors to determine path direction
   if (category === 'path') {
-    const index = Math.floor(variation * PATH_TILES.length) % PATH_TILES.length;
-    return PATH_TILES[index];
+    const nPath = getTerrainCategory(neighbors.north) === 'path';
+    const sPath = getTerrainCategory(neighbors.south) === 'path';
+    const ePath = getTerrainCategory(neighbors.east) === 'path';
+    const wPath = getTerrainCategory(neighbors.west) === 'path';
+    
+    // Determine path type based on neighbors
+    if ((nPath || sPath) && (ePath || wPath)) return PATH_TILES.cross;
+    if (nPath || sPath) return PATH_TILES.vertical;
+    return PATH_TILES.horizontal;
   }
   
-  // For autotiled terrains (water, forest, swamp), calculate neighbor mask
-  // neighbors = { north, east, south, west } - each is the terrain type
+  // Calculate neighbor mask for autotiling
+  // Bits: N=8, E=4, S=2, W=1
   let mask = 0;
   if (getTerrainCategory(neighbors.north) === category) mask |= 8;
   if (getTerrainCategory(neighbors.east) === category) mask |= 4;
   if (getTerrainCategory(neighbors.south) === category) mask |= 2;
   if (getTerrainCategory(neighbors.west) === category) mask |= 1;
   
-  const tileId = getAutotileId(category, mask);
-  return tileId !== null ? tileId : GRASS_TILES[0];
+  // Get autotile based on terrain type
+  if (category === 'water') {
+    return getWaterAutotile(mask);
+  }
+  if (category === 'forest') {
+    return getForestAutotile(mask);
+  }
+  
+  return GRASS_TILES[0];
 }
 
 // Fallback colors for when tileset fails to load
@@ -192,57 +235,60 @@ function isWaterTerrain(terrain) {
   return terrain === 'water' || terrain === 'deepWater';
 }
 
-// Path system - clear visible roads
+// Path system - creates a network of dirt roads
 function isOnPath(worldX, worldY) {
-  // Main roads every 150 tiles, 3 tiles wide
-  const roadSpacing = 150;
-  const roadWidth = 3;
+  // Main roads every 200 tiles
+  const roadSpacing = 200;
+  const roadWidth = 2;
+  
+  // Add some winding to paths
+  const wind = fractalNoise(worldX, worldY, 2, 0.5, 0.01, 55555) * 5;
   
   // Vertical roads
-  const distToVRoad = Math.abs(worldX % roadSpacing);
-  const onVRoad = distToVRoad < roadWidth || distToVRoad > (roadSpacing - roadWidth);
+  const vRoadPos = (worldX % roadSpacing);
+  const onVRoad = Math.abs(vRoadPos - roadSpacing/2 + wind) < roadWidth;
   
   // Horizontal roads  
-  const distToHRoad = Math.abs(worldY % roadSpacing);
-  const onHRoad = distToHRoad < roadWidth || distToHRoad > (roadSpacing - roadWidth);
+  const hRoadPos = (worldY % roadSpacing);
+  const onHRoad = Math.abs(hRoadPos - roadSpacing/2 + wind) < roadWidth;
   
   return onVRoad || onHRoad;
 }
 
-// Generate terrain - SIMPLE: Grass, Water, Forest, Paths
+// Generate terrain - balanced world like the preview image
 function getTerrainAt(worldX, worldY) {
-  // Main noise for landmass
-  const land = fractalNoise(worldX, worldY, 4, 0.5, 0.002, 12345);
+  // Large landmass shapes
+  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.001, 12345);
   
-  // Forest noise - separate clusters
-  const forest = fractalNoise(worldX, worldY, 3, 0.5, 0.005, 77777);
+  // Forest clusters - creates distinct patches
+  const forestNoise = fractalNoise(worldX, worldY, 4, 0.5, 0.004, 77777);
   
-  // Lake noise
-  const lake = fractalNoise(worldX, worldY, 3, 0.5, 0.004, 88888);
+  // Lake/water bodies
+  const lakeNoise = fractalNoise(worldX, worldY, 4, 0.5, 0.003, 88888);
   
-  // === PATHS FIRST (cut through everything except deep water) ===
-  if (isOnPath(worldX, worldY) && land > 0.25) {
+  // === WATER (~25% of map) ===
+  
+  // Ocean at edges (low continent value)
+  if (continent < 0.32) {
+    return 'water';
+  }
+  
+  // Lakes - scattered water bodies inland
+  if (lakeNoise > 0.68 && continent > 0.4) {
+    return 'water';
+  }
+  
+  // === PATHS (on land only) ===
+  if (isOnPath(worldX, worldY) && continent > 0.35) {
     return 'path';
   }
   
-  // === WATER - plenty of it! ===
-  
-  // Ocean (about 30% of world)
-  if (land < 0.35) {
-    return 'water';
-  }
-  
-  // Lakes scattered on land (about 15% of land)
-  if (lake > 0.6) {
-    return 'water';
-  }
-  
-  // === FOREST - clusters (about 20% of remaining land) ===
-  if (forest > 0.65 && land > 0.4) {
+  // === FOREST (~25% of land) ===
+  if (forestNoise > 0.62 && continent > 0.38) {
     return 'forest';
   }
   
-  // === GRASS - everything else ===
+  // === GRASS (everything else ~50% of land) ===
   return 'grass';
 }
 
