@@ -204,141 +204,7 @@ router.get('/tool-types', authenticateToken, async (req, res) => {
 
 // ============== GATHERING ==============
 
-// Start gathering from a node
-router.post('/gather/:nodeId', authenticateToken, async (req, res) => {
-  try {
-    const { nodeId } = req.params;
-    const { toolId } = req.body;
-    const userId = req.user.id;
-
-    // Check if user has active job
-    const activeJob = await db.get(`
-      SELECT * FROM gathering_jobs 
-      WHERE user_id = ? AND is_completed = 0 AND is_cancelled = 0
-    `, [userId]);
-
-    if (activeJob) {
-      return res.status(400).json({ error: 'Du sammelst bereits!', hasActiveJob: true });
-    }
-
-    // Check for other active jobs (collection, building, crafting)
-    const otherJobs = await db.get(`
-      SELECT 'collection' as type FROM collection_jobs WHERE user_id = ? AND completed_at > datetime('now')
-      UNION ALL
-      SELECT 'building' as type FROM building_jobs WHERE user_id = ? AND status = 'in_progress' AND completed_at > datetime('now')
-      UNION ALL
-      SELECT 'crafting' as type FROM crafting_jobs WHERE user_id = ? AND is_completed = 0
-    `, [userId, userId, userId]);
-
-    if (otherJobs) {
-      return res.status(400).json({ error: 'Du hast bereits einen aktiven Auftrag!', hasActiveJob: true });
-    }
-
-    // Get node
-    const node = await db.get(`
-      SELECT wrn.*, rnt.*
-      FROM world_resource_nodes wrn
-      JOIN resource_node_types rnt ON wrn.node_type_id = rnt.id
-      WHERE wrn.id = ?
-    `, [nodeId]);
-
-    if (!node) {
-      return res.status(404).json({ error: 'Ressource nicht gefunden' });
-    }
-
-    if (node.is_depleted || node.current_amount <= 0) {
-      return res.status(400).json({ error: 'Diese Ressource ist erschöpft!' });
-    }
-
-    // Check user position
-    const user = await db.get('SELECT world_x, world_y FROM users WHERE id = ?', [userId]);
-    const distance = Math.sqrt(
-      Math.pow(node.world_x - user.world_x, 2) + 
-      Math.pow(node.world_y - user.world_y, 2)
-    );
-
-    if (distance > 5) {
-      return res.status(400).json({ error: 'Du bist zu weit weg!', tooFar: true, distance: Math.round(distance) });
-    }
-
-    // Check player level
-    const playerStats = await db.get('SELECT level FROM player_stats WHERE user_id = ?', [userId]);
-    if ((playerStats?.level || 1) < node.min_level) {
-      return res.status(400).json({ error: `Du brauchst mindestens Level ${node.min_level}!` });
-    }
-
-    // Get tool if specified
-    let tool = null;
-    let speedBonus = 1.0;
-    
-    if (toolId) {
-      tool = await db.get(`
-        SELECT ut.*, tt.*
-        FROM user_tools ut
-        JOIN tool_types tt ON ut.tool_type_id = tt.id
-        WHERE ut.id = ? AND ut.user_id = ?
-      `, [toolId, userId]);
-
-      if (!tool) {
-        return res.status(400).json({ error: 'Werkzeug nicht gefunden' });
-      }
-
-      if (tool.category !== node.required_tool_type) {
-        return res.status(400).json({ error: `Du brauchst eine ${getToolTypeName(node.required_tool_type)}!` });
-      }
-
-      if (tool.current_durability <= 0) {
-        return res.status(400).json({ error: 'Dieses Werkzeug ist kaputt!' });
-      }
-
-      speedBonus = tool.speed_bonus || 1.0;
-    } else if (node.required_tool_type) {
-      // Check if user has any tool of required type
-      const anyTool = await db.get(`
-        SELECT ut.*, tt.*
-        FROM user_tools ut
-        JOIN tool_types tt ON ut.tool_type_id = tt.id
-        WHERE ut.user_id = ? AND tt.category = ? AND ut.current_durability > 0
-        ORDER BY tt.tier DESC
-        LIMIT 1
-      `, [userId, node.required_tool_type]);
-
-      if (!anyTool) {
-        return res.status(400).json({ 
-          error: `Du brauchst eine ${getToolTypeName(node.required_tool_type)}!`,
-          needsTool: true,
-          toolType: node.required_tool_type
-        });
-      }
-
-      tool = anyTool;
-      speedBonus = tool.speed_bonus || 1.0;
-    }
-
-    // Calculate gather time
-    const baseTime = node.base_gather_time;
-    const gatherTime = Math.max(5, Math.floor(baseTime / speedBonus));
-    
-    const now = new Date();
-    const finishAt = new Date(now.getTime() + gatherTime * 1000);
-
-    // Create gathering job
-    const result = await db.run(`
-      INSERT INTO gathering_jobs (user_id, node_id, tool_id, started_at, finish_at)
-      VALUES (?, ?, ?, ?, ?)
-    `, [userId, nodeId, tool?.id || null, now.toISOString(), finishAt.toISOString()]);
-
-    res.json({
-      message: `Du sammelst ${node.display_name}...`,
-      jobId: result.lastID,
-      gatherTime,
-      finishAt: finishAt.toISOString()
-    });
-  } catch (error) {
-    console.error('Start gathering error:', error);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
+// WICHTIG: Spezifische Routen MÜSSEN vor der :nodeId Route kommen!
 
 // Get gathering status
 router.get('/gather/status', authenticateToken, async (req, res) => {
@@ -509,6 +375,142 @@ router.post('/gather/cancel', authenticateToken, async (req, res) => {
     res.json({ message: 'Sammeln abgebrochen' });
   } catch (error) {
     console.error('Cancel gathering error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Start gathering from a node (MUSS nach den spezifischen Routen kommen!)
+router.post('/gather/:nodeId', authenticateToken, async (req, res) => {
+  try {
+    const { nodeId } = req.params;
+    const { toolId } = req.body;
+    const userId = req.user.id;
+
+    // Check if user has active job
+    const activeJob = await db.get(`
+      SELECT * FROM gathering_jobs 
+      WHERE user_id = ? AND is_completed = 0 AND is_cancelled = 0
+    `, [userId]);
+
+    if (activeJob) {
+      return res.status(400).json({ error: 'Du sammelst bereits!', hasActiveJob: true });
+    }
+
+    // Check for other active jobs (collection, building, crafting)
+    const otherJobs = await db.get(`
+      SELECT 'collection' as type FROM collection_jobs WHERE user_id = ? AND completed_at > datetime('now')
+      UNION ALL
+      SELECT 'building' as type FROM building_jobs WHERE user_id = ? AND status = 'in_progress' AND completed_at > datetime('now')
+      UNION ALL
+      SELECT 'crafting' as type FROM crafting_jobs WHERE user_id = ? AND is_completed = 0
+    `, [userId, userId, userId]);
+
+    if (otherJobs) {
+      return res.status(400).json({ error: 'Du hast bereits einen aktiven Auftrag!', hasActiveJob: true });
+    }
+
+    // Get node
+    const node = await db.get(`
+      SELECT wrn.*, rnt.*
+      FROM world_resource_nodes wrn
+      JOIN resource_node_types rnt ON wrn.node_type_id = rnt.id
+      WHERE wrn.id = ?
+    `, [nodeId]);
+
+    if (!node) {
+      return res.status(404).json({ error: 'Ressource nicht gefunden' });
+    }
+
+    if (node.is_depleted || node.current_amount <= 0) {
+      return res.status(400).json({ error: 'Diese Ressource ist erschöpft!' });
+    }
+
+    // Check user position
+    const user = await db.get('SELECT world_x, world_y FROM users WHERE id = ?', [userId]);
+    const distance = Math.sqrt(
+      Math.pow(node.world_x - user.world_x, 2) + 
+      Math.pow(node.world_y - user.world_y, 2)
+    );
+
+    if (distance > 5) {
+      return res.status(400).json({ error: 'Du bist zu weit weg!', tooFar: true, distance: Math.round(distance) });
+    }
+
+    // Check player level
+    const playerStats = await db.get('SELECT level FROM player_stats WHERE user_id = ?', [userId]);
+    if ((playerStats?.level || 1) < node.min_level) {
+      return res.status(400).json({ error: `Du brauchst mindestens Level ${node.min_level}!` });
+    }
+
+    // Get tool if specified
+    let tool = null;
+    let speedBonus = 1.0;
+    
+    if (toolId) {
+      tool = await db.get(`
+        SELECT ut.*, tt.*
+        FROM user_tools ut
+        JOIN tool_types tt ON ut.tool_type_id = tt.id
+        WHERE ut.id = ? AND ut.user_id = ?
+      `, [toolId, userId]);
+
+      if (!tool) {
+        return res.status(400).json({ error: 'Werkzeug nicht gefunden' });
+      }
+
+      if (tool.category !== node.required_tool_type) {
+        return res.status(400).json({ error: `Du brauchst eine ${getToolTypeName(node.required_tool_type)}!` });
+      }
+
+      if (tool.current_durability <= 0) {
+        return res.status(400).json({ error: 'Dieses Werkzeug ist kaputt!' });
+      }
+
+      speedBonus = tool.speed_bonus || 1.0;
+    } else if (node.required_tool_type) {
+      // Check if user has any tool of required type
+      const anyTool = await db.get(`
+        SELECT ut.*, tt.*
+        FROM user_tools ut
+        JOIN tool_types tt ON ut.tool_type_id = tt.id
+        WHERE ut.user_id = ? AND tt.category = ? AND ut.current_durability > 0
+        ORDER BY tt.tier DESC
+        LIMIT 1
+      `, [userId, node.required_tool_type]);
+
+      if (!anyTool) {
+        return res.status(400).json({ 
+          error: `Du brauchst eine ${getToolTypeName(node.required_tool_type)}!`,
+          needsTool: true,
+          toolType: node.required_tool_type
+        });
+      }
+
+      tool = anyTool;
+      speedBonus = tool.speed_bonus || 1.0;
+    }
+
+    // Calculate gather time
+    const baseTime = node.base_gather_time;
+    const gatherTime = Math.max(5, Math.floor(baseTime / speedBonus));
+    
+    const now = new Date();
+    const finishAt = new Date(now.getTime() + gatherTime * 1000);
+
+    // Create gathering job
+    const result = await db.run(`
+      INSERT INTO gathering_jobs (user_id, node_id, tool_id, started_at, finish_at)
+      VALUES (?, ?, ?, ?, ?)
+    `, [userId, nodeId, tool?.id || null, now.toISOString(), finishAt.toISOString()]);
+
+    res.json({
+      message: `Du sammelst ${node.display_name}...`,
+      jobId: result.lastID,
+      gatherTime,
+      finishAt: finishAt.toISOString()
+    });
+  } catch (error) {
+    console.error('Start gathering error:', error);
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
