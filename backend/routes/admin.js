@@ -820,4 +820,390 @@ router.post('/debug/query', authenticateToken, requirePermission('manage_users')
   }
 });
 
+// ============== PLAYER INVENTORY MANAGEMENT ==============
+
+// Get player inventory
+router.get('/users/:userId/inventory', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const inventory = await db.all(`
+      SELECT 
+        ui.id,
+        ui.item_id,
+        ui.quantity,
+        i.name,
+        i.display_name,
+        i.description,
+        i.category,
+        i.rarity,
+        i.icon
+      FROM user_inventory ui
+      JOIN items i ON ui.item_id = i.id
+      WHERE ui.user_id = ?
+      ORDER BY i.category, i.display_name
+    `, [userId]);
+
+    res.json({ user, inventory });
+  } catch (error) {
+    console.error('Get player inventory error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Add item to player inventory
+router.post('/users/:userId/inventory', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { itemId, quantity } = req.body;
+
+    if (!itemId || !quantity || quantity < 1) {
+      return res.status(400).json({ error: 'Item-ID und Menge erforderlich' });
+    }
+
+    const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const item = await db.get('SELECT id, display_name FROM items WHERE id = ?', [itemId]);
+    if (!item) {
+      return res.status(404).json({ error: 'Item nicht gefunden' });
+    }
+
+    await db.run(`
+      INSERT INTO user_inventory (user_id, item_id, quantity)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?
+    `, [userId, itemId, quantity, quantity]);
+
+    res.json({ message: `${quantity}x ${item.display_name} zu ${user.username}s Inventar hinzugefügt` });
+  } catch (error) {
+    console.error('Add item to inventory error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Update item quantity in player inventory
+router.put('/users/:userId/inventory/:itemId', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId, itemId } = req.params;
+    const { quantity } = req.body;
+
+    if (quantity === undefined || quantity < 0) {
+      return res.status(400).json({ error: 'Gültige Menge erforderlich' });
+    }
+
+    if (quantity === 0) {
+      await db.run('DELETE FROM user_inventory WHERE user_id = ? AND item_id = ?', [userId, itemId]);
+      return res.json({ message: 'Item aus Inventar entfernt' });
+    }
+
+    await db.run(`
+      UPDATE user_inventory SET quantity = ? WHERE user_id = ? AND item_id = ?
+    `, [quantity, userId, itemId]);
+
+    res.json({ message: 'Menge aktualisiert' });
+  } catch (error) {
+    console.error('Update inventory error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete item from player inventory
+router.delete('/users/:userId/inventory/:itemId', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId, itemId } = req.params;
+
+    await db.run('DELETE FROM user_inventory WHERE user_id = ? AND item_id = ?', [userId, itemId]);
+
+    res.json({ message: 'Item aus Inventar entfernt' });
+  } catch (error) {
+    console.error('Delete from inventory error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// ============== PLAYER EQUIPMENT MANAGEMENT ==============
+
+// Get player equipment
+router.get('/users/:userId/equipment', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const equipment = await db.all(`
+      SELECT 
+        ue.id,
+        ue.equipment_type_id,
+        ue.quality,
+        ue.is_equipped,
+        ue.created_at,
+        et.name,
+        et.display_name,
+        et.description,
+        et.slot,
+        et.base_attack,
+        et.base_defense,
+        et.base_health,
+        et.rarity
+      FROM user_equipment ue
+      JOIN equipment_types et ON ue.equipment_type_id = et.id
+      WHERE ue.user_id = ?
+      ORDER BY ue.is_equipped DESC, et.slot, et.display_name
+    `, [userId]);
+
+    res.json({ user, equipment });
+  } catch (error) {
+    console.error('Get player equipment error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Add equipment to player
+router.post('/users/:userId/equipment', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { equipmentTypeId, quality } = req.body;
+
+    if (!equipmentTypeId) {
+      return res.status(400).json({ error: 'Equipment-Type-ID erforderlich' });
+    }
+
+    const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const equipmentType = await db.get('SELECT id, display_name FROM equipment_types WHERE id = ?', [equipmentTypeId]);
+    if (!equipmentType) {
+      return res.status(404).json({ error: 'Equipment-Typ nicht gefunden' });
+    }
+
+    await db.run(`
+      INSERT INTO user_equipment (user_id, equipment_type_id, quality, is_equipped)
+      VALUES (?, ?, ?, 0)
+    `, [userId, equipmentTypeId, quality || 'normal']);
+
+    res.json({ message: `${equipmentType.display_name} zu ${user.username}s Ausrüstung hinzugefügt` });
+  } catch (error) {
+    console.error('Add equipment error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Update equipment (quality, equipped status)
+router.put('/users/:userId/equipment/:equipmentId', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId, equipmentId } = req.params;
+    const { quality, isEquipped } = req.body;
+
+    const updates = [];
+    const params = [];
+
+    if (quality !== undefined) {
+      updates.push('quality = ?');
+      params.push(quality);
+    }
+    if (isEquipped !== undefined) {
+      updates.push('is_equipped = ?');
+      params.push(isEquipped ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Keine Änderungen angegeben' });
+    }
+
+    params.push(equipmentId, userId);
+    await db.run(`UPDATE user_equipment SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`, params);
+
+    res.json({ message: 'Ausrüstung aktualisiert' });
+  } catch (error) {
+    console.error('Update equipment error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete equipment from player
+router.delete('/users/:userId/equipment/:equipmentId', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId, equipmentId } = req.params;
+
+    await db.run('DELETE FROM user_equipment WHERE id = ? AND user_id = ?', [equipmentId, userId]);
+
+    res.json({ message: 'Ausrüstung entfernt' });
+  } catch (error) {
+    console.error('Delete equipment error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// ============== STATISTICS RECALCULATION ==============
+
+// Recalculate rarity statistics for a user based on their equipment
+router.post('/users/:userId/recalculate-stats', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    // Count equipment by rarity
+    const rarityCounts = await db.all(`
+      SELECT et.rarity, COUNT(*) as count
+      FROM user_equipment ue
+      JOIN equipment_types et ON ue.equipment_type_id = et.id
+      WHERE ue.user_id = ? AND et.rarity IN ('legendary', 'epic', 'rare')
+      GROUP BY et.rarity
+    `, [userId]);
+
+    // Also count high-quality crafted items regardless of type rarity
+    const qualityCounts = await db.all(`
+      SELECT 
+        CASE 
+          WHEN quality = 'legendary' THEN 'legendary'
+          WHEN quality = 'masterwork' THEN 'epic'
+          WHEN quality = 'excellent' THEN 'rare'
+        END as effective_rarity,
+        COUNT(*) as count
+      FROM user_equipment
+      WHERE user_id = ? AND quality IN ('legendary', 'masterwork', 'excellent')
+      GROUP BY effective_rarity
+    `, [userId]);
+
+    // Combine counts (take the higher value between type rarity and quality rarity)
+    const counts = { legendary: 0, epic: 0, rare: 0 };
+    
+    for (const row of rarityCounts) {
+      counts[row.rarity] = (counts[row.rarity] || 0) + row.count;
+    }
+
+    // Add quality-based counts (but avoid double counting)
+    // For simplicity, we'll just use the equipment type rarity count
+    // as the primary source since quality is a bonus
+
+    // Update statistics
+    await db.run(`
+      INSERT INTO user_statistics (user_id, legendary_items_obtained, epic_items_obtained, rare_items_obtained)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET 
+        legendary_items_obtained = ?,
+        epic_items_obtained = ?,
+        rare_items_obtained = ?,
+        updated_at = CURRENT_TIMESTAMP
+    `, [userId, counts.legendary, counts.epic, counts.rare, counts.legendary, counts.epic, counts.rare]);
+
+    res.json({ 
+      message: `Statistiken für ${user.username} neu berechnet`,
+      counts
+    });
+  } catch (error) {
+    console.error('Recalculate stats error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Recalculate statistics for ALL users
+router.post('/recalculate-all-stats', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const users = await db.all('SELECT id, username FROM users');
+    
+    let updated = 0;
+    for (const user of users) {
+      // Count equipment by rarity
+      const rarityCounts = await db.all(`
+        SELECT et.rarity, COUNT(*) as count
+        FROM user_equipment ue
+        JOIN equipment_types et ON ue.equipment_type_id = et.id
+        WHERE ue.user_id = ? AND et.rarity IN ('legendary', 'epic', 'rare')
+        GROUP BY et.rarity
+      `, [user.id]);
+
+      const counts = { legendary: 0, epic: 0, rare: 0 };
+      for (const row of rarityCounts) {
+        counts[row.rarity] = row.count;
+      }
+
+      // Update statistics
+      await db.run(`
+        INSERT INTO user_statistics (user_id, legendary_items_obtained, epic_items_obtained, rare_items_obtained)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET 
+          legendary_items_obtained = ?,
+          epic_items_obtained = ?,
+          rare_items_obtained = ?,
+          updated_at = CURRENT_TIMESTAMP
+      `, [user.id, counts.legendary, counts.epic, counts.rare, counts.legendary, counts.epic, counts.rare]);
+      
+      updated++;
+    }
+
+    res.json({ message: `Statistiken für ${updated} Benutzer neu berechnet` });
+  } catch (error) {
+    console.error('Recalculate all stats error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get player statistics
+router.get('/users/:userId/statistics', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    }
+
+    const statistics = await db.get('SELECT * FROM user_statistics WHERE user_id = ?', [userId]);
+    const playerStats = await db.get('SELECT * FROM player_stats WHERE user_id = ?', [userId]);
+
+    res.json({ user, statistics, playerStats });
+  } catch (error) {
+    console.error('Get player statistics error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get all items (for item picker)
+router.get('/items', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const items = await db.all(`
+      SELECT id, name, display_name, category, rarity, icon
+      FROM items
+      ORDER BY category, display_name
+    `);
+    res.json({ items });
+  } catch (error) {
+    console.error('Get items error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get all equipment types (for equipment picker)
+router.get('/equipment-types', authenticateToken, requirePermission('manage_users'), async (req, res) => {
+  try {
+    const equipmentTypes = await db.all(`
+      SELECT id, name, display_name, slot, rarity, base_attack, base_defense, base_health
+      FROM equipment_types
+      ORDER BY slot, display_name
+    `);
+    res.json({ equipmentTypes });
+  } catch (error) {
+    console.error('Get equipment types error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 export default router;

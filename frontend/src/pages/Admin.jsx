@@ -18,6 +18,7 @@ import FeedbackManagement from '../components/admin/FeedbackManagement';
 import WebhooksManagement from '../components/admin/WebhooksManagement';
 import OnlineUsers from '../components/admin/OnlineUsers';
 import BuffsManagement from '../components/admin/BuffsManagement';
+import PlayerInventoryManagement from '../components/admin/PlayerInventoryManagement';
 import './Admin.css';
 
 const menuItems = [
@@ -29,6 +30,7 @@ const menuItems = [
   { id: 'monsters', icon: '👹', label: 'Monster', category: 'NPCs' },
   { id: 'npcs', icon: '🏪', label: 'Händler', category: 'NPCs' },
   { id: 'users', icon: '👥', label: 'Benutzer', category: 'Verwaltung' },
+  { id: 'playerinv', icon: '🎒', label: 'Spieler-Inventar', category: 'Verwaltung' },
   { id: 'groups', icon: '🛡️', label: 'Gruppen', category: 'Verwaltung' },
   { id: 'reports', icon: '🚩', label: 'Meldungen', category: 'Verwaltung' },
   { id: 'feedback', icon: '💬', label: 'Feedback', category: 'Verwaltung' },
@@ -134,6 +136,7 @@ function Admin() {
           {activeTab === 'feedback' && <FeedbackManagement />}
           {activeTab === 'webhooks' && <WebhooksManagement />}
           {activeTab === 'buffs' && <BuffsManagement />}
+          {activeTab === 'playerinv' && <PlayerInventoryManagement />}
         </div>
       </main>
     </div>
