@@ -128,6 +128,61 @@ router.get('/chars', authenticateToken, async (req, res) => {
   }
 });
 
+// Get list of available monster images (recursively from subfolders)
+router.get('/monster-images', authenticateToken, async (req, res) => {
+  try {
+    const monstersDir = path.join(__dirname, '../../frontend/public/monsters');
+    console.log(`[FILES] Looking for monster images in: ${monstersDir}`);
+    
+    const images = [];
+    
+    // Recursive function to scan directories
+    async function scanDir(dir, category = 'root') {
+      try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          
+          if (entry.isDirectory()) {
+            // Recursively scan subdirectory
+            await scanDir(fullPath, entry.name);
+          } else if (/\.(png|jpg|jpeg|gif|webp)$/i.test(entry.name)) {
+            // Get relative path from monsters directory
+            const relativePath = path.relative(monstersDir, fullPath).replace(/\\/g, '/');
+            images.push({
+              name: entry.name.replace(/\.[^.]+$/, ''), // Remove extension
+              path: relativePath,
+              category: category
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`[FILES] Error scanning directory ${dir}:`, error.message);
+      }
+    }
+    
+    await scanDir(monstersDir);
+    
+    // Sort by category, then by name
+    images.sort((a, b) => {
+      if (a.category !== b.category) {
+        // Put 'root' category last
+        if (a.category === 'root') return 1;
+        if (b.category === 'root') return -1;
+        return a.category.localeCompare(b.category);
+      }
+      return a.name.localeCompare(b.name);
+    });
+    
+    console.log(`[FILES] Found ${images.length} monster images in ${new Set(images.map(i => i.category)).size} categories`);
+    res.json({ images });
+  } catch (error) {
+    console.error('Get monster images error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden der Monster-Bilder' });
+  }
+});
+
 // Get list of available building images
 router.get('/buildings', authenticateToken, async (req, res) => {
   try {
