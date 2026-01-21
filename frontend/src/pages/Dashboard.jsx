@@ -246,7 +246,8 @@ function Dashboard() {
 
   const expNeeded = playerStats ? getExpForLevel(playerStats.level + 1) : 100;
   const expPercent = playerStats ? (playerStats.experience / expNeeded) * 100 : 0;
-  const hpPercent = playerStats ? (playerStats.current_health / playerStats.max_health) * 100 : 100;
+  const maxHealthWithEquipment = playerStats ? (playerStats.max_health + equipmentTotalStats.health) : 100;
+  const hpPercent = playerStats ? (playerStats.current_health / maxHealthWithEquipment) * 100 : 100;
 
   // Group inventory by type
   const inventoryByType = inventory.reduce((acc, item) => {
@@ -289,7 +290,7 @@ function Dashboard() {
           <div className="stat-bar-container">
             <div className="stat-bar-label">
               <span>❤️ HP</span>
-              <span>{playerStats?.current_health || 0} / {playerStats?.max_health || 100}</span>
+              <span>{playerStats?.current_health || 0} / {maxHealthWithEquipment}</span>
             </div>
             <div className="stat-bar health-bar">
               <div 

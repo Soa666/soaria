@@ -413,6 +413,7 @@ function Map() {
   const [targetTradeItems, setTargetTradeItems] = useState([]);
   const [playerImages, setPlayerImages] = useState({});
   const [playerStats, setPlayerStats] = useState(null);
+  const [equipmentTotalStats, setEquipmentTotalStats] = useState({ attack: 0, defense: 0, health: 0 });
   const [combatResult, setCombatResult] = useState(null);
   const [travelStatus, setTravelStatus] = useState(null);
   const [animationFrame, setAnimationFrame] = useState(0);
@@ -672,8 +673,12 @@ function Map() {
 
   const fetchPlayerStats = async () => {
     try {
-      const response = await api.get('/npcs/player/stats');
-      setPlayerStats(response.data.stats);
+      const [statsRes, equippedRes] = await Promise.all([
+        api.get('/npcs/player/stats'),
+        api.get('/equipment/equipped').catch(() => ({ data: { totalStats: { attack: 0, defense: 0, health: 0 } } }))
+      ]);
+      setPlayerStats(statsRes.data.stats);
+      setEquipmentTotalStats(equippedRes.data.totalStats || { attack: 0, defense: 0, health: 0 });
     } catch (error) {
       console.error('Fehler beim Laden der Spielerstatistiken:', error);
     }
@@ -2273,8 +2278,8 @@ function Map() {
             </div>
             <div className="stat-item">
               <span className="stat-label">❤️ HP:</span>
-              <span className="stat-value">{playerStats.current_health}/{playerStats.max_health}</span>
-              {playerStats.current_health < playerStats.max_health && (
+              <span className="stat-value">{playerStats.current_health}/{playerStats.max_health + equipmentTotalStats.health}</span>
+              {playerStats.current_health < (playerStats.max_health + equipmentTotalStats.health) && (
                 <span className="heal-hint" title="Geh nach Hause um zu heilen">🏠</span>
               )}
             </div>
