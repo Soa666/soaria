@@ -982,12 +982,24 @@ router.get('/active-jobs', authenticateToken, async (req, res) => {
   try {
     const activeJobs = [];
 
+    // Check gathering_jobs (resource gathering)
+    const gatheringJob = await db.get(`
+      SELECT gj.id, rnt.display_name 
+      FROM gathering_jobs gj
+      JOIN world_resource_nodes wrn ON gj.node_id = wrn.id
+      JOIN resource_node_types rnt ON wrn.node_type_id = rnt.id
+      WHERE gj.user_id = ? AND gj.is_completed = 0 AND gj.is_cancelled = 0
+    `, [req.user.id]);
+    if (gatheringJob) {
+      activeJobs.push({ type: 'gathering', name: `Sammeln: ${gatheringJob.display_name}`, id: gatheringJob.id });
+    }
+
     const collectionJob = await db.get(`
       SELECT id, completed_at FROM collection_jobs 
       WHERE user_id = ? AND status = 'active'
     `, [req.user.id]);
     if (collectionJob) {
-      activeJobs.push({ type: 'collection', name: 'Sammeln' });
+      activeJobs.push({ type: 'collection', name: 'Sammeln (alt)' });
     }
 
     const buildingJob = await db.get(`

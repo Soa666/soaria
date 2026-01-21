@@ -11,6 +11,13 @@ router.get('/my', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
+    // First, deactivate expired buffs (cleanup)
+    await db.run(`
+      UPDATE active_buffs 
+      SET is_active = 0 
+      WHERE is_active = 1 AND expires_at IS NOT NULL AND expires_at <= datetime('now')
+    `);
+    
     // Get user info for targeting
     const user = await db.get(`
       SELECT u.id, u.username, ps.level, gm.guild_id
@@ -158,6 +165,13 @@ router.delete('/types/:id', authenticateToken, requireAdmin, async (req, res) =>
 // Get all active buffs (admin view)
 router.get('/active', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    // First, deactivate expired buffs
+    await db.run(`
+      UPDATE active_buffs 
+      SET is_active = 0 
+      WHERE is_active = 1 AND expires_at IS NOT NULL AND expires_at <= datetime('now')
+    `);
+
     const buffs = await db.all(`
       SELECT 
         ab.*,

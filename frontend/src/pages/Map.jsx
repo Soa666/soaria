@@ -1524,9 +1524,23 @@ function Map() {
     }
   };
 
-  // Confirm travel and pause jobs
-  const confirmTravel = () => {
+  // Confirm travel and cancel active jobs
+  const confirmTravel = async () => {
     setShowTravelWarning(false);
+    
+    // Cancel gathering job if active
+    const hasGathering = activeJobs.some(j => j.type === 'gathering');
+    if (hasGathering) {
+      try {
+        await api.post('/resources/gather/cancel');
+        setGatheringJob(null);
+      } catch (err) {
+        console.error('Error canceling gathering:', err);
+      }
+    }
+    
+    setActiveJobs([]);
+    
     if (pendingTravel) {
       pendingTravel.fn(pendingTravel.data);
       setPendingTravel(null);
