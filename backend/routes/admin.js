@@ -602,44 +602,63 @@ router.get('/online-count', authenticateToken, async (req, res) => {
 // Get all active jobs (for debugging)
 router.get('/debug/all-jobs', authenticateToken, requirePermission('manage_users'), async (req, res) => {
   try {
-    // Get all gathering jobs
-    const gathering = await db.all(`
-      SELECT gj.*, u.username
-      FROM gathering_jobs gj
-      JOIN users u ON gj.user_id = u.id
-      WHERE gj.is_completed = 0 AND gj.is_cancelled = 0
-      ORDER BY gj.started_at DESC
-    `);
+    // Get all gathering jobs (if table exists)
+    let gathering = [];
+    try {
+      gathering = await db.all(`
+        SELECT gj.*, u.username
+        FROM gathering_jobs gj
+        JOIN users u ON gj.user_id = u.id
+        WHERE gj.is_completed = 0 AND gj.is_cancelled = 0
+        ORDER BY gj.started_at DESC
+      `);
+    } catch (e) {
+      console.log('gathering_jobs table not found');
+    }
 
     // Get all collection jobs
-    const collection = await db.all(`
-      SELECT cj.*, u.username, i.display_name as item_name
-      FROM collection_jobs cj
-      JOIN users u ON cj.user_id = u.id
-      LEFT JOIN items i ON cj.item_id = i.id
-      WHERE cj.completed_at > datetime('now', '-24 hours')
-      ORDER BY cj.completed_at DESC
-    `);
+    let collection = [];
+    try {
+      collection = await db.all(`
+        SELECT cj.*, u.username
+        FROM collection_jobs cj
+        JOIN users u ON cj.user_id = u.id
+        WHERE cj.completed_at > datetime('now', '-24 hours')
+        ORDER BY cj.completed_at DESC
+      `);
+    } catch (e) {
+      console.log('collection_jobs query failed:', e.message);
+    }
 
     // Get all building jobs
-    const building = await db.all(`
-      SELECT bj.*, u.username, bt.display_name
-      FROM building_jobs bj
-      JOIN users u ON bj.user_id = u.id
-      LEFT JOIN building_types bt ON bj.building_type_id = bt.id
-      WHERE bj.status = 'in_progress'
-      ORDER BY bj.started_at DESC
-    `);
+    let building = [];
+    try {
+      building = await db.all(`
+        SELECT bj.*, u.username, b.display_name
+        FROM building_jobs bj
+        JOIN users u ON bj.user_id = u.id
+        LEFT JOIN buildings b ON bj.building_id = b.id
+        WHERE bj.status IN ('active', 'in_progress')
+        ORDER BY bj.started_at DESC
+      `);
+    } catch (e) {
+      console.log('building_jobs query failed:', e.message);
+    }
 
-    // Get all crafting jobs
-    const crafting = await db.all(`
-      SELECT cj.*, u.username, r.display_name as recipe_name
-      FROM crafting_jobs cj
-      JOIN users u ON cj.user_id = u.id
-      LEFT JOIN recipes r ON cj.recipe_id = r.id
-      WHERE cj.is_completed = 0
-      ORDER BY cj.started_at DESC
-    `);
+    // Get all crafting jobs (equipment crafting)
+    let crafting = [];
+    try {
+      crafting = await db.all(`
+        SELECT cj.*, u.username, er.display_name as recipe_name
+        FROM crafting_jobs cj
+        JOIN users u ON cj.user_id = u.id
+        LEFT JOIN equipment_recipes er ON cj.recipe_id = er.id
+        WHERE cj.is_completed = 0
+        ORDER BY cj.started_at DESC
+      `);
+    } catch (e) {
+      console.log('crafting_jobs query failed:', e.message);
+    }
 
     res.json({ gathering, collection, building, crafting });
   } catch (error) {
@@ -840,13 +859,13 @@ router.get('/users/:userId/inventory', authenticateToken, requirePermission('man
         i.name,
         i.display_name,
         i.description,
-        i.category,
+        i.type as category,
         i.rarity,
-        i.icon
+        i.image_path as icon
       FROM user_inventory ui
       JOIN items i ON ui.item_id = i.id
       WHERE ui.user_id = ?
-      ORDER BY i.category, i.display_name
+      ORDER BY i.type, i.display_name
     `, [userId]);
 
     res.json({ user, inventory });
