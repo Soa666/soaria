@@ -377,6 +377,69 @@ export async function initDatabase() {
     )
   `);
 
+  // Property settings (Grundstück-Einstellungen)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS property_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      image_path TEXT DEFAULT '/buildings/huette1.jpg',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Property hotspots (klickbare Bereiche auf dem Grundstück)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS property_hotspots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      building_name TEXT NOT NULL,
+      x REAL NOT NULL,
+      y REAL NOT NULL,
+      width REAL NOT NULL,
+      height REAL NOT NULL,
+      label TEXT NOT NULL,
+      icon TEXT,
+      description TEXT,
+      sort_order INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(building_name)
+    )
+  `);
+
+  // Insert default property settings if not exists
+  const existingSettings = await db.get('SELECT id FROM property_settings LIMIT 1');
+  if (!existingSettings) {
+    await db.run('INSERT INTO property_settings (image_path) VALUES (?)', ['/buildings/huette1.jpg']);
+  }
+
+  // Insert default hotspots if not exists
+  const existingHotspots = await db.get('SELECT id FROM property_hotspots LIMIT 1');
+  if (!existingHotspots) {
+    const defaultHotspots = [
+      { buildingName: 'schmiede', x: 65, y: 25, width: 12, height: 12, label: 'Schmiede', icon: '⚒️', description: 'Amboss - Hier schmiedest du Waffen und Rüstung', sortOrder: 1 },
+      { buildingName: 'saegewerk', x: 18, y: 55, width: 15, height: 15, label: 'Sägewerk', icon: '🪚', description: 'Tischkreissäge - Verarbeite Holz zu Brettern', sortOrder: 2 },
+      { buildingName: 'werkbank', x: 75, y: 20, width: 15, height: 15, label: 'Werkbank', icon: '🔨', description: 'Werkbank - Crafting und Upgrades', sortOrder: 3 },
+      { buildingName: 'brunnen', x: 60, y: 50, width: 10, height: 10, label: 'Brunnen', icon: '💧', description: 'Brunnen - Versorgt dich mit Wasser', sortOrder: 4 },
+      { buildingName: 'lager', x: 40, y: 40, width: 12, height: 12, label: 'Lager', icon: '📦', description: 'Lager - Erweitert dein Inventar', sortOrder: 5 }
+    ];
+
+    for (const hotspot of defaultHotspots) {
+      await db.run(`
+        INSERT INTO property_hotspots (building_name, x, y, width, height, label, icon, description, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        hotspot.buildingName,
+        hotspot.x,
+        hotspot.y,
+        hotspot.width,
+        hotspot.height,
+        hotspot.label,
+        hotspot.icon,
+        hotspot.description,
+        hotspot.sortOrder
+      ]);
+    }
+  }
+
   // Insert default permissions
   await insertDefaultPermissions();
   

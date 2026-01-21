@@ -198,8 +198,8 @@ router.get('/buildings', authenticateToken, async (req, res) => {
         .filter(file => /\.(png|jpg|jpeg|gif|webp)$/i.test(file))
         .sort()
         .map(file => ({
-          filename: file,
-          path: file
+          name: file,
+          path: `/buildings/${file}`
         }));
 
       console.log(`[FILES] Found ${imageFiles.length} building image files`);

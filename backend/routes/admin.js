@@ -1225,4 +1225,102 @@ router.get('/equipment-types', authenticateToken, requirePermission('manage_user
   }
 });
 
+// ========================================
+// PROPERTY MANAGEMENT (Grundstück-Verwaltung)
+// ========================================
+
+// Get property settings and hotspots
+router.get('/property', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const settings = await db.get('SELECT * FROM property_settings ORDER BY id DESC LIMIT 1');
+    const hotspots = await db.all('SELECT * FROM property_hotspots ORDER BY sort_order, building_name');
+    
+    res.json({ 
+      settings: settings || { image_path: '/buildings/huette1.jpg' },
+      hotspots: hotspots || []
+    });
+  } catch (error) {
+    console.error('Get property error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Update property image
+router.put('/property/image', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { image_path } = req.body;
+    
+    if (!image_path) {
+      return res.status(400).json({ error: 'Bildpfad erforderlich' });
+    }
+
+    // Update or insert settings
+    const existing = await db.get('SELECT id FROM property_settings ORDER BY id DESC LIMIT 1');
+    if (existing) {
+      await db.run('UPDATE property_settings SET image_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [image_path, existing.id]);
+    } else {
+      await db.run('INSERT INTO property_settings (image_path) VALUES (?)', [image_path]);
+    }
+
+    res.json({ message: 'Bild aktualisiert' });
+  } catch (error) {
+    console.error('Update property image error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get all hotspots
+router.get('/property/hotspots', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const hotspots = await db.all('SELECT * FROM property_hotspots ORDER BY sort_order, building_name');
+    res.json({ hotspots });
+  } catch (error) {
+    console.error('Get hotspots error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Create or update hotspot
+router.post('/property/hotspots', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { id, building_name, x, y, width, height, label, icon, description, sort_order } = req.body;
+
+    if (!building_name || x === undefined || y === undefined || width === undefined || height === undefined) {
+      return res.status(400).json({ error: 'Alle Felder sind erforderlich' });
+    }
+
+    if (id) {
+      // Update existing
+      await db.run(`
+        UPDATE property_hotspots 
+      SET building_name = ?, x = ?, y = ?, width = ?, height = ?, label = ?, icon = ?, description = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [building_name, x, y, width, height, label || '', icon || '', description || '', sort_order || 0, id]);
+      res.json({ message: 'Hotspot aktualisiert', id });
+    } else {
+      // Create new
+      const result = await db.run(`
+        INSERT INTO property_hotspots (building_name, x, y, width, height, label, icon, description, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [building_name, x, y, width, height, label || '', icon || '', description || '', sort_order || 0]);
+      res.json({ message: 'Hotspot erstellt', id: result.lastID });
+    }
+  } catch (error) {
+    console.error('Save hotspot error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete hotspot
+router.delete('/property/hotspots/:id', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.run('DELETE FROM property_hotspots WHERE id = ?', [id]);
+    res.json({ message: 'Hotspot gelöscht' });
+  } catch (error) {
+    console.error('Delete hotspot error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 export default router;

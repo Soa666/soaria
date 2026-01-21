@@ -20,6 +20,7 @@ import OnlineUsers from '../components/admin/OnlineUsers';
 import BuffsManagement from '../components/admin/BuffsManagement';
 import PlayerInventoryManagement from '../components/admin/PlayerInventoryManagement';
 import ResourceNodeManagement from '../components/admin/ResourceNodeManagement';
+import PropertyManagement from '../components/admin/PropertyManagement';
 import './Admin.css';
 
 const menuItems = [
@@ -27,6 +28,7 @@ const menuItems = [
   { id: 'items', icon: '📦', label: 'Items', category: 'Spielinhalte' },
   { id: 'recipes', icon: '📜', label: 'Rezepte', category: 'Spielinhalte' },
   { id: 'buildings', icon: '🏠', label: 'Gebäude', category: 'Spielinhalte' },
+  { id: 'property', icon: '🏡', label: 'Grundstück', category: 'Spielinhalte' },
   { id: 'quests', icon: '🗺️', label: 'Quests', category: 'Spielinhalte' },
   { id: 'monsters', icon: '👹', label: 'Monster', category: 'NPCs' },
   { id: 'npcs', icon: '🏪', label: 'Händler', category: 'NPCs' },
@@ -128,6 +130,7 @@ function Admin() {
           {activeTab === 'users' && <UsersManagement />}
           {activeTab === 'groups' && <GroupsManagement />}
           {activeTab === 'buildings' && <BuildingsManagement />}
+          {activeTab === 'property' && <PropertyManagement />}
           {activeTab === 'smtp' && <SmtpManagement />}
           {activeTab === 'email' && <EmailManagement />}
           {activeTab === 'reports' && <ReportsManagement />}

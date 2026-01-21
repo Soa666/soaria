@@ -39,6 +39,8 @@ function Grundstueck() {
   const [craftingTimeLeft, setCraftingTimeLeft] = useState(0);
   const [viewMode, setViewMode] = useState('graphic'); // 'graphic' or 'list'
   const [hoveredHotspot, setHoveredHotspot] = useState(null);
+  const [propertySettings, setPropertySettings] = useState({ image_path: '/buildings/huette1.jpg' });
+  const [propertyHotspots, setPropertyHotspots] = useState([]);
 
   // Check URL params for direct navigation
   useEffect(() => {
@@ -58,6 +60,7 @@ function Grundstueck() {
     fetchEquipmentRecipes();
     fetchProfessions();
     fetchCraftingJob();
+    fetchProperty();
     // Poll job status every 5 seconds
     const interval = setInterval(() => {
       fetchJobStatus();
@@ -144,6 +147,24 @@ function Grundstueck() {
       }
     } catch (error) {
       console.error('Fehler beim Laden des Crafting-Status:', error);
+    }
+  };
+
+  const fetchProperty = async () => {
+    try {
+      const response = await api.get('/buildings/property');
+      setPropertySettings(response.data.settings || { image_path: '/buildings/huette1.jpg' });
+      setPropertyHotspots(response.data.hotspots || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Grundstück-Einstellungen:', error);
+      // Fallback to default hotspots
+      setPropertyHotspots([
+        { buildingName: 'schmiede', x: 65, y: 25, width: 12, height: 12, label: 'Schmiede', icon: '⚒️', description: 'Amboss - Hier schmiedest du Waffen und Rüstung' },
+        { buildingName: 'saegewerk', x: 18, y: 55, width: 15, height: 15, label: 'Sägewerk', icon: '🪚', description: 'Tischkreissäge - Verarbeite Holz zu Brettern' },
+        { buildingName: 'werkbank', x: 75, y: 20, width: 15, height: 15, label: 'Werkbank', icon: '🔨', description: 'Werkbank - Crafting und Upgrades' },
+        { buildingName: 'brunnen', x: 60, y: 50, width: 10, height: 10, label: 'Brunnen', icon: '💧', description: 'Brunnen - Versorgt dich mit Wasser' },
+        { buildingName: 'lager', x: 40, y: 40, width: 12, height: 12, label: 'Lager', icon: '📦', description: 'Lager - Erweitert dein Inventar' }
+      ]);
     }
   };
 
@@ -579,41 +600,8 @@ function Grundstueck() {
     return icons[name] || '🏗️';
   };
 
-  // Hotspot definitions for clickable areas on the property image
-  // Format: { buildingName, x (%), y (%), width (%), height (%), label }
-  // These are relative positions that can be adjusted
-  const hotspots = [
-    { 
-      buildingName: 'schmiede', 
-      x: 65, y: 25, width: 12, height: 12, 
-      label: 'Schmiede', icon: '⚒️',
-      description: 'Amboss - Hier schmiedest du Waffen und Rüstung'
-    },
-    { 
-      buildingName: 'saegewerk', 
-      x: 18, y: 55, width: 15, height: 15, 
-      label: 'Sägewerk', icon: '🪚',
-      description: 'Tischkreissäge - Verarbeite Holz zu Brettern'
-    },
-    { 
-      buildingName: 'werkbank', 
-      x: 75, y: 20, width: 15, height: 15, 
-      label: 'Werkbank', icon: '🔨',
-      description: 'Werkbank - Crafting und Upgrades'
-    },
-    { 
-      buildingName: 'brunnen', 
-      x: 60, y: 50, width: 10, height: 10, 
-      label: 'Brunnen', icon: '💧',
-      description: 'Brunnen - Versorgt dich mit Wasser'
-    },
-    { 
-      buildingName: 'lager', 
-      x: 40, y: 40, width: 12, height: 12, 
-      label: 'Lager', icon: '📦',
-      description: 'Lager - Erweitert dein Inventar'
-    }
-  ];
+  // Use hotspots from database (propertyHotspots), fallback to empty array
+  const hotspots = propertyHotspots;
 
   const handleHotspotClick = (hotspot) => {
     const building = buildings.find(b => b.name === hotspot.buildingName);
@@ -690,7 +678,7 @@ function Grundstueck() {
           {viewMode === 'graphic' ? (
             <div className="property-image-container">
               <img 
-                src="/buildings/huette1.jpg" 
+                src={propertySettings.image_path || '/buildings/huette1.jpg'} 
                 alt="Grundstück" 
                 className="property-image"
                 onError={(e) => {
