@@ -39,8 +39,11 @@ function PropertyManagement() {
   const fetchData = async () => {
     try {
       const response = await api.get('/admin/property');
+      console.log('[PROPERTY] Fetched data:', response.data);
       setSettings(response.data.settings || { image_path: '/buildings/huette1.jpg' });
-      setHotspots(response.data.hotspots || []);
+      const fetchedHotspots = response.data.hotspots || [];
+      console.log('[PROPERTY] Fetched hotspots:', fetchedHotspots.length);
+      setHotspots(fetchedHotspots);
     } catch (err) {
       setError('Fehler beim Laden der Grundstück-Einstellungen');
       console.error('Fetch property error:', err);
@@ -76,33 +79,34 @@ function PropertyManagement() {
     }
   };
 
-  const handleImageClick = (e) => {
+  const handleImageClick = async (e) => {
     if (!imageRef.current) return;
     
     const rect = imageRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
 
     // If editing, update position
     if (editingHotspot) {
       setEditingHotspot({
         ...editingHotspot,
-        x: Math.max(0, Math.min(100, x)),
-        y: Math.max(0, Math.min(100, y))
+        x,
+        y
       });
     } else if (selectedHotspot) {
-      // Update selected hotspot position
-      const updated = hotspots.map(h => 
-        h.id === selectedHotspot.id 
-          ? { ...h, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) }
-          : h
-      );
-      setHotspots(updated);
-      setSelectedHotspot({
+      // Update selected hotspot position and save immediately
+      const updatedHotspot = {
         ...selectedHotspot,
-        x: Math.max(0, Math.min(100, x)),
-        y: Math.max(0, Math.min(100, y))
-      });
+        x,
+        y
+      };
+      setSelectedHotspot(updatedHotspot);
+      // Auto-save position change (keep selected)
+      try {
+        await handleSaveHotspot(updatedHotspot, true);
+      } catch (err) {
+        console.error('Auto-save position error:', err);
+      }
     }
   };
 
@@ -116,15 +120,33 @@ function PropertyManagement() {
     }
   };
 
-  const handleSaveHotspot = async (hotspot) => {
+  const handleSaveHotspot = async (hotspot, keepSelected = false) => {
     try {
       console.log('Saving hotspot:', hotspot);
       const response = await api.post('/admin/property/hotspots', hotspot);
       console.log('Save response:', response.data);
-      setMessage('Hotspot gespeichert');
-      fetchData();
-      setEditingHotspot(null);
-      setSelectedHotspot(null);
+      
+      // Refresh data to get updated hotspot
+      await fetchData();
+      
+      // If we should keep the hotspot selected (e.g., for position updates)
+      if (keepSelected && hotspot.id) {
+        // Find the updated hotspot from the refreshed data
+        const updatedResponse = await api.get('/admin/property/hotspots');
+        const updatedHotspots = updatedResponse.data.hotspots || [];
+        const updatedHotspot = updatedHotspots.find(h => h.id === hotspot.id);
+        if (updatedHotspot) {
+          setSelectedHotspot(updatedHotspot);
+          setMessage('Position aktualisiert');
+        } else {
+          setSelectedHotspot(null);
+          setMessage('Hotspot gespeichert');
+        }
+      } else {
+        setEditingHotspot(null);
+        setSelectedHotspot(null);
+        setMessage('Hotspot gespeichert');
+      }
     } catch (err) {
       console.error('Save hotspot error:', err);
       setError(err.response?.data?.error || 'Fehler beim Speichern');
@@ -244,6 +266,9 @@ function PropertyManagement() {
                       e.stopPropagation();
                       setSelectedHotspot(hotspot);
                       setEditingHotspot(null);
+                    }}
+                    onDragStart={(e) => {
+                      e.preventDefault(); // Prevent drag
                     }}
                     title={hotspot.label}
                   >
