@@ -1199,9 +1199,9 @@ router.get('/users/:userId/statistics', authenticateToken, requirePermission('ma
 router.get('/items', authenticateToken, requirePermission('manage_users'), async (req, res) => {
   try {
     const items = await db.all(`
-      SELECT id, name, display_name, category, rarity, icon
+      SELECT id, name, display_name, type as category, rarity, image_path as icon
       FROM items
-      ORDER BY category, display_name
+      ORDER BY type, display_name
     `);
     res.json({ items });
   } catch (error) {
