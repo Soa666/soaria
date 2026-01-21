@@ -153,6 +153,7 @@
 .property-image-container {
   position: relative;
   width: 100%;
+  max-width: 100%;
   min-height: 400px;
   cursor: crosshair;
   border-radius: 8px;
@@ -170,6 +171,7 @@
   max-height: 600px;
   max-width: 100%;
   object-fit: contain;
+  position: relative;
 }
 
 .hotspot-marker {
