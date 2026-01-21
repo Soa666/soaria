@@ -1278,7 +1278,7 @@ async function insertDefaultItems() {
     { name: 'wasser', display_name: 'Wasser', type: 'resource', rarity: 'common' },
     { name: 'feuerstein', display_name: 'Feuerstein', type: 'resource', rarity: 'uncommon' },
     { name: 'ast', display_name: 'Ast', type: 'resource', rarity: 'common' },
-    { name: 'eisenbarren', display_name: 'Eisenbarren', type: 'material', rarity: 'uncommon' },
+    // { name: 'eisenbarren', display_name: 'Eisenbarren', type: 'material', rarity: 'uncommon' }, // Removed - user doesn't want auto-creation
     { name: 'seil', display_name: 'Seil', type: 'material', rarity: 'common', description: 'Ein robustes Seil aus Pflanzenfasern' },
     { name: 'stoff', display_name: 'Stoff', type: 'material', rarity: 'common', description: 'Gewebter Stoff' },
     { name: 'kohle', display_name: 'Kohle', type: 'material', rarity: 'uncommon', description: 'Brennbare Kohle zum Schmieden von Stahl' },
