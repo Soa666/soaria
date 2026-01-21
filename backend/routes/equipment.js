@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permissions.js';
 import { trackCrafting, updateStatistic } from '../helpers/statistics.js';
 
 const router = express.Router();
@@ -868,19 +869,8 @@ router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
 // ==================== ADMIN ENDPOINTS ====================
 
 // Create equipment recipe
-router.post('/recipes', authenticateToken, async (req, res) => {
+router.post('/recipes', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {
-    // Check admin permission
-    const userGroup = await db.get(`
-      SELECT g.name FROM user_groups ug
-      JOIN groups g ON ug.group_id = g.id
-      WHERE ug.user_id = ?
-    `, [req.user.id]);
-
-    if (!userGroup || userGroup.name !== 'admin') {
-      return res.status(403).json({ error: 'Keine Berechtigung' });
-    }
-
     const { equipment_type_id, profession, required_profession_level, experience_reward, craft_time, materials } = req.body;
 
     if (!equipment_type_id || !materials || materials.length === 0) {
@@ -919,19 +909,8 @@ router.post('/recipes', authenticateToken, async (req, res) => {
 });
 
 // Update equipment recipe
-router.put('/recipes/:recipeId', authenticateToken, async (req, res) => {
+router.put('/recipes/:recipeId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {
-    // Check admin permission
-    const userGroup = await db.get(`
-      SELECT g.name FROM user_groups ug
-      JOIN groups g ON ug.group_id = g.id
-      WHERE ug.user_id = ?
-    `, [req.user.id]);
-
-    if (!userGroup || userGroup.name !== 'admin') {
-      return res.status(403).json({ error: 'Keine Berechtigung' });
-    }
-
     const { recipeId } = req.params;
     const { equipment_type_id, profession, required_profession_level, experience_reward, craft_time, materials } = req.body;
 
@@ -968,19 +947,8 @@ router.put('/recipes/:recipeId', authenticateToken, async (req, res) => {
 });
 
 // Delete equipment recipe
-router.delete('/recipes/:recipeId', authenticateToken, async (req, res) => {
+router.delete('/recipes/:recipeId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {
-    // Check admin permission
-    const userGroup = await db.get(`
-      SELECT g.name FROM user_groups ug
-      JOIN groups g ON ug.group_id = g.id
-      WHERE ug.user_id = ?
-    `, [req.user.id]);
-
-    if (!userGroup || userGroup.name !== 'admin') {
-      return res.status(403).json({ error: 'Keine Berechtigung' });
-    }
-
     const { recipeId } = req.params;
 
     // Check if recipe exists
