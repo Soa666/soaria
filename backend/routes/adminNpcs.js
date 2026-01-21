@@ -50,7 +50,7 @@ router.get('/monsters/:id', authenticateToken, requirePermission('manage_items')
 router.post('/monsters', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {
     const { 
-      name, display_name, description, is_boss,
+      name, display_name, description, image_path, is_boss,
       min_level, max_level, base_health, base_attack, base_defense,
       health_per_level, attack_per_level, defense_per_level, spawn_weight, respawn_cooldown
     } = req.body;
@@ -64,11 +64,11 @@ router.post('/monsters', authenticateToken, requirePermission('manage_items'), a
 
     const result = await db.run(`
       INSERT INTO monster_types 
-      (name, display_name, description, is_boss, min_level, max_level, 
+      (name, display_name, description, image_path, is_boss, min_level, max_level, 
        base_health, base_attack, base_defense, health_per_level, attack_per_level, defense_per_level, spawn_weight, respawn_cooldown)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      name, display_name, description || '', is_boss ? 1 : 0,
+      name, display_name, description || '', image_path || null, is_boss ? 1 : 0,
       min_level || 1, max_level || 5, base_health || 100, base_attack || 10, base_defense || 5,
       health_per_level || 20, attack_per_level || 3, defense_per_level || 2, spawn_weight || 100,
       respawn_cooldown || defaultCooldown
@@ -89,20 +89,20 @@ router.put('/monsters/:id', authenticateToken, requirePermission('manage_items')
   try {
     const { id } = req.params;
     const { 
-      display_name, description, is_boss,
+      display_name, description, image_path, is_boss,
       min_level, max_level, base_health, base_attack, base_defense,
       health_per_level, attack_per_level, defense_per_level, spawn_weight, respawn_cooldown
     } = req.body;
 
     await db.run(`
       UPDATE monster_types SET
-        display_name = ?, description = ?, is_boss = ?,
+        display_name = ?, description = ?, image_path = ?, is_boss = ?,
         min_level = ?, max_level = ?, base_health = ?, base_attack = ?, base_defense = ?,
         health_per_level = ?, attack_per_level = ?, defense_per_level = ?, spawn_weight = ?,
         respawn_cooldown = ?
       WHERE id = ?
     `, [
-      display_name, description, is_boss ? 1 : 0,
+      display_name, description, image_path || null, is_boss ? 1 : 0,
       min_level, max_level, base_health, base_attack, base_defense,
       health_per_level, attack_per_level, defense_per_level, spawn_weight,
       respawn_cooldown || (is_boss ? 60 : 5), id

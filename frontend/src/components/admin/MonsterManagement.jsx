@@ -19,6 +19,7 @@ function MonsterManagement() {
     name: '',
     display_name: '',
     description: '',
+    image_path: '',
     is_boss: false,
     min_level: 1,
     max_level: 5,
@@ -31,6 +32,17 @@ function MonsterManagement() {
     spawn_weight: 100,
     respawn_cooldown: 5
   });
+
+  // Verfügbare Monster-Spritesheets
+  const MONSTER_SPRITESHEETS = [
+    { name: '9RPGenemies.PNG', label: '9 RPG Enemies' },
+    { name: 'more rpg enemies.PNG', label: 'More RPG Enemies' },
+    { name: 'roguelikecreatures.png', label: 'Roguelike Creatures' },
+    { name: 'rpgcritters2.png', label: 'RPG Critters 2' },
+  ];
+
+  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [selectedSpritesheet, setSelectedSpritesheet] = useState(null);
 
   const [lootForm, setLootForm] = useState({
     item_id: '',
@@ -133,6 +145,7 @@ function MonsterManagement() {
       name: monster.name,
       display_name: monster.display_name,
       description: monster.description || '',
+      image_path: monster.image_path || '',
       is_boss: monster.is_boss === 1,
       min_level: monster.min_level,
       max_level: monster.max_level,
@@ -233,6 +246,7 @@ function MonsterManagement() {
       name: '',
       display_name: '',
       description: '',
+      image_path: '',
       is_boss: false,
       min_level: 1,
       max_level: 5,
@@ -247,6 +261,40 @@ function MonsterManagement() {
     });
     setEditMode(false);
     setSelectedMonster(null);
+  };
+
+  // Parse image_path format: "spritesheet.png:x,y,w,h"
+  const parseImagePath = (imagePath) => {
+    if (!imagePath) return null;
+    const match = imagePath.match(/^(.+):(\d+),(\d+),(\d+),(\d+)$/);
+    if (!match) return null;
+    return {
+      spritesheet: match[1],
+      x: parseInt(match[2]),
+      y: parseInt(match[3]),
+      w: parseInt(match[4]),
+      h: parseInt(match[5])
+    };
+  };
+
+  // Render monster image from spritesheet
+  const MonsterImage = ({ imagePath, size = 32 }) => {
+    const parsed = parseImagePath(imagePath);
+    if (!parsed) return <span className="no-image">👹</span>;
+    
+    return (
+      <div 
+        className="monster-sprite"
+        style={{
+          width: size,
+          height: size,
+          backgroundImage: `url(/monsters/${parsed.spritesheet})`,
+          backgroundPosition: `-${parsed.x}px -${parsed.y}px`,
+          backgroundSize: 'auto',
+          imageRendering: 'pixelated'
+        }}
+      />
+    );
   };
 
   // Filter monsters
@@ -317,6 +365,7 @@ function MonsterManagement() {
         <table className="monster-table">
           <thead>
             <tr>
+              <th style={{width: '40px'}}>Bild</th>
               <th style={{width: '30px'}}></th>
               <th>Name</th>
               <th>Level</th>
@@ -337,6 +386,9 @@ function MonsterManagement() {
                   className={`monster-row ${selectedMonster?.id === monster.id ? 'selected' : ''} ${monster.is_boss ? 'boss' : ''}`}
                   onClick={() => selectMonster(monster)}
                 >
+                  <td className="image-cell">
+                    <MonsterImage imagePath={monster.image_path} size={32} />
+                  </td>
                   <td className="type-icon">{monster.is_boss ? '👑' : '👹'}</td>
                   <td className="name-cell">
                     <span className="monster-name">{monster.display_name}</span>
@@ -386,7 +438,7 @@ function MonsterManagement() {
                 </tr>
                 {selectedMonster?.id === monster.id && (
                   <tr className="loot-row">
-                    <td colSpan="10">
+                    <td colSpan="11">
                       <div className="loot-panel">
                         <div className="loot-header">
                           <h4>🎁 Loot-Tabelle für {monster.display_name}</h4>
@@ -561,6 +613,38 @@ function MonsterManagement() {
                     placeholder="Beschreibung des Monsters..."
                   />
                 </div>
+
+                <div className="form-section">
+                  <h4>🖼️ Monster-Bild</h4>
+                  <div className="image-picker-section">
+                    <div className="current-image">
+                      {form.image_path ? (
+                        <MonsterImage imagePath={form.image_path} size={64} />
+                      ) : (
+                        <div className="no-image-placeholder">Kein Bild</div>
+                      )}
+                    </div>
+                    <div className="image-picker-controls">
+                      <button 
+                        type="button" 
+                        className="btn-pick-image"
+                        onClick={() => setShowImagePicker(true)}
+                      >
+                        🖼️ Bild auswählen
+                      </button>
+                      {form.image_path && (
+                        <button 
+                          type="button" 
+                          className="btn-clear-image"
+                          onClick={() => setForm({...form, image_path: ''})}
+                        >
+                          ✕ Entfernen
+                        </button>
+                      )}
+                      <span className="image-path-info">{form.image_path || 'Kein Bild ausgewählt'}</span>
+                    </div>
+                  </div>
+                </div>
                 
                 <div className="form-section">
                   <h4>Typ & Spawn</h4>
@@ -700,6 +784,69 @@ function MonsterManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Image Picker Modal */}
+      {showImagePicker && (
+        <div className="modal-overlay" onClick={() => setShowImagePicker(false)}>
+          <div className="modal-content image-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>🖼️ Monster-Bild auswählen</h3>
+              <button className="btn-close" onClick={() => setShowImagePicker(false)}>✕</button>
+            </div>
+            <div className="spritesheet-selector">
+              <label>Spritesheet wählen:</label>
+              <div className="spritesheet-buttons">
+                {MONSTER_SPRITESHEETS.map(sheet => (
+                  <button
+                    key={sheet.name}
+                    className={`spritesheet-btn ${selectedSpritesheet === sheet.name ? 'active' : ''}`}
+                    onClick={() => setSelectedSpritesheet(sheet.name)}
+                  >
+                    {sheet.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {selectedSpritesheet && (
+              <div className="spritesheet-preview">
+                <p className="spritesheet-help">Klicke auf das gewünschte Monster im Spritesheet:</p>
+                <div className="spritesheet-container">
+                  <img 
+                    src={`/monsters/${selectedSpritesheet}`}
+                    alt={selectedSpritesheet}
+                    className="spritesheet-image"
+                    onClick={(e) => {
+                      const rect = e.target.getBoundingClientRect();
+                      const x = Math.floor((e.clientX - rect.left) / 16) * 16;
+                      const y = Math.floor((e.clientY - rect.top) / 16) * 16;
+                      const imagePath = `${selectedSpritesheet}:${x},${y},16,16`;
+                      setForm({...form, image_path: imagePath});
+                      setShowImagePicker(false);
+                    }}
+                  />
+                </div>
+                <p className="spritesheet-note">Hinweis: Klicke auf ein 16x16 Tile. Größere Sprites benötigen manuelle Eingabe.</p>
+                <div className="manual-input">
+                  <label>Oder manuell eingeben:</label>
+                  <input
+                    type="text"
+                    placeholder="spritesheet.png:x,y,breite,höhe"
+                    value={form.image_path}
+                    onChange={(e) => setForm({...form, image_path: e.target.value})}
+                  />
+                  <button 
+                    type="button" 
+                    className="btn-apply"
+                    onClick={() => setShowImagePicker(false)}
+                  >
+                    Übernehmen
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
