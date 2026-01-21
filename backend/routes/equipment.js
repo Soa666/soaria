@@ -645,6 +645,15 @@ router.post('/craft/collect', authenticateToken, async (req, res) => {
     // Track statistics
     await trackCrafting(userId, job.equipment_type_id, true);
 
+    // Track rarity for achievements - quality "legendary" or "masterwork" counts as legendary
+    if (job.quality === 'legendary') {
+      const { trackItemObtained } = await import('../helpers/statistics.js');
+      await trackItemObtained(userId, 'legendary');
+    } else if (job.quality === 'masterwork' || job.quality === 'excellent') {
+      const { trackItemObtained } = await import('../helpers/statistics.js');
+      await trackItemObtained(userId, 'epic');
+    }
+
     res.json({
       message: `${job.display_name} (${QUALITY_NAMES[job.quality]}) hergestellt!`,
       quality: job.quality,

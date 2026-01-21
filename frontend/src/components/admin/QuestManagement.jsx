@@ -20,6 +20,11 @@ const OBJECTIVE_TYPES = [
   { value: 'earn_gold', label: 'Gold verdienen', icon: '💰' },
   { value: 'send_message', label: 'Nachrichten senden', icon: '✉️' },
   { value: 'defeat_player', label: 'Spieler besiegen', icon: '🎯' },
+  { value: 'obtain_legendary', label: 'Legendären Gegenstand erhalten', icon: '🌟' },
+  { value: 'obtain_epic', label: 'Epischen Gegenstand erhalten', icon: '💜' },
+  { value: 'obtain_rare', label: 'Seltenen Gegenstand erhalten', icon: '💙' },
+  { value: 'complete_trade', label: 'Handel abschließen', icon: '🤝' },
+  { value: 'join_guild', label: 'Gilde beitreten', icon: '🏰' },
 ];
 
 const CATEGORIES = [

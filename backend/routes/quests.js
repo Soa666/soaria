@@ -16,7 +16,8 @@ const OBJECTIVE_TYPES = [
   'travel_distance', 'visit_location',
   'reach_level', 'earn_gold', 'spend_gold',
   'complete_trade', 'send_message',
-  'defeat_player', 'daily_login'
+  'defeat_player', 'daily_login',
+  'obtain_legendary', 'obtain_epic', 'obtain_rare', 'join_guild'
 ];
 
 // Get count of claimable quests - MUST be before /:questId routes!

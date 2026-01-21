@@ -259,7 +259,7 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
         if (Math.random() < loot.drop_chance) {
           const qty = Math.floor(Math.random() * (loot.max_quantity - loot.min_quantity + 1)) + loot.min_quantity;
           
-          const item = await db.get('SELECT display_name FROM items WHERE id = ?', [loot.item_id]);
+          const item = await db.get('SELECT display_name, rarity FROM items WHERE id = ?', [loot.item_id]);
           lootItems.push({ item_id: loot.item_id, quantity: qty, name: item?.display_name || 'Unbekannt' });
           
           // Add to inventory
@@ -268,6 +268,12 @@ router.post('/monster/:npcId', authenticateToken, async (req, res) => {
             VALUES (?, ?, ?)
             ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?
           `, [userId, loot.item_id, qty, qty]);
+
+          // Track rarity for achievements (legendary, epic, rare)
+          if (item?.rarity && ['legendary', 'epic', 'rare'].includes(item.rarity)) {
+            const { trackItemObtained } = await import('../helpers/statistics.js');
+            await trackItemObtained(userId, item.rarity);
+          }
         }
       }
 

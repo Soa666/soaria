@@ -73,7 +73,10 @@ async function checkQuestProgress(userId, statName, amount) {
       'gold_earned': 'earn_gold',
       'gold_spent': 'spend_gold',
       'trades_completed': 'complete_trade',
-      'messages_sent': 'send_message'
+      'messages_sent': 'send_message',
+      'legendary_items_obtained': 'obtain_legendary',
+      'epic_items_obtained': 'obtain_epic',
+      'rare_items_obtained': 'obtain_rare'
     };
 
     const objectiveType = statToObjectiveMap[statName];
@@ -331,6 +334,53 @@ export async function getUserStatistics(userId) {
   }
 }
 
+/**
+ * Track item/equipment obtained by rarity
+ * Call this when a player receives an item or equipment with a rarity
+ */
+export async function trackItemObtained(userId, rarity) {
+  try {
+    // Track based on rarity
+    switch (rarity) {
+      case 'legendary':
+        await updateStatistic(userId, 'legendary_items_obtained', 1);
+        break;
+      case 'epic':
+        await updateStatistic(userId, 'epic_items_obtained', 1);
+        break;
+      case 'rare':
+        await updateStatistic(userId, 'rare_items_obtained', 1);
+        break;
+    }
+  } catch (error) {
+    console.error('Error tracking item obtained:', error);
+  }
+}
+
+/**
+ * Track guild join
+ */
+export async function trackGuildJoin(userId) {
+  try {
+    // Check for join_guild objectives
+    const activeObjectives = await db.all(`
+      SELECT qo.id, qo.quest_id
+      FROM quest_objectives qo
+      JOIN user_quests uq ON qo.quest_id = uq.quest_id
+      LEFT JOIN user_quest_progress uqp ON qo.id = uqp.objective_id AND uqp.user_id = ?
+      WHERE uq.user_id = ? AND uq.status = 'active'
+        AND qo.objective_type = 'join_guild'
+        AND (uqp.is_completed IS NULL OR uqp.is_completed = 0)
+    `, [userId, userId]);
+
+    for (const objective of activeObjectives) {
+      await updateQuestObjectiveProgress(userId, objective.quest_id, objective.id, 1);
+    }
+  } catch (error) {
+    console.error('Error tracking guild join:', error);
+  }
+}
+
 export default {
   updateStatistic,
   updateMultipleStats,
@@ -340,5 +390,7 @@ export default {
   trackCrafting,
   trackBuilding,
   trackTravel,
-  getUserStatistics
+  getUserStatistics,
+  trackItemObtained,
+  trackGuildJoin
 };

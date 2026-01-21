@@ -202,10 +202,14 @@ function Quests() {
                     <div className="quest-progress-bar">
                       <div 
                         className="progress-fill"
-                        style={{ width: `${(quest.completed_objectives / quest.total_objectives) * 100}%` }}
+                        style={{ width: `${quest.objectives?.length === 1 
+                          ? ((quest.objectives[0].current_amount || 0) / (quest.objectives[0].required_amount || 1)) * 100
+                          : (quest.completed_objectives / quest.total_objectives) * 100}%` }}
                       />
                       <span className="progress-text">
-                        {quest.completed_objectives}/{quest.total_objectives}
+                        {quest.objectives?.length === 1 
+                          ? `${quest.objectives[0].current_amount || 0}/${quest.objectives[0].required_amount || 1}`
+                          : `${quest.completed_objectives}/${quest.total_objectives}`}
                       </span>
                     </div>
                   )}
@@ -247,9 +251,9 @@ function Quests() {
                     {obj.description || `${obj.target_name || obj.objective_type}`}
                   </span>
                   <span className="obj-progress">
-                    {obj.current_amount}/{obj.required_amount}
+                    {obj.current_amount || 0}/{obj.required_amount || 1}
+                    {obj.is_completed ? ' ✓' : ''}
                   </span>
-                  {obj.is_completed && <span className="obj-check">✓</span>}
                 </div>
               ))}
             </div>

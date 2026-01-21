@@ -585,6 +585,10 @@ router.put('/:guildId/applications/:applicationId', authenticateToken, async (re
         VALUES (?, ?, 'member')
       `, [guildId, application.user_id]);
 
+      // Track guild join for achievements
+      const { trackGuildJoin } = await import('../helpers/statistics.js');
+      await trackGuildJoin(application.user_id);
+
       // Notify applicant about acceptance
       await sendSystemMessage(
         application.user_id,
