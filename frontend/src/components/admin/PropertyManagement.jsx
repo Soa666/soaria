@@ -118,12 +118,15 @@ function PropertyManagement() {
 
   const handleSaveHotspot = async (hotspot) => {
     try {
-      await api.post('/admin/property/hotspots', hotspot);
+      console.log('Saving hotspot:', hotspot);
+      const response = await api.post('/admin/property/hotspots', hotspot);
+      console.log('Save response:', response.data);
       setMessage('Hotspot gespeichert');
       fetchData();
       setEditingHotspot(null);
       setSelectedHotspot(null);
     } catch (err) {
+      console.error('Save hotspot error:', err);
       setError(err.response?.data?.error || 'Fehler beim Speichern');
     }
   };

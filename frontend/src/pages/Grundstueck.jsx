@@ -153,17 +153,19 @@ function Grundstueck() {
   const fetchProperty = async () => {
     try {
       const response = await api.get('/buildings/property');
+      console.log('[GRUNDSTUECK] Property data loaded:', response.data);
       setPropertySettings(response.data.settings || { image_path: '/buildings/huette1.jpg' });
       setPropertyHotspots(response.data.hotspots || []);
+      console.log('[GRUNDSTUECK] Hotspots set:', response.data.hotspots?.length || 0);
     } catch (error) {
-      console.error('Fehler beim Laden der Grundstück-Einstellungen:', error);
+      console.error('[GRUNDSTUECK] Fehler beim Laden der Grundstück-Einstellungen:', error);
       // Fallback to default hotspots
       setPropertyHotspots([
-        { buildingName: 'schmiede', x: 65, y: 25, width: 12, height: 12, label: 'Schmiede', icon: '⚒️', description: 'Amboss - Hier schmiedest du Waffen und Rüstung' },
-        { buildingName: 'saegewerk', x: 18, y: 55, width: 15, height: 15, label: 'Sägewerk', icon: '🪚', description: 'Tischkreissäge - Verarbeite Holz zu Brettern' },
-        { buildingName: 'werkbank', x: 75, y: 20, width: 15, height: 15, label: 'Werkbank', icon: '🔨', description: 'Werkbank - Crafting und Upgrades' },
-        { buildingName: 'brunnen', x: 60, y: 50, width: 10, height: 10, label: 'Brunnen', icon: '💧', description: 'Brunnen - Versorgt dich mit Wasser' },
-        { buildingName: 'lager', x: 40, y: 40, width: 12, height: 12, label: 'Lager', icon: '📦', description: 'Lager - Erweitert dein Inventar' }
+        { building_name: 'schmiede', x: 65, y: 25, width: 12, height: 12, label: 'Schmiede', icon: '⚒️', description: 'Amboss - Hier schmiedest du Waffen und Rüstung' },
+        { building_name: 'saegewerk', x: 18, y: 55, width: 15, height: 15, label: 'Sägewerk', icon: '🪚', description: 'Tischkreissäge - Verarbeite Holz zu Brettern' },
+        { building_name: 'werkbank', x: 75, y: 20, width: 15, height: 15, label: 'Werkbank', icon: '🔨', description: 'Werkbank - Crafting und Upgrades' },
+        { building_name: 'brunnen', x: 60, y: 50, width: 10, height: 10, label: 'Brunnen', icon: '💧', description: 'Brunnen - Versorgt dich mit Wasser' },
+        { building_name: 'lager', x: 40, y: 40, width: 12, height: 12, label: 'Lager', icon: '📦', description: 'Lager - Erweitert dein Inventar' }
       ]);
     }
   };
@@ -604,17 +606,18 @@ function Grundstueck() {
   const hotspots = propertyHotspots;
 
   const handleHotspotClick = (hotspot) => {
-    const building = buildings.find(b => b.name === hotspot.buildingName);
+    const buildingName = hotspot.building_name || hotspot.buildingName;
+    const building = buildings.find(b => b.name === buildingName);
     if (building) {
       setSelectedBuilding(building);
       
       // Special handling for smithy - open smithy view directly
-      if (building.name === 'schmiede' && building.is_built) {
+      if (buildingName === 'schmiede' && building.is_built) {
         setShowSmithyView(true);
         setSelectedBuilding(null);
       }
       // Special handling for werkbank - could open crafting
-      else if (building.name === 'werkbank' && building.is_built) {
+      else if (buildingName === 'werkbank' && building.is_built) {
         // Could navigate to crafting or show workbench options
       }
     }
@@ -689,13 +692,14 @@ function Grundstueck() {
                 }}
               />
               {hotspots.map((hotspot, idx) => {
-                const hotspotBuilding = getHotspotBuilding(hotspot.buildingName);
+                const buildingName = hotspot.building_name || hotspot.buildingName;
+                const hotspotBuilding = getHotspotBuilding(buildingName);
                 const isBuilt = hotspotBuilding;
                 const isHovered = hoveredHotspot === idx;
                 
                 return (
                   <div
-                    key={idx}
+                    key={hotspot.id || `hotspot-${idx}`}
                     className={`property-hotspot ${isBuilt ? 'built' : 'unbuilt'} ${isHovered ? 'hovered' : ''}`}
                     style={{
                       left: `${hotspot.x}%`,

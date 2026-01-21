@@ -564,13 +564,18 @@ router.get('/property', authenticateToken, async (req, res) => {
     const settings = await db.get('SELECT * FROM property_settings ORDER BY id DESC LIMIT 1');
     const hotspots = await db.all('SELECT * FROM property_hotspots ORDER BY sort_order, building_name');
     
+    console.log('[PROPERTY] Loading for user:', { 
+      settingsCount: settings ? 1 : 0, 
+      hotspotsCount: hotspots?.length || 0 
+    });
+    
     res.json({ 
       settings: settings || { image_path: '/buildings/huette1.jpg' },
       hotspots: hotspots || []
     });
   } catch (error) {
-    console.error('Get property error:', error);
-    res.status(500).json({ error: 'Serverfehler' });
+    console.error('[PROPERTY] Get property error:', error);
+    res.status(500).json({ error: 'Serverfehler: ' + error.message });
   }
 });
 

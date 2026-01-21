@@ -1235,13 +1235,18 @@ router.get('/property', authenticateToken, requirePermission('manage_items'), as
     const settings = await db.get('SELECT * FROM property_settings ORDER BY id DESC LIMIT 1');
     const hotspots = await db.all('SELECT * FROM property_hotspots ORDER BY sort_order, building_name');
     
+    console.log('[PROPERTY] Loading settings and hotspots:', { 
+      settingsCount: settings ? 1 : 0, 
+      hotspotsCount: hotspots?.length || 0 
+    });
+    
     res.json({ 
       settings: settings || { image_path: '/buildings/huette1.jpg' },
       hotspots: hotspots || []
     });
   } catch (error) {
-    console.error('Get property error:', error);
-    res.status(500).json({ error: 'Serverfehler' });
+    console.error('[PROPERTY] Get property error:', error);
+    res.status(500).json({ error: 'Serverfehler: ' + error.message });
   }
 });
 
@@ -1285,17 +1290,20 @@ router.post('/property/hotspots', authenticateToken, requirePermission('manage_i
   try {
     const { id, building_name, x, y, width, height, label, icon, description, sort_order } = req.body;
 
+    console.log('[PROPERTY] Saving hotspot:', { id, building_name, x, y, width, height, label });
+
     if (!building_name || x === undefined || y === undefined || width === undefined || height === undefined) {
       return res.status(400).json({ error: 'Alle Felder sind erforderlich' });
     }
 
     if (id) {
       // Update existing
-      await db.run(`
+      const result = await db.run(`
         UPDATE property_hotspots 
-      SET building_name = ?, x = ?, y = ?, width = ?, height = ?, label = ?, icon = ?, description = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
+        SET building_name = ?, x = ?, y = ?, width = ?, height = ?, label = ?, icon = ?, description = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `, [building_name, x, y, width, height, label || '', icon || '', description || '', sort_order || 0, id]);
+      console.log('[PROPERTY] Hotspot updated:', result);
       res.json({ message: 'Hotspot aktualisiert', id });
     } else {
       // Create new
@@ -1303,11 +1311,12 @@ router.post('/property/hotspots', authenticateToken, requirePermission('manage_i
         INSERT INTO property_hotspots (building_name, x, y, width, height, label, icon, description, sort_order)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [building_name, x, y, width, height, label || '', icon || '', description || '', sort_order || 0]);
+      console.log('[PROPERTY] Hotspot created:', result);
       res.json({ message: 'Hotspot erstellt', id: result.lastID });
     }
   } catch (error) {
-    console.error('Save hotspot error:', error);
-    res.status(500).json({ error: 'Serverfehler' });
+    console.error('[PROPERTY] Save hotspot error:', error);
+    res.status(500).json({ error: 'Serverfehler: ' + error.message });
   }
 });
 
