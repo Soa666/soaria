@@ -11,7 +11,45 @@
 .recipes-header h2 {
   color: #d4af37;
   font-size: 1.8rem;
+  margin: 0 0 8px 0;
+}
+
+.recipes-header .header-description {
+  color: #8b7a5a;
   margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Tabs */
+.recipe-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 14px 20px;
+  background: linear-gradient(145deg, rgba(40, 35, 50, 0.9), rgba(30, 25, 40, 0.95));
+  border: 2px solid #4a3a5a;
+  border-radius: 10px;
+  color: #a89070;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  border-color: #6a5a7a;
+  background: linear-gradient(145deg, rgba(50, 45, 60, 0.9), rgba(40, 35, 50, 0.95));
+}
+
+.tab-btn.active {
+  border-color: #d4af37;
+  background: linear-gradient(145deg, rgba(60, 50, 40, 0.9), rgba(50, 40, 30, 0.95));
+  color: #d4af37;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
 }
 
 /* Messages */
@@ -302,6 +340,44 @@
 
 .no-requirement {
   color: #5a5a5a;
+}
+
+.slot-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: rgba(63, 81, 181, 0.2);
+  color: #9fa8da;
+  border: 1px solid rgba(63, 81, 181, 0.3);
+  text-transform: capitalize;
+}
+
+.profession-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: rgba(255, 87, 34, 0.2);
+  color: #ff8a65;
+  border: 1px solid rgba(255, 87, 34, 0.3);
+}
+
+.exp-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.hint.warning {
+  color: #e67e22;
 }
 
 .ingredients-cell {

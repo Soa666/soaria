@@ -347,7 +347,41 @@ router.get('/professions', authenticateToken, async (req, res) => {
   }
 });
 
-// Get craftable equipment recipes
+// Get ALL equipment recipes (for admin) - MUST be before /recipes
+router.get('/recipes/all', authenticateToken, async (req, res) => {
+  try {
+    const recipes = await db.all(`
+      SELECT 
+        er.*,
+        et.display_name as equipment_display_name,
+        et.slot,
+        et.image_path as equipment_image_path,
+        et.rarity
+      FROM equipment_recipes er
+      JOIN equipment_types et ON er.equipment_type_id = et.id
+      ORDER BY er.profession, er.required_profession_level, et.slot
+    `);
+
+    // Get materials for each recipe
+    const recipesWithMaterials = await Promise.all(recipes.map(async recipe => {
+      const materials = await db.all(`
+        SELECT erm.item_id, erm.quantity, i.display_name
+        FROM equipment_recipe_materials erm
+        JOIN items i ON erm.item_id = i.id
+        WHERE erm.recipe_id = ?
+      `, [recipe.id]);
+
+      return { ...recipe, materials };
+    }));
+
+    res.json({ recipes: recipesWithMaterials });
+  } catch (error) {
+    console.error('Get all recipes error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get craftable equipment recipes (for users)
 router.get('/recipes', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -828,6 +862,142 @@ router.post('/craft/:recipeId', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Start craft error:', error);
     res.status(500).json({ error: 'Serverfehler beim Starten der Herstellung' });
+  }
+});
+
+// ==================== ADMIN ENDPOINTS ====================
+
+// Create equipment recipe
+router.post('/recipes', authenticateToken, async (req, res) => {
+  try {
+    // Check admin permission
+    const userGroup = await db.get(`
+      SELECT g.name FROM user_groups ug
+      JOIN groups g ON ug.group_id = g.id
+      WHERE ug.user_id = ?
+    `, [req.user.id]);
+
+    if (!userGroup || userGroup.name !== 'admin') {
+      return res.status(403).json({ error: 'Keine Berechtigung' });
+    }
+
+    const { equipment_type_id, profession, required_profession_level, experience_reward, craft_time, materials } = req.body;
+
+    if (!equipment_type_id || !materials || materials.length === 0) {
+      return res.status(400).json({ error: 'Equipment-Typ und Materialien erforderlich' });
+    }
+
+    // Check if recipe already exists for this equipment type
+    const existing = await db.get('SELECT id FROM equipment_recipes WHERE equipment_type_id = ?', [equipment_type_id]);
+    if (existing) {
+      return res.status(400).json({ error: 'Für diesen Equipment-Typ existiert bereits ein Rezept' });
+    }
+
+    // Create recipe
+    const result = await db.run(`
+      INSERT INTO equipment_recipes (equipment_type_id, profession, required_profession_level, experience_reward, craft_time)
+      VALUES (?, ?, ?, ?, ?)
+    `, [equipment_type_id, profession || 'blacksmith', required_profession_level || 1, experience_reward || 10, craft_time || 60]);
+
+    const recipeId = result.lastID;
+
+    // Add materials
+    for (const mat of materials) {
+      if (mat.item_id && mat.quantity > 0) {
+        await db.run(`
+          INSERT INTO equipment_recipe_materials (recipe_id, item_id, quantity)
+          VALUES (?, ?, ?)
+        `, [recipeId, mat.item_id, mat.quantity]);
+      }
+    }
+
+    res.json({ message: 'Equipment-Rezept erstellt', recipeId });
+  } catch (error) {
+    console.error('Create recipe error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Update equipment recipe
+router.put('/recipes/:recipeId', authenticateToken, async (req, res) => {
+  try {
+    // Check admin permission
+    const userGroup = await db.get(`
+      SELECT g.name FROM user_groups ug
+      JOIN groups g ON ug.group_id = g.id
+      WHERE ug.user_id = ?
+    `, [req.user.id]);
+
+    if (!userGroup || userGroup.name !== 'admin') {
+      return res.status(403).json({ error: 'Keine Berechtigung' });
+    }
+
+    const { recipeId } = req.params;
+    const { equipment_type_id, profession, required_profession_level, experience_reward, craft_time, materials } = req.body;
+
+    // Check if recipe exists
+    const recipe = await db.get('SELECT id FROM equipment_recipes WHERE id = ?', [recipeId]);
+    if (!recipe) {
+      return res.status(404).json({ error: 'Rezept nicht gefunden' });
+    }
+
+    // Update recipe
+    await db.run(`
+      UPDATE equipment_recipes 
+      SET equipment_type_id = ?, profession = ?, required_profession_level = ?, experience_reward = ?, craft_time = ?
+      WHERE id = ?
+    `, [equipment_type_id, profession || 'blacksmith', required_profession_level || 1, experience_reward || 10, craft_time || 60, recipeId]);
+
+    // Update materials: delete old, insert new
+    await db.run('DELETE FROM equipment_recipe_materials WHERE recipe_id = ?', [recipeId]);
+
+    for (const mat of materials) {
+      if (mat.item_id && mat.quantity > 0) {
+        await db.run(`
+          INSERT INTO equipment_recipe_materials (recipe_id, item_id, quantity)
+          VALUES (?, ?, ?)
+        `, [recipeId, mat.item_id, mat.quantity]);
+      }
+    }
+
+    res.json({ message: 'Equipment-Rezept aktualisiert' });
+  } catch (error) {
+    console.error('Update recipe error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete equipment recipe
+router.delete('/recipes/:recipeId', authenticateToken, async (req, res) => {
+  try {
+    // Check admin permission
+    const userGroup = await db.get(`
+      SELECT g.name FROM user_groups ug
+      JOIN groups g ON ug.group_id = g.id
+      WHERE ug.user_id = ?
+    `, [req.user.id]);
+
+    if (!userGroup || userGroup.name !== 'admin') {
+      return res.status(403).json({ error: 'Keine Berechtigung' });
+    }
+
+    const { recipeId } = req.params;
+
+    // Check if recipe exists
+    const recipe = await db.get('SELECT id FROM equipment_recipes WHERE id = ?', [recipeId]);
+    if (!recipe) {
+      return res.status(404).json({ error: 'Rezept nicht gefunden' });
+    }
+
+    // Delete materials first
+    await db.run('DELETE FROM equipment_recipe_materials WHERE recipe_id = ?', [recipeId]);
+    // Delete recipe
+    await db.run('DELETE FROM equipment_recipes WHERE id = ?', [recipeId]);
+
+    res.json({ message: 'Equipment-Rezept gelöscht' });
+  } catch (error) {
+    console.error('Delete recipe error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
   }
 });
 
