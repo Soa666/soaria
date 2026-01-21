@@ -74,7 +74,8 @@ function BuildingsManagement() {
     }
   };
 
-  const handleDeleteBuilding = async (buildingId) => {
+  const handleDeleteBuilding = async (buildingId, e) => {
+    e?.stopPropagation();
     if (!window.confirm('Gebäude wirklich löschen? Alle Anforderungen werden ebenfalls gelöscht.')) return;
     
     try {
@@ -82,6 +83,8 @@ function BuildingsManagement() {
       setMessage('Gebäude erfolgreich gelöscht');
       setTimeout(() => setMessage(''), 3000);
       fetchBuildings();
+      if (selectedBuilding === buildingId) setSelectedBuilding(null);
+      if (editingBuilding === buildingId) setEditingBuilding(null);
     } catch (error) {
       setMessage(error.response?.data?.error || 'Fehler beim Löschen');
       setTimeout(() => setMessage(''), 5000);
@@ -126,6 +129,15 @@ function BuildingsManagement() {
     }
   };
 
+  const toggleSelect = (buildingId) => {
+    setSelectedBuilding(selectedBuilding === buildingId ? null : buildingId);
+  };
+
+  const handleEdit = (building, e) => {
+    e?.stopPropagation();
+    setEditingBuilding(editingBuilding === building.id ? null : building.id);
+  };
+
   if (loading) {
     return <div className="loading">Lädt...</div>;
   }
@@ -148,86 +160,127 @@ function BuildingsManagement() {
         </button>
       </div>
 
+      {/* Create Form Modal */}
       {showCreateForm && (
-        <BuildingForm
-          availableImages={availableImages}
-          onSave={handleCreateBuilding}
-          onCancel={() => setShowCreateForm(false)}
-        />
+        <div className="modal-overlay" onClick={() => setShowCreateForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>➕ Neues Gebäude erstellen</h3>
+              <button className="btn-close" onClick={() => setShowCreateForm(false)}>✕</button>
+            </div>
+            <BuildingForm
+              availableImages={availableImages}
+              onSave={handleCreateBuilding}
+              onCancel={() => setShowCreateForm(false)}
+            />
+          </div>
+        </div>
       )}
 
-      <div className="buildings-grid">
-        {buildings.map((building) => (
-          <div key={building.id} className="building-card-admin">
-            <div className="building-preview">
-              {building.image_path ? (
-                <img 
-                  src={`/buildings/${building.image_path}`} 
-                  alt={building.display_name}
-                  onError={(e) => { e.target.src = '/items/placeholder-item.png'; }}
-                />
-              ) : (
-                <div className="no-image">🏠</div>
-              )}
+      {/* Edit Form Modal */}
+      {editingBuilding && (
+        <div className="modal-overlay" onClick={() => setEditingBuilding(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>✏️ Gebäude bearbeiten</h3>
+              <button className="btn-close" onClick={() => setEditingBuilding(null)}>✕</button>
             </div>
-            
-            <div className="building-info-admin">
-              <h3>{building.display_name}</h3>
-              <p className="building-name">({building.name})</p>
-              
-              <div className="building-stats">
-                <span>📊 Max Level: {building.max_level}</span>
-                <span>⏱️ Bauzeit: {building.build_duration_minutes} Min</span>
-                <span>⬆️ Upgrade: {building.upgrade_duration_minutes} Min</span>
-                <span>🔢 Reihenfolge: {building.unlock_order}</span>
-              </div>
-
-              {building.description && (
-                <p className="building-description">{building.description}</p>
-              )}
-            </div>
-
-            <div className="building-actions">
-              <button
-                className="btn btn-small"
-                onClick={() => setEditingBuilding(editingBuilding === building.id ? null : building.id)}
-              >
-                {editingBuilding === building.id ? 'Schließen' : '✏️ Bearbeiten'}
-              </button>
-              <button
-                className="btn btn-small"
-                onClick={() => setSelectedBuilding(selectedBuilding === building.id ? null : building.id)}
-              >
-                {selectedBuilding === building.id ? 'Ausblenden' : '📦 Anforderungen'}
-              </button>
-              <button
-                className="btn btn-small btn-danger"
-                onClick={() => handleDeleteBuilding(building.id)}
-              >
-                🗑️
-              </button>
-            </div>
-
-            {editingBuilding === building.id && (
-              <BuildingForm
-                building={building}
-                availableImages={availableImages}
-                onSave={(data) => handleUpdateBuilding(building.id, data)}
-                onCancel={() => setEditingBuilding(null)}
-              />
-            )}
-
-            {selectedBuilding === building.id && (
-              <RequirementsSection
-                building={building}
-                items={items}
-                onAddRequirement={(data) => handleAddRequirement(building.id, data)}
-                onUpdateRequirement={handleUpdateRequirement}
-                onDeleteRequirement={handleDeleteRequirement}
-              />
-            )}
+            <BuildingForm
+              building={buildings.find(b => b.id === editingBuilding)}
+              availableImages={availableImages}
+              onSave={(data) => handleUpdateBuilding(editingBuilding, data)}
+              onCancel={() => setEditingBuilding(null)}
+            />
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* Buildings Table */}
+      <div className="buildings-table-container">
+        <table className="buildings-table">
+          <thead>
+            <tr>
+              <th style={{width: '60px'}}>Bild</th>
+              <th>Name</th>
+              <th>Max Lv.</th>
+              <th>Bauzeit</th>
+              <th>Upgrade</th>
+              <th>Reihenf.</th>
+              <th style={{width: '120px'}}>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {buildings.map((building) => (
+              <>
+                <tr 
+                  key={building.id} 
+                  className={`building-row ${selectedBuilding === building.id ? 'selected' : ''}`}
+                  onClick={() => toggleSelect(building.id)}
+                >
+                  <td className="image-cell">
+                    {building.image_path ? (
+                      <img 
+                        src={`/buildings/${building.image_path}`} 
+                        alt={building.display_name}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span className="no-image">🏠</span>
+                    )}
+                  </td>
+                  <td className="name-cell">
+                    <span className="display-name">{building.display_name}</span>
+                    <span className="internal-name">({building.name})</span>
+                  </td>
+                  <td>{building.max_level}</td>
+                  <td>{building.build_duration_minutes} Min</td>
+                  <td>{building.upgrade_duration_minutes} Min</td>
+                  <td>{building.unlock_order}</td>
+                  <td className="action-cell">
+                    <button 
+                      className="btn-icon btn-edit" 
+                      onClick={(e) => handleEdit(building, e)}
+                      title="Bearbeiten"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      className="btn-icon btn-delete" 
+                      onClick={(e) => handleDeleteBuilding(building.id, e)}
+                      title="Löschen"
+                    >
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+                {selectedBuilding === building.id && (
+                  <tr className="details-row">
+                    <td colSpan="7">
+                      <div className="building-details">
+                        {building.description && (
+                          <p className="building-description">
+                            <strong>Beschreibung:</strong> {building.description}
+                          </p>
+                        )}
+                        <RequirementsSection
+                          building={building}
+                          items={items}
+                          onAddRequirement={(data) => handleAddRequirement(building.id, data)}
+                          onUpdateRequirement={handleUpdateRequirement}
+                          onDeleteRequirement={handleDeleteRequirement}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
+            ))}
+          </tbody>
+        </table>
+        
+        {buildings.length === 0 && (
+          <div className="no-results">Keine Gebäude vorhanden</div>
+        )}
       </div>
 
       {availableImages.length === 0 && (
@@ -259,8 +312,6 @@ function BuildingForm({ building, availableImages, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="building-form">
-      <h4>{building ? 'Gebäude bearbeiten' : 'Neues Gebäude erstellen'}</h4>
-      
       <div className="form-row">
         <div className="form-group">
           <label>Interner Name</label>
@@ -336,23 +387,22 @@ function BuildingForm({ building, availableImages, onSave, onCancel }) {
       </div>
 
       <div className="form-group">
-        <label>
-          Bild
+        <label>Bild</label>
+        <div className="image-select-row">
+          <input
+            type="text"
+            value={formData.image_path}
+            onChange={(e) => setFormData({ ...formData, image_path: e.target.value })}
+            placeholder="dateiname.png"
+          />
           <button 
             type="button" 
             onClick={() => setShowImageSelector(!showImageSelector)}
-            className="btn btn-secondary btn-small"
-            style={{ marginLeft: '1rem' }}
+            className="btn btn-secondary"
           >
-            {showImageSelector ? 'Schließen' : 'Bild auswählen'}
+            {showImageSelector ? 'Schließen' : '🖼️ Auswählen'}
           </button>
-        </label>
-        <input
-          type="text"
-          value={formData.image_path}
-          onChange={(e) => setFormData({ ...formData, image_path: e.target.value })}
-          placeholder="dateiname.png"
-        />
+        </div>
         
         {formData.image_path && (
           <div className="image-preview">
@@ -397,11 +447,11 @@ function BuildingForm({ building, availableImages, onSave, onCancel }) {
       </div>
 
       <div className="form-actions">
-        <button type="submit" className="btn btn-primary">
-          {building ? 'Speichern' : 'Erstellen'}
-        </button>
         <button type="button" className="btn btn-secondary" onClick={onCancel}>
           Abbrechen
+        </button>
+        <button type="submit" className="btn btn-primary">
+          {building ? '💾 Speichern' : '✨ Erstellen'}
         </button>
       </div>
     </form>
@@ -466,7 +516,7 @@ function RequirementsSection({ building, items, onAddRequirement, onUpdateRequir
       <div className="requirements-header">
         <h4>📦 Anforderungen</h4>
         <button
-          className="btn btn-small"
+          className="btn btn-small btn-primary"
           onClick={() => { setShowAddForm(!showAddForm); setEditingRequirement(null); }}
         >
           {showAddForm ? 'Abbrechen' : '+ Hinzufügen'}
@@ -520,18 +570,18 @@ function RequirementsSection({ building, items, onAddRequirement, onUpdateRequir
                 required
               />
             </div>
-          </div>
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary btn-small">
-              {editingRequirement ? 'Aktualisieren' : 'Hinzufügen'}
-            </button>
-            <button 
-              type="button" 
-              className="btn btn-secondary btn-small" 
-              onClick={editingRequirement ? handleCancelEdit : () => setShowAddForm(false)}
-            >
-              Abbrechen
-            </button>
+            <div className="form-group form-buttons">
+              <button type="submit" className="btn btn-primary btn-small">
+                {editingRequirement ? '✓' : '+'}
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-secondary btn-small" 
+                onClick={editingRequirement ? handleCancelEdit : () => setShowAddForm(false)}
+              >
+                ✕
+              </button>
+            </div>
           </div>
         </form>
       )}
@@ -550,8 +600,8 @@ function RequirementsSection({ building, items, onAddRequirement, onUpdateRequir
                     <span>{req.display_name}: {req.quantity}</span>
                   </div>
                   <div className="req-actions">
-                    <button className="btn btn-small" onClick={() => handleEdit(req)}>✏️</button>
-                    <button className="btn btn-small btn-danger" onClick={() => onDeleteRequirement(req.id)}>🗑️</button>
+                    <button className="btn-icon" onClick={() => handleEdit(req)}>✏️</button>
+                    <button className="btn-icon btn-danger" onClick={() => onDeleteRequirement(req.id)}>🗑️</button>
                   </div>
                 </li>
               ))}
@@ -571,11 +621,11 @@ function RequirementsSection({ building, items, onAddRequirement, onUpdateRequir
                     {req.image_path && (
                       <img src={`/items/${req.image_path}`} alt={req.display_name} />
                     )}
-                    <span>Level {req.level || 'alle'}: {req.display_name} x{req.quantity}</span>
+                    <span>Lv.{req.level || '*'}: {req.display_name} x{req.quantity}</span>
                   </div>
                   <div className="req-actions">
-                    <button className="btn btn-small" onClick={() => handleEdit(req)}>✏️</button>
-                    <button className="btn btn-small btn-danger" onClick={() => onDeleteRequirement(req.id)}>🗑️</button>
+                    <button className="btn-icon" onClick={() => handleEdit(req)}>✏️</button>
+                    <button className="btn-icon btn-danger" onClick={() => onDeleteRequirement(req.id)}>🗑️</button>
                   </div>
                 </li>
               ))}
