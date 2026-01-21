@@ -21,10 +21,43 @@ function ResourceNodeManagement() {
     is_rare: false
   });
 
+  const [editingNodeType, setEditingNodeType] = useState(null);
+  const [editForm, setEditForm] = useState({
+    display_name: '',
+    description: '',
+    icon: '',
+    image_path: '',
+    category: 'mining',
+    required_tool_type: '',
+    base_gather_time: 30,
+    respawn_minutes: 30,
+    min_level: 1,
+    is_active: true
+  });
+  const [availableImages, setAvailableImages] = useState([]);
+
   useEffect(() => {
     fetchNodeTypes();
     fetchItems();
+    fetchAvailableImages();
   }, []);
+
+  useEffect(() => {
+    if (editingNodeType) {
+      setEditForm({
+        display_name: editingNodeType.display_name || '',
+        description: editingNodeType.description || '',
+        icon: editingNodeType.icon || '',
+        image_path: editingNodeType.image_path || '',
+        category: editingNodeType.category || 'mining',
+        required_tool_type: editingNodeType.required_tool_type || '',
+        base_gather_time: editingNodeType.base_gather_time || 30,
+        respawn_minutes: editingNodeType.respawn_minutes || 30,
+        min_level: editingNodeType.min_level || 1,
+        is_active: editingNodeType.is_active !== 0
+      });
+    }
+  }, [editingNodeType]);
 
   useEffect(() => {
     if (message) {
@@ -59,6 +92,49 @@ function ResourceNodeManagement() {
     } catch (err) {
       console.error('Fehler beim Laden der Items:', err);
     }
+  };
+
+  const fetchAvailableImages = async () => {
+    try {
+      const response = await api.get('/files/items');
+      setAvailableImages(response.data.images || []);
+    } catch (err) {
+      console.error('Fehler beim Laden der Bilder:', err);
+    }
+  };
+
+  const handleEditNodeType = (nodeType) => {
+    setEditingNodeType(nodeType);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingNodeType) return;
+
+    try {
+      await api.put(`/resources/admin/node-types/${editingNodeType.id}`, editForm);
+      setMessage('Ressourcen-Typ aktualisiert!');
+      setEditingNodeType(null);
+      fetchNodeTypes();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Fehler beim Aktualisieren');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNodeType(null);
+    setEditForm({
+      display_name: '',
+      description: '',
+      icon: '',
+      image_path: '',
+      category: 'mining',
+      required_tool_type: '',
+      base_gather_time: 30,
+      respawn_minutes: 30,
+      min_level: 1,
+      is_active: true
+    });
   };
 
   const selectNodeType = (nodeType) => {
@@ -251,6 +327,16 @@ function ResourceNodeManagement() {
                       className="btn-icon" 
                       onClick={(e) => {
                         e.stopPropagation();
+                        handleEditNodeType(nodeType);
+                      }}
+                      title="Bearbeiten"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      className="btn-icon" 
+                      onClick={(e) => {
+                        e.stopPropagation();
                         // TODO: Spawn modal
                       }}
                       title="Spawnen"
@@ -397,6 +483,144 @@ function ResourceNodeManagement() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingNodeType && (
+        <div className="modal-overlay" onClick={handleCancelEdit}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>✏️ Ressourcen-Typ bearbeiten: {editingNodeType.display_name}</h3>
+              <button className="modal-close" onClick={handleCancelEdit}>✕</button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="edit-node-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Anzeigename *</label>
+                  <input
+                    type="text"
+                    value={editForm.display_name}
+                    onChange={(e) => setEditForm({...editForm, display_name: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Icon</label>
+                  <input
+                    type="text"
+                    value={editForm.icon}
+                    onChange={(e) => setEditForm({...editForm, icon: e.target.value})}
+                    placeholder="🪨"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Beschreibung</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                  rows="3"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Bild</label>
+                <div className="image-selector">
+                  <select
+                    value={editForm.image_path}
+                    onChange={(e) => setEditForm({...editForm, image_path: e.target.value})}
+                  >
+                    <option value="">Kein Bild</option>
+                    {availableImages.map((img, idx) => (
+                      <option key={idx} value={img.path}>{img.name}</option>
+                    ))}
+                  </select>
+                  {editForm.image_path && (
+                    <div className="image-preview">
+                      <img src={editForm.image_path} alt="Preview" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Kategorie *</label>
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({...editForm, category: e.target.value})}
+                    required
+                  >
+                    <option value="mining">⛏️ Mining</option>
+                    <option value="woodcutting">🪓 Holzfällen</option>
+                    <option value="herbalism">🌿 Kräuter</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Benötigtes Werkzeug</label>
+                  <select
+                    value={editForm.required_tool_type}
+                    onChange={(e) => setEditForm({...editForm, required_tool_type: e.target.value})}
+                  >
+                    <option value="">Kein Werkzeug</option>
+                    <option value="pickaxe">Spitzhacke</option>
+                    <option value="axe">Axt</option>
+                    <option value="sickle">Sichel</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Basis-Sammelzeit (Sekunden)</label>
+                  <input
+                    type="number"
+                    value={editForm.base_gather_time}
+                    onChange={(e) => setEditForm({...editForm, base_gather_time: parseInt(e.target.value) || 30})}
+                    min="1"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Respawn-Zeit (Minuten)</label>
+                  <input
+                    type="number"
+                    value={editForm.respawn_minutes}
+                    onChange={(e) => setEditForm({...editForm, respawn_minutes: parseInt(e.target.value) || 30})}
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Mindest-Level</label>
+                  <input
+                    type="number"
+                    value={editForm.min_level}
+                    onChange={(e) => setEditForm({...editForm, min_level: parseInt(e.target.value) || 1})}
+                    min="1"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={editForm.is_active}
+                      onChange={(e) => setEditForm({...editForm, is_active: e.target.checked})}
+                    />
+                    <span>Aktiv</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="btn-save">💾 Speichern</button>
+                <button type="button" className="btn-cancel" onClick={handleCancelEdit}>Abbrechen</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

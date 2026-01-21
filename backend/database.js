@@ -1110,6 +1110,7 @@ export async function initDatabase() {
       description TEXT,
       category TEXT NOT NULL CHECK(category IN ('mining', 'woodcutting', 'herbalism')),
       icon TEXT DEFAULT '🪨',
+      image_path TEXT,
       required_tool_type TEXT,
       base_gather_time INTEGER DEFAULT 30,
       respawn_minutes INTEGER DEFAULT 30,
@@ -1118,6 +1119,14 @@ export async function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Add image_path column if it doesn't exist (migration)
+  try {
+    await db.run('ALTER TABLE resource_node_types ADD COLUMN image_path TEXT');
+    console.log('[DB] Added image_path column to resource_node_types');
+  } catch (err) {
+    // Column already exists, ignore
+  }
 
   // Resource Node Drops (what items drop from each node type)
   await db.run(`

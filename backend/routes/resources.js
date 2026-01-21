@@ -644,6 +644,80 @@ router.get('/admin/node-types', authenticateToken, requirePermission('manage_ite
   }
 });
 
+// Update node type (admin)
+router.put('/admin/node-types/:id', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { display_name, description, icon, image_path, category, required_tool_type, base_gather_time, respawn_minutes, min_level, is_active } = req.body;
+
+    const nodeType = await db.get('SELECT * FROM resource_node_types WHERE id = ?', [id]);
+    if (!nodeType) {
+      return res.status(404).json({ error: 'Node-Typ nicht gefunden' });
+    }
+
+    // Build update query dynamically
+    const updates = [];
+    const values = [];
+
+    if (display_name !== undefined) {
+      updates.push('display_name = ?');
+      values.push(display_name);
+    }
+    if (description !== undefined) {
+      updates.push('description = ?');
+      values.push(description);
+    }
+    if (icon !== undefined) {
+      updates.push('icon = ?');
+      values.push(icon);
+    }
+    if (image_path !== undefined) {
+      updates.push('image_path = ?');
+      values.push(image_path);
+    }
+    if (category !== undefined) {
+      updates.push('category = ?');
+      values.push(category);
+    }
+    if (required_tool_type !== undefined) {
+      updates.push('required_tool_type = ?');
+      values.push(required_tool_type);
+    }
+    if (base_gather_time !== undefined) {
+      updates.push('base_gather_time = ?');
+      values.push(base_gather_time);
+    }
+    if (respawn_minutes !== undefined) {
+      updates.push('respawn_minutes = ?');
+      values.push(respawn_minutes);
+    }
+    if (min_level !== undefined) {
+      updates.push('min_level = ?');
+      values.push(min_level);
+    }
+    if (is_active !== undefined) {
+      updates.push('is_active = ?');
+      values.push(is_active ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Keine Felder zum Aktualisieren' });
+    }
+
+    values.push(id);
+    await db.run(`
+      UPDATE resource_node_types 
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `, values);
+
+    res.json({ message: 'Node-Typ aktualisiert' });
+  } catch (error) {
+    console.error('Update node type error:', error);
+    res.status(500).json({ error: 'Serverfehler: ' + error.message });
+  }
+});
+
 // Spawn nodes (admin)
 router.post('/admin/spawn-nodes', authenticateToken, requirePermission('manage_items'), async (req, res) => {
   try {
