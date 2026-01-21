@@ -921,11 +921,26 @@ export async function initDatabase() {
       quests_completed INTEGER DEFAULT 0,
       achievements_earned INTEGER DEFAULT 0,
       logins INTEGER DEFAULT 0,
+      -- Rarity items obtained
+      legendary_items_obtained INTEGER DEFAULT 0,
+      epic_items_obtained INTEGER DEFAULT 0,
+      rare_items_obtained INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
+
+  // Add rarity columns if they don't exist (migration)
+  try {
+    await db.run('ALTER TABLE user_statistics ADD COLUMN legendary_items_obtained INTEGER DEFAULT 0');
+  } catch (e) { /* Column might already exist */ }
+  try {
+    await db.run('ALTER TABLE user_statistics ADD COLUMN epic_items_obtained INTEGER DEFAULT 0');
+  } catch (e) { /* Column might already exist */ }
+  try {
+    await db.run('ALTER TABLE user_statistics ADD COLUMN rare_items_obtained INTEGER DEFAULT 0');
+  } catch (e) { /* Column might already exist */ }
 
   // Quests table - defines available quests
   await db.run(`

@@ -20,6 +20,100 @@ const OBJECTIVE_TYPES = [
   'obtain_legendary', 'obtain_epic', 'obtain_rare', 'join_guild'
 ];
 
+// Get retroactive progress for an objective based on user's current stats
+async function getRetroactiveProgress(userId, objective, userStats) {
+  const { objective_type, target_id, required_amount } = objective;
+  
+  // Map objective types to statistics columns or database queries
+  switch (objective_type) {
+    // Stats-based objectives (from user_statistics)
+    case 'kill_monster':
+      return userStats?.monsters_killed || 0;
+    case 'kill_boss':
+      return userStats?.bosses_killed || 0;
+    case 'defeat_player':
+      return userStats?.players_killed || 0;
+    case 'collect_resource':
+      return userStats?.resources_collected || 0;
+    case 'craft_item':
+      return userStats?.items_crafted || 0;
+    case 'craft_equipment':
+      return userStats?.equipment_crafted || 0;
+    case 'build_building':
+      return userStats?.buildings_built || 0;
+    case 'upgrade_building':
+      return userStats?.buildings_upgraded || 0;
+    case 'travel_distance':
+      return userStats?.distance_traveled || 0;
+    case 'earn_gold':
+      return userStats?.gold_earned || 0;
+    case 'spend_gold':
+      return userStats?.gold_spent || 0;
+    case 'complete_trade':
+      return userStats?.trades_completed || 0;
+    case 'send_message':
+      return userStats?.messages_sent || 0;
+    case 'obtain_legendary':
+      return userStats?.legendary_items_obtained || 0;
+    case 'obtain_epic':
+      return userStats?.epic_items_obtained || 0;
+    case 'obtain_rare':
+      return userStats?.rare_items_obtained || 0;
+      
+    // Level-based (check player_stats)
+    case 'reach_level':
+      const playerStats = await db.get('SELECT level FROM player_stats WHERE user_id = ?', [userId]);
+      return playerStats?.level || 1;
+      
+    // Guild membership
+    case 'join_guild':
+      const membership = await db.get('SELECT id FROM guild_members WHERE user_id = ?', [userId]);
+      return membership ? 1 : 0;
+      
+    // Specific monster kills (query combat_log)
+    case 'kill_specific_monster':
+      if (!target_id) return 0;
+      const monsterKills = await db.get(`
+        SELECT COUNT(*) as count FROM combat_log cl
+        JOIN world_npcs wn ON cl.world_npc_id = wn.id
+        WHERE cl.attacker_user_id = ? AND wn.monster_type_id = ? AND cl.winner = 'attacker'
+      `, [userId, target_id]);
+      return monsterKills?.count || 0;
+      
+    // Specific item collection (query inventory history or current inventory)
+    case 'collect_specific_item':
+      if (!target_id) return 0;
+      // Check current inventory as a minimum
+      const itemInInventory = await db.get(`
+        SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ?
+      `, [userId, target_id]);
+      return itemInInventory?.quantity || 0;
+      
+    // Specific crafting (query user_equipment for equipment, or crafting_jobs)
+    case 'craft_specific_item':
+      if (!target_id) return 0;
+      const craftedEquipment = await db.get(`
+        SELECT COUNT(*) as count FROM user_equipment WHERE user_id = ? AND equipment_type_id = ?
+      `, [userId, target_id]);
+      return craftedEquipment?.count || 0;
+      
+    // Specific building
+    case 'build_specific_building':
+      if (!target_id) return 0;
+      const building = await db.get(`
+        SELECT COUNT(*) as count FROM user_buildings WHERE user_id = ? AND building_id = ?
+      `, [userId, target_id]);
+      return building?.count || 0;
+      
+    // Daily login doesn't support retroactive
+    case 'daily_login':
+      return 0;
+      
+    default:
+      return 0;
+  }
+}
+
 // Get count of claimable quests - MUST be before /:questId routes!
 router.get('/claimable-count', authenticateToken, async (req, res) => {
   try {
@@ -223,19 +317,57 @@ router.post('/:questId/accept', authenticateToken, async (req, res) => {
         claimed_at = NULL
     `, [userId, questId]);
 
-    // Initialize progress for all objectives
-    const objectives = await db.all('SELECT id FROM quest_objectives WHERE quest_id = ?', [questId]);
+    // Initialize progress for all objectives with retroactive check
+    const objectives = await db.all('SELECT * FROM quest_objectives WHERE quest_id = ?', [questId]);
+    
+    // Get user statistics for retroactive progress
+    const userStatistics = await db.get('SELECT * FROM user_statistics WHERE user_id = ?', [userId]);
+    
+    let allCompleted = true;
+    let anyProgress = false;
+
     for (const obj of objectives) {
+      // Calculate retroactive progress based on objective type
+      let retroactiveProgress = 0;
+      
+      if (userStatistics) {
+        retroactiveProgress = await getRetroactiveProgress(userId, obj, userStatistics);
+      }
+      
+      const isCompleted = retroactiveProgress >= obj.required_amount;
+      const currentAmount = Math.min(retroactiveProgress, obj.required_amount);
+      
+      if (!isCompleted) {
+        allCompleted = false;
+      }
+      if (currentAmount > 0) {
+        anyProgress = true;
+      }
+
       await db.run(`
         INSERT INTO user_quest_progress (user_id, quest_id, objective_id, current_amount, is_completed)
-        VALUES (?, ?, ?, 0, 0)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(user_id, objective_id) DO UPDATE SET 
-          current_amount = 0, 
-          is_completed = 0
-      `, [userId, questId, obj.id]);
+          current_amount = ?, 
+          is_completed = ?
+      `, [userId, questId, obj.id, currentAmount, isCompleted ? 1 : 0, currentAmount, isCompleted ? 1 : 0]);
     }
 
-    res.json({ message: `Quest "${quest.display_name}" angenommen!` });
+    // If all objectives are already completed (retroactive), mark quest as completed
+    if (allCompleted && objectives.length > 0) {
+      await db.run(`
+        UPDATE user_quests SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND quest_id = ?
+      `, [userId, questId]);
+      
+      return res.json({ 
+        message: `Quest "${quest.display_name}" angenommen und sofort abgeschlossen! 🎉 Hole deine Belohnung ab!`,
+        alreadyCompleted: true
+      });
+    }
+
+    const progressMsg = anyProgress ? ' (Fortschritt übernommen!)' : '';
+    res.json({ message: `Quest "${quest.display_name}" angenommen!${progressMsg}` });
   } catch (error) {
     console.error('Accept quest error:', error);
     res.status(500).json({ error: 'Serverfehler' });

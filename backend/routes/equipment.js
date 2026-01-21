@@ -645,13 +645,23 @@ router.post('/craft/collect', authenticateToken, async (req, res) => {
     // Track statistics
     await trackCrafting(userId, job.equipment_type_id, true);
 
-    // Track rarity for achievements - quality "legendary" or "masterwork" counts as legendary
-    if (job.quality === 'legendary') {
-      const { trackItemObtained } = await import('../helpers/statistics.js');
-      await trackItemObtained(userId, 'legendary');
-    } else if (job.quality === 'masterwork' || job.quality === 'excellent') {
-      const { trackItemObtained } = await import('../helpers/statistics.js');
-      await trackItemObtained(userId, 'epic');
+    // Get equipment type rarity for achievements
+    const equipmentType = await db.get('SELECT rarity FROM equipment_types WHERE id = ?', [job.equipment_type_id]);
+    const { trackItemObtained } = await import('../helpers/statistics.js');
+    
+    // Track based on equipment type rarity OR craft quality (whichever is higher)
+    const typeRarity = equipmentType?.rarity || 'common';
+    const qualityRarity = job.quality === 'legendary' ? 'legendary' : 
+                         (job.quality === 'masterwork' ? 'epic' : 
+                         (job.quality === 'excellent' ? 'rare' : null));
+    
+    // Determine effective rarity (use the higher one)
+    const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+    const effectiveRarity = rarityOrder.indexOf(typeRarity) >= rarityOrder.indexOf(qualityRarity || 'common') 
+                           ? typeRarity : qualityRarity;
+    
+    if (['legendary', 'epic', 'rare'].includes(effectiveRarity)) {
+      await trackItemObtained(userId, effectiveRarity);
     }
 
     res.json({
