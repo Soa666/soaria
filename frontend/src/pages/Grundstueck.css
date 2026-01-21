@@ -139,7 +139,10 @@
   overflow: hidden;
   background: rgba(0, 0, 0, 0.3);
   border: 2px solid #5a4a2a;
-  min-height: 500px;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .property-image {
@@ -148,6 +151,7 @@
   display: block;
   object-fit: contain;
   max-height: 600px;
+  max-width: 100%;
 }
 
 .property-hotspot {

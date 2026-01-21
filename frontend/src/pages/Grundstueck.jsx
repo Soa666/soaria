@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +41,9 @@ function Grundstueck() {
   const [hoveredHotspot, setHoveredHotspot] = useState(null);
   const [propertySettings, setPropertySettings] = useState({ image_path: '/buildings/huette1.jpg' });
   const [propertyHotspots, setPropertyHotspots] = useState([]);
+  const propertyImageContainerRef = useRef(null);
+  const propertyImageRef = useRef(null);
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0, containerWidth: 0, containerHeight: 0 });
 
   // Check URL params for direct navigation
   useEffect(() => {
@@ -679,11 +682,25 @@ function Grundstueck() {
           </div>
 
           {viewMode === 'graphic' ? (
-            <div className="property-image-container">
+            <div className="property-image-container" ref={propertyImageContainerRef}>
               <img 
+                ref={propertyImageRef}
                 src={propertySettings.image_path || '/buildings/huette1.jpg'} 
                 alt="Grundstück" 
                 className="property-image"
+                onLoad={(e) => {
+                  if (e.target && propertyImageRef.current) {
+                    const rect = propertyImageRef.current.getBoundingClientRect();
+                    setImageSize({
+                      width: e.target.naturalWidth,
+                      height: e.target.naturalHeight,
+                      containerWidth: rect.width,
+                      containerHeight: rect.height,
+                      displayWidth: e.target.offsetWidth,
+                      displayHeight: e.target.offsetHeight
+                    });
+                  }
+                }}
                 onError={(e) => {
                   // Fallback to second image if first doesn't exist
                   if (e.target.src.includes('huette1.jpg')) {
@@ -697,15 +714,56 @@ function Grundstueck() {
                 const isBuilt = hotspotBuilding;
                 const isHovered = hoveredHotspot === idx;
                 
+                // Calculate position relative to actual image display size
+                // Since we use object-fit: contain, we need to account for the actual image size
+                let left = hotspot.x;
+                let top = hotspot.y;
+                let width = hotspot.width;
+                let height = hotspot.height;
+                
+                // If we have image size info, adjust for object-fit: contain
+                if (imageSize.displayWidth > 0 && imageSize.displayHeight > 0 && propertyImageContainerRef.current && propertyImageRef.current) {
+                  const container = propertyImageContainerRef.current;
+                  if (container) {
+                    const containerWidth = container.offsetWidth;
+                    const containerHeight = container.offsetHeight;
+                    const imgAspect = imageSize.width / imageSize.height;
+                    const containerAspect = containerWidth / containerHeight;
+                    
+                    let actualImgWidth = imageSize.displayWidth;
+                    let actualImgHeight = imageSize.displayHeight;
+                    let offsetX = 0;
+                    let offsetY = 0;
+                    
+                    if (imgAspect > containerAspect) {
+                      // Image is wider - fit to width
+                      actualImgWidth = containerWidth;
+                      actualImgHeight = containerWidth / imgAspect;
+                      offsetY = (containerHeight - actualImgHeight) / 2;
+                    } else {
+                      // Image is taller - fit to height
+                      actualImgHeight = containerHeight;
+                      actualImgWidth = containerHeight * imgAspect;
+                      offsetX = (containerWidth - actualImgWidth) / 2;
+                    }
+                    
+                    // Adjust hotspot positions to account for image offset and scale
+                    left = offsetX + (hotspot.x / 100) * actualImgWidth;
+                    top = offsetY + (hotspot.y / 100) * actualImgHeight;
+                    width = (hotspot.width / 100) * actualImgWidth;
+                    height = (hotspot.height / 100) * actualImgHeight;
+                  }
+                }
+                
                 return (
                   <div
                     key={hotspot.id || `hotspot-${idx}`}
                     className={`property-hotspot ${isBuilt ? 'built' : 'unbuilt'} ${isHovered ? 'hovered' : ''}`}
                     style={{
-                      left: `${hotspot.x}%`,
-                      top: `${hotspot.y}%`,
-                      width: `${hotspot.width}%`,
-                      height: `${hotspot.height}%`
+                      left: imageSize.displayWidth > 0 ? `${left}px` : `${hotspot.x}%`,
+                      top: imageSize.displayHeight > 0 ? `${top}px` : `${hotspot.y}%`,
+                      width: imageSize.displayWidth > 0 ? `${width}px` : `${hotspot.width}%`,
+                      height: imageSize.displayHeight > 0 ? `${height}px` : `${hotspot.height}%`
                     }}
                     onClick={() => handleHotspotClick(hotspot)}
                     onMouseEnter={() => setHoveredHotspot(idx)}
