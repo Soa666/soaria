@@ -26,116 +26,145 @@ const GRASS_TILES = [0, 1, 2, 3, 4];  // Row 0: basic grass
 // Grass with flowers/details (for decoration, used sparingly)
 const GRASS_FLOWER_TILES = [13, 14, 25, 26, 37, 38];
 
-// Water autotile - based on the tmx analysis
-// Water uses tiles around 48-62, 72-74, 84-86, 96-98
-// The SOLID water center is tile 61 (terrain="1,1,1,1")
-// FIXED: left/right were swapped!
+// Water autotile - from grass_biome.tsx terrain definitions
+// terrain="TL,TR,BL,BR" where 0=grass, 1=water
 const WATER_AUTOTILE = {
-  solid: 61,        // All sides water
-  top: 49,          // Grass above, water below
-  bottom: 73,       // Grass below, water above
-  left: 60,         // Grass left, water right (FIXED)
-  right: 62,        // Grass right, water left (FIXED)
-  topLeft: 48,      // Corner: grass top-left
-  topRight: 50,     // Corner: grass top-right
-  bottomLeft: 72,   // Corner: grass bottom-left
-  bottomRight: 74,  // Corner: grass bottom-right
+  solid: 61,        // "1,1,1,1" - all water
+  // Outer edges (grass on one side)
+  top: 49,          // "0,0,1,1" - grass above
+  bottom: 73,       // "1,1,0,0" - grass below
+  left: 60,         // "0,1,0,1" - grass left
+  right: 62,        // "1,0,1,0" - grass right
+  // Outer corners (grass on two adjacent sides)
+  topLeft: 48,      // "0,0,0,1" - grass top-left corner
+  topRight: 50,     // "0,0,1,0" - grass top-right corner
+  bottomLeft: 72,   // "0,1,0,0" - grass bottom-left corner
+  bottomRight: 74,  // "1,0,0,0" - grass bottom-right corner
+  // Inner corners (water with one grass corner poking in)
+  innerTopLeft: 97,     // "0,1,1,1" - grass only at top-left
+  innerTopRight: 96,    // "1,0,1,1" - grass only at top-right
+  innerBottomLeft: 85,  // "1,1,0,1" - grass only at bottom-left
+  innerBottomRight: 84, // "1,1,1,0" - grass only at bottom-right
 };
 
-// Forest autotile - trees/forest area
-// Solid forest is tile 70 (terrain="2,2,2,2")
-// FIXED: left/right were swapped!
+// Forest autotile - from grass_biome.tsx terrain definitions
+// terrain="TL,TR,BL,BR" where 0=grass, 2=forest
 const FOREST_AUTOTILE = {
-  solid: 70,        // All sides forest
-  top: 58,          // Grass above, forest below
-  bottom: 82,       // Grass below, forest above
-  left: 69,         // Grass left, forest right (FIXED)
-  right: 71,        // Grass right, forest left (FIXED)
-  topLeft: 57,      // Corner
-  topRight: 59,     // Corner
-  bottomLeft: 81,   // Corner
-  bottomRight: 83,  // Corner
+  solid: 70,        // "2,2,2,2" - all forest
+  // Outer edges
+  top: 58,          // "0,0,2,2" - grass above
+  bottom: 82,       // "2,2,0,0" - grass below
+  left: 69,         // "0,2,0,2" - grass left
+  right: 71,        // "2,0,2,0" - grass right
+  // Outer corners
+  topLeft: 57,      // "0,0,0,2" - grass top-left
+  topRight: 59,     // "0,0,2,0" - grass top-right
+  bottomLeft: 81,   // "0,2,0,0" - grass bottom-left
+  bottomRight: 83,  // "2,0,0,0" - grass bottom-right
+  // Inner corners
+  innerTopLeft: 106,    // "0,2,2,2" - grass only at top-left
+  innerTopRight: 105,   // "2,0,2,2" - grass only at top-right
+  innerBottomLeft: 94,  // "2,2,0,2" - grass only at bottom-left
+  innerBottomRight: 93, // "2,2,2,0" - grass only at bottom-right
 };
 
 // Path/road tiles - dirt paths
-// From map1.tmx Layer 2 analysis (Tiled IDs -1 for 0-based):
-// The path tiles form a 3x4 block similar to autotiles
-// Row 0, col 5-7: horizontal path pieces
-// Row 1-3, col 5: vertical path pieces  
-// Looking at the tmx: 33-1=32 is used for vertical segments
+// Based on user feedback and tileset analysis:
+// Bild 6 shows the correct 4-way crossing tile
+// The path tiles are in row 0-3, around columns 5-8
 const PATH_TILES = {
-  // Horizontal path
+  // Straight paths
   horizontal: 6,     // Row 0, col 6 - horizontal middle
+  vertical: 18,      // Row 1, col 6 - vertical middle (NOT 32 which was wrong)
   
-  // Vertical path - tile 32 (row 2, col 8) based on tmx using "33"
-  vertical: 32,      // Row 2, col 8 - vertical middle
+  // 4-way crossing - from Bild 6, this is the correct one
+  cross: 30,         // Row 2, col 6 - 4-way cross (all directions)
   
-  // Corners (from the path autotile block)
-  // Based on standard autotile layout:
-  cornerSW: 20,      // Row 1, col 8 - corner coming from N, going W (or S going E)
-  cornerSE: 19,      // Row 1, col 7 - corner coming from N, going E
-  cornerNW: 44,      // Row 3, col 8 - corner coming from S, going W  
-  cornerNE: 43,      // Row 3, col 7 - corner coming from S, going E
+  // Corners (L-shapes)
+  cornerSE: 7,       // └ - from north, turning east (or west turning south)
+  cornerSW: 5,       // ┘ - from north, turning west
+  cornerNE: 31,      // ┌ - from south, turning east  
+  cornerNW: 29,      // ┐ - from south, turning west
   
-  // T-junctions and cross
-  cross: 31,         // Row 2, col 7 - 4-way cross
-  tUp: 7,            // T going up
-  tDown: 31,         // T going down
-  tLeft: 20,         // T going left
-  tRight: 19,        // T going right
+  // T-junctions
+  tUp: 6,            // ┴ - T with opening up (horizontal with up)
+  tDown: 18,         // ┬ - T with opening down
+  tLeft: 17,         // ┤ - T with opening left
+  tRight: 19,        // ├ - T with opening right
 };
 
-// Get the correct autotile based on neighbor mask
-// Bits: North=8, East=4, South=2, West=1 (1 = same terrain, 0 = different/grass)
-// When a bit is 0, there's grass on that side, so we need an edge tile
-function getWaterAutotile(mask) {
+// Get the correct autotile based on neighbors
+// Now includes diagonal neighbors for inner corners!
+// neighbors object has: north, east, south, west, ne, nw, se, sw
+function getWaterAutotileWithDiagonals(neighbors, category) {
   const W = WATER_AUTOTILE;
   
-  const hasN = (mask & 8) !== 0;
-  const hasE = (mask & 4) !== 0;
-  const hasS = (mask & 2) !== 0;
-  const hasW = (mask & 1) !== 0;
+  const hasN = getTerrainCategory(neighbors.north) === category;
+  const hasE = getTerrainCategory(neighbors.east) === category;
+  const hasS = getTerrainCategory(neighbors.south) === category;
+  const hasW = getTerrainCategory(neighbors.west) === category;
+  const hasNE = getTerrainCategory(neighbors.ne) === category;
+  const hasNW = getTerrainCategory(neighbors.nw) === category;
+  const hasSE = getTerrainCategory(neighbors.se) === category;
+  const hasSW = getTerrainCategory(neighbors.sw) === category;
   
-  // All neighbors are water = solid
-  if (hasN && hasE && hasS && hasW) return W.solid;
+  // All 4 cardinal neighbors are water - check diagonals for inner corners
+  if (hasN && hasE && hasS && hasW) {
+    // Inner corners - all cardinal same, but one diagonal different
+    if (!hasNW && hasNE && hasSE && hasSW) return W.innerTopLeft;
+    if (hasNW && !hasNE && hasSE && hasSW) return W.innerTopRight;
+    if (hasNW && hasNE && !hasSE && hasSW) return W.innerBottomRight;
+    if (hasNW && hasNE && hasSE && !hasSW) return W.innerBottomLeft;
+    return W.solid;
+  }
   
-  // Edges (one side is grass)
-  if (!hasN && hasE && hasS && hasW) return W.top;      // Grass north
-  if (hasN && !hasE && hasS && hasW) return W.right;    // Grass east
-  if (hasN && hasE && !hasS && hasW) return W.bottom;   // Grass south
-  if (hasN && hasE && hasS && !hasW) return W.left;     // Grass west
+  // Outer edges (one cardinal side is grass)
+  if (!hasN && hasE && hasS && hasW) return W.top;
+  if (hasN && !hasE && hasS && hasW) return W.right;
+  if (hasN && hasE && !hasS && hasW) return W.bottom;
+  if (hasN && hasE && hasS && !hasW) return W.left;
   
-  // Corners (two adjacent sides are grass)
-  if (!hasN && !hasW && hasE && hasS) return W.topLeft;      // Grass NW
-  if (!hasN && !hasE && hasS && hasW) return W.topRight;     // Grass NE
-  if (!hasS && !hasW && hasN && hasE) return W.bottomLeft;   // Grass SW
-  if (!hasS && !hasE && hasN && hasW) return W.bottomRight;  // Grass SE
+  // Outer corners (two adjacent cardinal sides are grass)
+  if (!hasN && !hasW) return W.topLeft;
+  if (!hasN && !hasE) return W.topRight;
+  if (!hasS && !hasW) return W.bottomLeft;
+  if (!hasS && !hasE) return W.bottomRight;
   
   return W.solid;
 }
 
-function getForestAutotile(mask) {
+function getForestAutotileWithDiagonals(neighbors, category) {
   const F = FOREST_AUTOTILE;
   
-  const hasN = (mask & 8) !== 0;
-  const hasE = (mask & 4) !== 0;
-  const hasS = (mask & 2) !== 0;
-  const hasW = (mask & 1) !== 0;
+  const hasN = getTerrainCategory(neighbors.north) === category;
+  const hasE = getTerrainCategory(neighbors.east) === category;
+  const hasS = getTerrainCategory(neighbors.south) === category;
+  const hasW = getTerrainCategory(neighbors.west) === category;
+  const hasNE = getTerrainCategory(neighbors.ne) === category;
+  const hasNW = getTerrainCategory(neighbors.nw) === category;
+  const hasSE = getTerrainCategory(neighbors.se) === category;
+  const hasSW = getTerrainCategory(neighbors.sw) === category;
   
-  // All neighbors are forest = solid
-  if (hasN && hasE && hasS && hasW) return F.solid;
+  // All 4 cardinal neighbors are forest - check diagonals for inner corners
+  if (hasN && hasE && hasS && hasW) {
+    if (!hasNW && hasNE && hasSE && hasSW) return F.innerTopLeft;
+    if (hasNW && !hasNE && hasSE && hasSW) return F.innerTopRight;
+    if (hasNW && hasNE && !hasSE && hasSW) return F.innerBottomRight;
+    if (hasNW && hasNE && hasSE && !hasSW) return F.innerBottomLeft;
+    return F.solid;
+  }
   
-  // Edges (one side is grass)
-  if (!hasN && hasE && hasS && hasW) return F.top;      // Grass north
-  if (hasN && !hasE && hasS && hasW) return F.right;    // Grass east
-  if (hasN && hasE && !hasS && hasW) return F.bottom;   // Grass south
-  if (hasN && hasE && hasS && !hasW) return F.left;     // Grass west
+  // Outer edges
+  if (!hasN && hasE && hasS && hasW) return F.top;
+  if (hasN && !hasE && hasS && hasW) return F.right;
+  if (hasN && hasE && !hasS && hasW) return F.bottom;
+  if (hasN && hasE && hasS && !hasW) return F.left;
   
-  // Corners (two adjacent sides are grass)
-  if (!hasN && !hasW && hasE && hasS) return F.topLeft;      // Grass NW
-  if (!hasN && !hasE && hasS && hasW) return F.topRight;     // Grass NE
-  if (!hasS && !hasW && hasN && hasE) return F.bottomLeft;   // Grass SW
-  if (!hasS && !hasE && hasN && hasW) return F.bottomRight;  // Grass SE
+  // Outer corners
+  if (!hasN && !hasW) return F.topLeft;
+  if (!hasN && !hasE) return F.topRight;
+  if (!hasS && !hasW) return F.bottomLeft;
+  if (!hasS && !hasE) return F.bottomRight;
   
   return F.solid;
 }
@@ -257,12 +286,12 @@ function getTileForTerrainWithNeighbors(terrain, variation, neighbors) {
   if (getTerrainCategory(neighbors.south) === category) mask |= 2;
   if (getTerrainCategory(neighbors.west) === category) mask |= 1;
   
-  // Get autotile based on terrain type
+  // Get autotile based on terrain type (now with diagonal support)
   if (category === 'water') {
-    return getWaterAutotile(mask);
+    return getWaterAutotileWithDiagonals(neighbors, category);
   }
   if (category === 'forest') {
-    return getForestAutotile(mask);
+    return getForestAutotileWithDiagonals(neighbors, category);
   }
   
   return GRASS_TILES[0];
@@ -810,12 +839,16 @@ function Map() {
           }
 
           if (tilesetImage && tilesetLoaded) {
-            // Get neighbor terrains for autotiling
+            // Get neighbor terrains for autotiling (including diagonals for inner corners)
             const neighbors = {
               north: getTerrainAt(tileX, tileY - 1),
               east: getTerrainAt(tileX + 1, tileY),
               south: getTerrainAt(tileX, tileY + 1),
               west: getTerrainAt(tileX - 1, tileY),
+              ne: getTerrainAt(tileX + 1, tileY - 1),
+              nw: getTerrainAt(tileX - 1, tileY - 1),
+              se: getTerrainAt(tileX + 1, tileY + 1),
+              sw: getTerrainAt(tileX - 1, tileY + 1),
             };
             
             // First, always draw grass base layer
