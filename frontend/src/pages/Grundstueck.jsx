@@ -585,13 +585,13 @@ function Grundstueck() {
   const hotspots = [
     { 
       buildingName: 'schmiede', 
-      x: 60, y: 20, width: 15, height: 15, 
+      x: 65, y: 25, width: 12, height: 12, 
       label: 'Schmiede', icon: '⚒️',
       description: 'Amboss - Hier schmiedest du Waffen und Rüstung'
     },
     { 
       buildingName: 'saegewerk', 
-      x: 20, y: 50, width: 15, height: 15, 
+      x: 18, y: 55, width: 15, height: 15, 
       label: 'Sägewerk', icon: '🪚',
       description: 'Tischkreissäge - Verarbeite Holz zu Brettern'
     },
@@ -603,7 +603,7 @@ function Grundstueck() {
     },
     { 
       buildingName: 'brunnen', 
-      x: 60, y: 50, width: 12, height: 12, 
+      x: 60, y: 50, width: 10, height: 10, 
       label: 'Brunnen', icon: '💧',
       description: 'Brunnen - Versorgt dich mit Wasser'
     },
