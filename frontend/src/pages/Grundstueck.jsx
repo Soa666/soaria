@@ -37,6 +37,8 @@ function Grundstueck() {
   const [craftingMessage, setCraftingMessage] = useState(null);
   const [craftingJob, setCraftingJob] = useState(null);
   const [craftingTimeLeft, setCraftingTimeLeft] = useState(0);
+  const [viewMode, setViewMode] = useState('graphic'); // 'graphic' or 'list'
+  const [hoveredHotspot, setHoveredHotspot] = useState(null);
 
   // Check URL params for direct navigation
   useEffect(() => {
@@ -577,6 +579,63 @@ function Grundstueck() {
     return icons[name] || '🏗️';
   };
 
+  // Hotspot definitions for clickable areas on the property image
+  // Format: { buildingName, x (%), y (%), width (%), height (%), label }
+  // These are relative positions that can be adjusted
+  const hotspots = [
+    { 
+      buildingName: 'schmiede', 
+      x: 60, y: 20, width: 15, height: 15, 
+      label: 'Schmiede', icon: '⚒️',
+      description: 'Amboss - Hier schmiedest du Waffen und Rüstung'
+    },
+    { 
+      buildingName: 'saegewerk', 
+      x: 20, y: 50, width: 15, height: 15, 
+      label: 'Sägewerk', icon: '🪚',
+      description: 'Tischkreissäge - Verarbeite Holz zu Brettern'
+    },
+    { 
+      buildingName: 'werkbank', 
+      x: 75, y: 20, width: 15, height: 15, 
+      label: 'Werkbank', icon: '🔨',
+      description: 'Werkbank - Crafting und Upgrades'
+    },
+    { 
+      buildingName: 'brunnen', 
+      x: 60, y: 50, width: 12, height: 12, 
+      label: 'Brunnen', icon: '💧',
+      description: 'Brunnen - Versorgt dich mit Wasser'
+    },
+    { 
+      buildingName: 'lager', 
+      x: 40, y: 40, width: 12, height: 12, 
+      label: 'Lager', icon: '📦',
+      description: 'Lager - Erweitert dein Inventar'
+    }
+  ];
+
+  const handleHotspotClick = (hotspot) => {
+    const building = buildings.find(b => b.name === hotspot.buildingName);
+    if (building) {
+      setSelectedBuilding(building);
+      
+      // Special handling for smithy - open smithy view directly
+      if (building.name === 'schmiede' && building.is_built) {
+        setShowSmithyView(true);
+        setSelectedBuilding(null);
+      }
+      // Special handling for werkbank - could open crafting
+      else if (building.name === 'werkbank' && building.is_built) {
+        // Could navigate to crafting or show workbench options
+      }
+    }
+  };
+
+  const getHotspotBuilding = (buildingName) => {
+    return myBuildings.find(b => b.name === buildingName);
+  };
+
   return (
     <div className="grundstueck-page">
       {/* Header */}
@@ -606,38 +665,107 @@ function Grundstueck() {
       )}
 
       <div className="grundstueck-content">
-        {/* Left Side - Buildings Grid */}
+        {/* Left Side - Buildings View (Graphic or List) */}
         <div className="buildings-section">
-          <h3>🏗️ Gebäude</h3>
-          <div className="buildings-grid">
-            {buildings.map((building) => {
-              const built = builtMap.get(building.id);
-              const isBuilt = building.is_built || built;
-              const isSelected = selectedBuilding?.id === building.id;
-              
-              return (
-                <div
-                  key={building.id}
-                  className={`building-card ${isBuilt ? 'built' : 'unbuilt'} ${isSelected ? 'selected' : ''}`}
-                  onClick={() => setSelectedBuilding(building)}
-                >
-                  <div className="building-icon">
-                    {getBuildingIcon(building.name)}
-                  </div>
-                  <div className="building-name">{building.display_name}</div>
-                  {isBuilt && built?.level > 0 && (
-                    <div className="building-level-badge">Lv. {built.level}</div>
-                  )}
-                  {!isBuilt && (
-                    <div className="building-status">Nicht gebaut</div>
-                  )}
-                  {isBuilt && (
-                    <div className="building-status built-status">✓ Gebaut</div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="buildings-section-header">
+            <h3>🏗️ Gebäude</h3>
+            <div className="view-mode-toggle">
+              <button 
+                className={`view-btn ${viewMode === 'graphic' ? 'active' : ''}`}
+                onClick={() => setViewMode('graphic')}
+                title="Grafische Ansicht"
+              >
+                🖼️
+              </button>
+              <button 
+                className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setViewMode('list')}
+                title="Listen-Ansicht"
+              >
+                📋
+              </button>
+            </div>
           </div>
+
+          {viewMode === 'graphic' ? (
+            <div className="property-image-container">
+              <img 
+                src="/buildings/huette1.jpg" 
+                alt="Grundstück" 
+                className="property-image"
+                onError={(e) => {
+                  // Fallback to second image if first doesn't exist
+                  if (e.target.src.includes('huette1.jpg')) {
+                    e.target.src = '/buildings/huette.jpeg';
+                  }
+                }}
+              />
+              {hotspots.map((hotspot, idx) => {
+                const hotspotBuilding = getHotspotBuilding(hotspot.buildingName);
+                const isBuilt = hotspotBuilding;
+                const isHovered = hoveredHotspot === idx;
+                
+                return (
+                  <div
+                    key={idx}
+                    className={`property-hotspot ${isBuilt ? 'built' : 'unbuilt'} ${isHovered ? 'hovered' : ''}`}
+                    style={{
+                      left: `${hotspot.x}%`,
+                      top: `${hotspot.y}%`,
+                      width: `${hotspot.width}%`,
+                      height: `${hotspot.height}%`
+                    }}
+                    onClick={() => handleHotspotClick(hotspot)}
+                    onMouseEnter={() => setHoveredHotspot(idx)}
+                    onMouseLeave={() => setHoveredHotspot(null)}
+                    title={hotspot.description}
+                  >
+                    <div className="hotspot-icon">{hotspot.icon}</div>
+                    {isHovered && (
+                      <div className="hotspot-tooltip">
+                        <div className="tooltip-label">{hotspot.label}</div>
+                        {isBuilt ? (
+                          <div className="tooltip-level">Lv. {hotspotBuilding.level}</div>
+                        ) : (
+                          <div className="tooltip-status">Nicht gebaut</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="buildings-grid">
+              {buildings.map((building) => {
+                const built = builtMap.get(building.id);
+                const isBuilt = building.is_built || built;
+                const isSelected = selectedBuilding?.id === building.id;
+                
+                return (
+                  <div
+                    key={building.id}
+                    className={`building-card ${isBuilt ? 'built' : 'unbuilt'} ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setSelectedBuilding(building)}
+                  >
+                    <div className="building-icon">
+                      {getBuildingIcon(building.name)}
+                    </div>
+                    <div className="building-name">{building.display_name}</div>
+                    {isBuilt && built?.level > 0 && (
+                      <div className="building-level-badge">Lv. {built.level}</div>
+                    )}
+                    {!isBuilt && (
+                      <div className="building-status">Nicht gebaut</div>
+                    )}
+                    {isBuilt && (
+                      <div className="building-status built-status">✓ Gebaut</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Right Side - Info Panels */}
