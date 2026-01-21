@@ -58,26 +58,31 @@ const FOREST_AUTOTILE = {
 };
 
 // Path/road tiles - dirt paths
-// From analyzing the tileset:
-// Row 0: 5=path left end, 6=path horizontal middle, 7=path right end
-// Row 1: 17=path top end, 18=?, 19=?
-// Row 2: 29=path vertical middle
-// Row 3: 41=path bottom end
-// Corners would be around those areas
+// From map1.tmx Layer 2 analysis (Tiled IDs -1 for 0-based):
+// The path tiles form a 3x4 block similar to autotiles
+// Row 0, col 5-7: horizontal path pieces
+// Row 1-3, col 5: vertical path pieces  
+// Looking at the tmx: 33-1=32 is used for vertical segments
 const PATH_TILES = {
-  horizontal: 6,     // Horizontal path middle (row 0, col 6)
-  vertical: 29,      // Vertical path middle (row 2, col 5)
-  // Ends
-  endLeft: 5,        // Left end (row 0, col 5) 
-  endRight: 7,       // Right end (row 0, col 7)
-  endTop: 17,        // Top end (row 1, col 5)
-  endBottom: 41,     // Bottom end (row 3, col 5)
-  // Corners - need to find these in tileset
-  cornerNE: 19,      // Coming from south, turning east
-  cornerNW: 17,      // Coming from south, turning west  
-  cornerSE: 31,      // Coming from north, turning east
-  cornerSW: 29,      // Coming from north, turning west
-  cross: 29,         // Crossroad
+  // Horizontal path
+  horizontal: 6,     // Row 0, col 6 - horizontal middle
+  
+  // Vertical path - tile 32 (row 2, col 8) based on tmx using "33"
+  vertical: 32,      // Row 2, col 8 - vertical middle
+  
+  // Corners (from the path autotile block)
+  // Based on standard autotile layout:
+  cornerSW: 20,      // Row 1, col 8 - corner coming from N, going W (or S going E)
+  cornerSE: 19,      // Row 1, col 7 - corner coming from N, going E
+  cornerNW: 44,      // Row 3, col 8 - corner coming from S, going W  
+  cornerNE: 43,      // Row 3, col 7 - corner coming from S, going E
+  
+  // T-junctions and cross
+  cross: 31,         // Row 2, col 7 - 4-way cross
+  tUp: 7,            // T going up
+  tDown: 31,         // T going down
+  tLeft: 20,         // T going left
+  tRight: 19,        // T going right
 };
 
 // Get the correct autotile based on neighbor mask
@@ -215,26 +220,32 @@ function getTileForTerrainWithNeighbors(terrain, variation, neighbors) {
     // Count connections
     const connections = (nPath ? 1 : 0) + (sPath ? 1 : 0) + (ePath ? 1 : 0) + (wPath ? 1 : 0);
     
-    // Crossroad (3+ connections)
-    if (connections >= 3) return PATH_TILES.cross;
+    // 4-way crossroad
+    if (connections === 4) return PATH_TILES.cross;
     
-    // Straight paths
+    // 3-way T-junctions
+    if (connections === 3) {
+      if (!nPath) return PATH_TILES.tDown;  // T pointing down
+      if (!sPath) return PATH_TILES.tUp;    // T pointing up
+      if (!ePath) return PATH_TILES.tLeft;  // T pointing left
+      if (!wPath) return PATH_TILES.tRight; // T pointing right
+    }
+    
+    // Straight paths (2 opposite connections)
     if (nPath && sPath && !ePath && !wPath) return PATH_TILES.vertical;
     if (ePath && wPath && !nPath && !sPath) return PATH_TILES.horizontal;
     
-    // Corners (2 connections, adjacent)
-    if (nPath && ePath && !sPath && !wPath) return PATH_TILES.cornerNE;
-    if (nPath && wPath && !sPath && !ePath) return PATH_TILES.cornerNW;
-    if (sPath && ePath && !nPath && !wPath) return PATH_TILES.cornerSE;
-    if (sPath && wPath && !nPath && !ePath) return PATH_TILES.cornerSW;
+    // Corners (2 adjacent connections)
+    if (sPath && ePath && !nPath && !wPath) return PATH_TILES.cornerNW;  // └ shape
+    if (sPath && wPath && !nPath && !ePath) return PATH_TILES.cornerNE;  // ┘ shape
+    if (nPath && ePath && !sPath && !wPath) return PATH_TILES.cornerSW;  // ┌ shape
+    if (nPath && wPath && !sPath && !ePath) return PATH_TILES.cornerSE;  // ┐ shape
     
-    // End pieces (1 connection)
-    if (nPath && !sPath && !ePath && !wPath) return PATH_TILES.endBottom;
-    if (sPath && !nPath && !ePath && !wPath) return PATH_TILES.endTop;
-    if (ePath && !nPath && !sPath && !wPath) return PATH_TILES.endLeft;
-    if (wPath && !nPath && !sPath && !ePath) return PATH_TILES.endRight;
+    // Single connection (end pieces) - use straight tile in that direction
+    if (nPath || sPath) return PATH_TILES.vertical;
+    if (ePath || wPath) return PATH_TILES.horizontal;
     
-    // Default to horizontal
+    // Isolated path tile
     return PATH_TILES.horizontal;
   }
   
