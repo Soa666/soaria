@@ -433,6 +433,33 @@ function Map() {
   const [userTools, setUserTools] = useState([]);
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
+  const [monsterImages, setMonsterImages] = useState({});
+
+  // Load monster images when NPCs change
+  useEffect(() => {
+    if (!npcs || npcs.length === 0) return;
+    
+    // Find unique image_paths from monsters
+    const imagePaths = [...new Set(npcs
+      .filter(npc => npc.image_path && npc.entity_type !== 'merchant')
+      .map(npc => npc.image_path)
+    )];
+    
+    // Load images that aren't already loaded
+    imagePaths.forEach(imagePath => {
+      if (monsterImages[imagePath]) return; // Already loaded
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        setMonsterImages(prev => ({ ...prev, [imagePath]: img }));
+      };
+      img.onerror = () => {
+        console.error('Failed to load monster image:', imagePath);
+      };
+      img.src = `/monsters/${imagePath}`;
+    });
+  }, [npcs]);
 
   // Load tileset image
   useEffect(() => {
@@ -575,7 +602,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes, tilesetLoaded]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes, tilesetLoaded, monsterImages]);
 
   const fetchPlayers = async () => {
     try {
@@ -1138,47 +1165,120 @@ function Map() {
             ctx.textBaseline = 'middle';
             ctx.fillText('🏪', x, y);
           } else if (npc.entity_type === 'boss') {
-            // Boss - red diamond with skull
-            ctx.fillStyle = isSelected ? '#ff4444' : '#cc0000';
-            ctx.shadowBlur = isSelected ? 20 : 12;
-            ctx.shadowColor = '#ff0000';
-            ctx.beginPath();
-            ctx.moveTo(x, y - markerSize);
-            ctx.lineTo(x + markerSize, y);
-            ctx.lineTo(x, y + markerSize);
-            ctx.lineTo(x - markerSize, y);
-            ctx.closePath();
-            ctx.fill();
-            ctx.strokeStyle = '#800000';
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            // Boss monster
+            const bossImg = npc.image_path ? monsterImages[npc.image_path] : null;
             
-            // Crown icon for boss
-            ctx.fillStyle = '#d4af37';
-            ctx.font = `bold ${Math.max(14, markerSize * 0.7)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowBlur = 0;
-            ctx.fillText('👑', x, y - 2);
+            if (bossImg) {
+              // Draw boss with image
+              const imgSize = markerSize * 2.5; // Bigger for boss
+              
+              // Boss glow
+              ctx.shadowBlur = isSelected ? 25 : 15;
+              ctx.shadowColor = '#ff0000';
+              
+              // Diamond background
+              ctx.beginPath();
+              ctx.moveTo(x, y - markerSize * 1.2);
+              ctx.lineTo(x + markerSize * 1.2, y);
+              ctx.lineTo(x, y + markerSize * 1.2);
+              ctx.lineTo(x - markerSize * 1.2, y);
+              ctx.closePath();
+              ctx.fillStyle = isSelected ? 'rgba(255, 0, 0, 0.5)' : 'rgba(150, 0, 0, 0.4)';
+              ctx.fill();
+              ctx.strokeStyle = '#ff0000';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.shadowBlur = 0;
+              
+              // Draw boss sprite
+              ctx.imageSmoothingEnabled = false;
+              ctx.drawImage(bossImg, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+              ctx.imageSmoothingEnabled = true;
+              
+              // Crown above boss
+              ctx.fillStyle = '#d4af37';
+              ctx.font = `bold ${Math.max(12, markerSize * 0.5)}px Arial`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('👑', x, y - markerSize * 1.3);
+            } else {
+              // Fallback - red diamond with crown
+              ctx.fillStyle = isSelected ? '#ff4444' : '#cc0000';
+              ctx.shadowBlur = isSelected ? 20 : 12;
+              ctx.shadowColor = '#ff0000';
+              ctx.beginPath();
+              ctx.moveTo(x, y - markerSize);
+              ctx.lineTo(x + markerSize, y);
+              ctx.lineTo(x, y + markerSize);
+              ctx.lineTo(x - markerSize, y);
+              ctx.closePath();
+              ctx.fill();
+              ctx.strokeStyle = '#800000';
+              ctx.lineWidth = 3;
+              ctx.stroke();
+              
+              // Crown icon for boss
+              ctx.fillStyle = '#d4af37';
+              ctx.font = `bold ${Math.max(14, markerSize * 0.7)}px Arial`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.shadowBlur = 0;
+              ctx.fillText('👑', x, y - 2);
+            }
           } else {
-            // Regular monster - red circle
-            ctx.beginPath();
-            ctx.arc(x, y, markerSize * 0.7, 0, Math.PI * 2);
-            ctx.fillStyle = isSelected ? '#ff6666' : '#e74c3c';
-            ctx.shadowBlur = isSelected ? 12 : 6;
-            ctx.shadowColor = '#e74c3c';
-            ctx.fill();
-            ctx.strokeStyle = '#c0392b';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            // Regular monster
+            const monsterImg = npc.image_path ? monsterImages[npc.image_path] : null;
             
-            // Monster icon
-            ctx.fillStyle = '#fff';
-            ctx.font = `bold ${Math.max(10, markerSize * 0.6)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowBlur = 0;
-            ctx.fillText('👹', x, y);
+            if (monsterImg) {
+              // Draw monster image
+              const imgSize = markerSize * 2;
+              
+              // Selection glow
+              if (isSelected) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#e74c3c';
+              }
+              
+              // Background circle for visibility
+              ctx.beginPath();
+              ctx.arc(x, y, markerSize * 0.8, 0, Math.PI * 2);
+              ctx.fillStyle = isSelected ? 'rgba(231, 76, 60, 0.4)' : 'rgba(0, 0, 0, 0.3)';
+              ctx.fill();
+              ctx.shadowBlur = 0;
+              
+              // Draw monster sprite
+              ctx.imageSmoothingEnabled = false;
+              ctx.drawImage(monsterImg, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+              ctx.imageSmoothingEnabled = true;
+              
+              // Selection border
+              if (isSelected) {
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, markerSize * 0.9, 0, Math.PI * 2);
+                ctx.stroke();
+              }
+            } else {
+              // Fallback - red circle with emoji
+              ctx.beginPath();
+              ctx.arc(x, y, markerSize * 0.7, 0, Math.PI * 2);
+              ctx.fillStyle = isSelected ? '#ff6666' : '#e74c3c';
+              ctx.shadowBlur = isSelected ? 12 : 6;
+              ctx.shadowColor = '#e74c3c';
+              ctx.fill();
+              ctx.strokeStyle = '#c0392b';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              
+              // Monster emoji fallback
+              ctx.fillStyle = '#fff';
+              ctx.font = `bold ${Math.max(10, markerSize * 0.6)}px Arial`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.shadowBlur = 0;
+              ctx.fillText('👹', x, y);
+            }
           }
           
           ctx.restore();
