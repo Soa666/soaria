@@ -54,21 +54,24 @@ function EquipmentSlotBox({ slot, equipped, getSlotIcon, getSlotName, onSelect }
     >
       {item ? (
         item.image_path ? (
-          <img 
-            src={`/items/${item.image_path}`} 
-            alt={item.display_name}
-            className="slot-item-image"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'inline';
-            }}
-          />
-        ) : null
-      ) : null}
-      {item && !item.image_path && (
-        <span className="slot-item-icon">{getSlotIcon(slot)}</span>
-      )}
-      {!item && (
+          <>
+            <img 
+              src={`/items/${item.image_path}`} 
+              alt={item.display_name}
+              className="slot-item-image"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) {
+                  e.target.nextSibling.style.display = 'inline';
+                }
+              }}
+            />
+            <span className="slot-item-icon" style={{ display: 'none' }}>{getSlotIcon(slot)}</span>
+          </>
+        ) : (
+          <span className="slot-item-icon">{getSlotIcon(slot)}</span>
+        )
+      ) : (
         <span className="slot-empty-icon">{getSlotIcon(slot)}</span>
       )}
       <span className="slot-label">{getSlotName(slot)}</span>
@@ -659,17 +662,23 @@ function Dashboard() {
                   >
                     <div className="equip-icon" style={{ borderColor: eq.quality_color }}>
                       {eq.image_path ? (
-                        <img 
-                          src={`/items/${eq.image_path}`} 
-                          alt={eq.display_name}
-                          className="equip-item-image"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'inline';
-                          }}
-                        />
-                      ) : null}
-                      {!eq.image_path && <span>{getSlotIcon(eq.slot)}</span>}
+                        <>
+                          <img 
+                            src={`/items/${eq.image_path}`} 
+                            alt={eq.display_name}
+                            className="equip-item-image"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              if (e.target.nextSibling) {
+                                e.target.nextSibling.style.display = 'inline';
+                              }
+                            }}
+                          />
+                          <span style={{ display: 'none' }}>{getSlotIcon(eq.slot)}</span>
+                        </>
+                      ) : (
+                        <span>{getSlotIcon(eq.slot)}</span>
+                      )}
                     </div>
                     <div className="equip-info">
                       <span className="equip-name" style={{ color: eq.quality_color }}>
