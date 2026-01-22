@@ -13,6 +13,8 @@ function RecipesManagement() {
   // Equipment Recipes State
   const [equipmentRecipes, setEquipmentRecipes] = useState([]);
   const [equipmentTypes, setEquipmentTypes] = useState([]);
+  const [availableImages, setAvailableImages] = useState([]);
+  const [showImageSelector, setShowImageSelector] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
