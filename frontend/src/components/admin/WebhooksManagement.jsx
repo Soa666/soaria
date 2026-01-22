@@ -131,6 +131,26 @@ function WebhooksManagement() {
     setTemplateText(newTemplate);
   };
 
+  const handleInsertPlaceholder = (placeholder) => {
+    if (!templateTextareaRef.current) return;
+    
+    const textarea = templateTextareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = templateText;
+    
+    // Insert placeholder at cursor position
+    const newText = text.substring(0, start) + placeholder + text.substring(end);
+    setTemplateText(newText);
+    
+    // Set cursor position after inserted placeholder
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + placeholder.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
   const getEventTypeInfo = (type) => EVENT_TYPES.find(t => t.value === type);
 
   if (loading) {
