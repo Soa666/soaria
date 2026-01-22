@@ -451,6 +451,27 @@
   .recipes-table td:nth-child(4) {
     display: none;
   }
+}
+
+/* Image Preview */
+.image-preview {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(20, 15, 30, 0.8);
+  border: 1px solid #5a4a2a;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.image-preview img {
+  max-width: 64px;
+  max-height: 64px;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+    display: none;
+  }
   
   .ingredient-row {
     flex-wrap: wrap;
