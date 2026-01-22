@@ -5,11 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { useNotificationContext } from '../context/NotificationContext';
 import './Map.css';
 
-// Tileset configuration - Grass Biome Overworld Tileset
-// 192x336 pixels = 12 columns x 21 rows of 16x16 tiles (252 tiles total)
+// Tileset configuration - Punyworld Overworld Tileset
+// 432x1040 pixels = 27 columns x ~38 rows of 16x16 tiles (1755 tiles total)
 const TILE_SIZE = 16;
-const TILESET_COLUMNS = 12;
-const TILESET_URL = '/world/tileset_grass.png';
+const TILESET_COLUMNS = 27;
+const TILESET_URL = '/world/punyworld-overworld-tileset.png';
 
 // Autotile system for smooth terrain transitions
 // The tileset uses a 3x4 autotile layout for each terrain type
