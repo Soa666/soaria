@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
 import './WebhooksManagement.css';
 
@@ -25,6 +25,8 @@ function WebhooksManagement() {
   const [error, setError] = useState('');
   const [editingWebhook, setEditingWebhook] = useState(null);
   const [selectedEventType, setSelectedEventType] = useState('registration');
+  const [templateText, setTemplateText] = useState('');
+  const templateTextareaRef = useRef(null);
 
   useEffect(() => {
     fetchWebhooks();
@@ -61,7 +63,7 @@ function WebhooksManagement() {
     const name = formData.get('name');
     const webhook_url = formData.get('webhook_url');
     const event_type = formData.get('event_type');
-    const message_template = formData.get('message_template');
+    const message_template = templateText || formData.get('message_template') || DEFAULT_TEMPLATES[event_type] || '';
     const enabled = formData.get('enabled') === 'on' ? 1 : 0;
 
     try {
@@ -77,6 +79,7 @@ function WebhooksManagement() {
         setMessage('Webhook erstellt');
       }
       setEditingWebhook(null);
+      setTemplateText('');
       await fetchWebhooks();
     } catch (error) {
       setError(error.response?.data?.error || 'Fehler beim Speichern');
@@ -106,22 +109,26 @@ function WebhooksManagement() {
 
   const handleNewWebhook = () => {
     setSelectedEventType('registration');
+    const defaultTemplate = DEFAULT_TEMPLATES['registration'] || '';
+    setTemplateText(defaultTemplate);
     setEditingWebhook({
       event_type: 'registration',
-      message_template: DEFAULT_TEMPLATES['registration']
+      message_template: defaultTemplate
     });
   };
 
   const handleEventTypeChange = (e) => {
     const newType = e.target.value;
     setSelectedEventType(newType);
+    const newTemplate = DEFAULT_TEMPLATES[newType] || '';
     if (editingWebhook && !editingWebhook.id) {
       setEditingWebhook({
         ...editingWebhook,
         event_type: newType,
-        message_template: DEFAULT_TEMPLATES[newType] || ''
+        message_template: newTemplate
       });
     }
+    setTemplateText(newTemplate);
   };
 
   const getEventTypeInfo = (type) => EVENT_TYPES.find(t => t.value === type);
@@ -214,17 +221,31 @@ function WebhooksManagement() {
             <div className="form-group">
               <label>Nachricht-Template</label>
               <textarea
+                ref={templateTextareaRef}
                 name="message_template"
                 rows="6"
-                defaultValue={editingWebhook.message_template || DEFAULT_TEMPLATES[selectedEventType]}
+                value={templateText}
+                onChange={(e) => setTemplateText(e.target.value)}
                 placeholder="Discord-Nachricht mit Platzhaltern"
                 className="code-textarea"
               />
               <small>
                 Verfügbare Platzhalter für {getEventTypeInfo(editingWebhook.event_type || selectedEventType)?.label}:{' '}
-                {getEventTypeInfo(editingWebhook.event_type || selectedEventType)?.placeholders.map(p => (
-                  <code key={p}>{p}</code>
-                ))}
+                {getEventTypeInfo(editingWebhook.event_type || selectedEventType)?.placeholders.map((p, idx) => (
+                  <code 
+                    key={p}
+                    className="placeholder-tag"
+                    onClick={() => handleInsertPlaceholder(p)}
+                    title="Klicken zum Einfügen"
+                  >
+                    {p}
+                  </code>
+                )).reduce((acc, el, idx, arr) => {
+                  if (idx < arr.length - 1) {
+                    return [...acc, el, ', '];
+                  }
+                  return [...acc, el];
+                }, [])}
               </small>
             </div>
 

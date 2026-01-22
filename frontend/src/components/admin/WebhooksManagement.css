@@ -170,6 +170,32 @@
   margin: 0 2px;
 }
 
+.placeholder-tag {
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #d4af37;
+  margin: 0 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.placeholder-tag:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: rgba(212, 175, 55, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(212, 175, 55, 0.2);
+}
+
+.placeholder-tag:active {
+  transform: translateY(0);
+  background: rgba(212, 175, 55, 0.3);
+}
+
 .code-textarea {
   font-family: 'Monaco', 'Menlo', monospace;
   font-size: 13px;
