@@ -5,6 +5,88 @@ import { sendDiscordWebhook } from '../utils/discord.js';
 
 const router = express.Router();
 
+// ============ SHARED FUNCTION FOR BUFF EXPIRATION ============
+
+// Function to expire buffs and send Discord notifications
+export async function expireBuffs() {
+  try {
+    // Find all expired buffs
+    const expiredBuffs = await db.all(`
+      SELECT 
+        ab.id,
+        ab.buff_type_id,
+        bt.display_name,
+        bt.icon,
+        ab.target_type,
+        ab.target_id,
+        ab.stacks
+      FROM active_buffs ab
+      JOIN buff_types bt ON ab.buff_type_id = bt.id
+      WHERE ab.is_active = 1 
+        AND ab.expires_at IS NOT NULL 
+        AND ab.expires_at <= datetime('now')
+    `);
+
+    if (expiredBuffs.length > 0) {
+      // Get webhook for buff expiration
+      const buffExpiredWebhook = await db.get(`
+        SELECT webhook_url, message_template 
+        FROM discord_webhooks 
+        WHERE event_type = 'buff_expired' AND enabled = 1
+        LIMIT 1
+      `);
+
+      // Deactivate expired buffs and send webhooks
+      for (const buff of expiredBuffs) {
+        await db.run(`
+          UPDATE active_buffs 
+          SET is_active = 0 
+          WHERE id = ?
+        `, [buff.id]);
+
+        // Build target description
+        let targetDesc = '';
+        switch (buff.target_type) {
+          case 'all': targetDesc = 'alle Spieler'; break;
+          case 'user': 
+            const user = await db.get('SELECT username FROM users WHERE id = ?', [buff.target_id]);
+            targetDesc = user?.username || 'Unbekannt';
+            break;
+          case 'guild':
+            const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [buff.target_id]);
+            targetDesc = `Gilde: ${guild?.name || 'Unbekannt'}`;
+            break;
+          case 'guildless': targetDesc = 'gildenlose Spieler'; break;
+          case 'level_min': targetDesc = `Level ${buff.target_id}+`; break;
+          case 'level_max': targetDesc = `bis Level ${buff.target_id}`; break;
+        }
+
+        // Send webhook if configured
+        if (buffExpiredWebhook && buffExpiredWebhook.webhook_url) {
+          let message = buffExpiredWebhook.message_template || 
+            `⏰ **${buff.display_name}** ist vorbei für **${targetDesc}**!`;
+          
+          // Replace template variables
+          message = message.replace(/\{\{buff_name\}\}/g, buff.display_name);
+          message = message.replace(/\{\{buff_icon\}\}/g, buff.icon || '✨');
+          message = message.replace(/\{\{target\}\}/g, targetDesc);
+          message = message.replace(/\{\{stacks\}\}/g, (buff.stacks || 1).toString());
+
+          try {
+            await sendDiscordWebhook(buffExpiredWebhook.webhook_url, message);
+          } catch (webhookError) {
+            console.error('[Buffs] Fehler beim Senden des Ablauf-Webhooks:', webhookError);
+          }
+        }
+      }
+
+      console.log(`[Buffs] ${expiredBuffs.length} abgelaufene Buffs deaktiviert`);
+    }
+  } catch (error) {
+    console.error('[Buffs] Fehler beim Ablaufen:', error);
+  }
+}
+
 // ============ PUBLIC ROUTES ============
 
 // Get all active buffs for current user
@@ -12,12 +94,8 @@ router.get('/my', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // First, deactivate expired buffs (cleanup)
-    await db.run(`
-      UPDATE active_buffs 
-      SET is_active = 0 
-      WHERE is_active = 1 AND expires_at IS NOT NULL AND expires_at <= datetime('now')
-    `);
+    // First, deactivate expired buffs (cleanup with Discord notifications)
+    await expireBuffs();
     
     // Get user info for targeting
     const user = await db.get(`
@@ -166,12 +244,8 @@ router.delete('/types/:id', authenticateToken, requireAdmin, async (req, res) =>
 // Get all active buffs (admin view)
 router.get('/active', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    // First, deactivate expired buffs
-    await db.run(`
-      UPDATE active_buffs 
-      SET is_active = 0 
-      WHERE is_active = 1 AND expires_at IS NOT NULL AND expires_at <= datetime('now')
-    `);
+    // First, deactivate expired buffs (cleanup with Discord notifications)
+    await expireBuffs();
 
     const buffs = await db.all(`
       SELECT 
