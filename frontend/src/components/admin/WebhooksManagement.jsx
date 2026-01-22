@@ -302,7 +302,13 @@ function WebhooksManagement() {
                       🔔 Testen
                     </button>
                   )}
-                  <button className="btn btn-sm btn-secondary" onClick={() => setEditingWebhook(webhook)}>
+                  <button className="btn btn-sm btn-secondary" onClick={() => {
+                    const eventType = webhook.event_type || 'registration';
+                    const template = webhook.message_template || DEFAULT_TEMPLATES[eventType] || '';
+                    setEditingWebhook(webhook);
+                    setSelectedEventType(eventType);
+                    setTemplateText(template);
+                  }}>
                     ✏️ Bearbeiten
                   </button>
                   <button className="btn btn-sm btn-danger" onClick={() => handleDeleteWebhook(webhook.id)}>
