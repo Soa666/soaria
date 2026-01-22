@@ -14,6 +14,15 @@ async function parseWangTiles() {
     // Get project root (go up from backend/routes to project root)
     const projectRoot = path.join(__dirname, '../../');
     const tilesetPath = path.join(projectRoot, 'world/Tiled/punyworld-overworld-tiles.tsx');
+    
+    // Check if file exists
+    try {
+      await fs.access(tilesetPath);
+    } catch (err) {
+      console.error('Tileset file not found:', tilesetPath);
+      return {};
+    }
+    
     const content = await fs.readFile(tilesetPath, 'utf-8');
     
     // Extract wangcolor mappings (ID -> name)
@@ -90,7 +99,7 @@ router.get('/suggestions', async (req, res) => {
     res.json({ suggestions });
   } catch (error) {
     console.error('Get suggestions error:', error);
-    res.status(500).json({ error: 'Serverfehler' });
+    res.status(500).json({ error: 'Serverfehler: ' + error.message });
   }
 });
 
