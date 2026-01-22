@@ -209,14 +209,21 @@
 
 .buff-item {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.75rem;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
   background: rgba(212, 175, 55, 0.15);
   border: 1px solid rgba(212, 175, 55, 0.4);
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 0.85rem;
   cursor: help;
+  min-width: 120px;
+}
+
+.buff-item .buff-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .buff-item .buff-icon {
@@ -225,6 +232,7 @@
 
 .buff-item .buff-name {
   color: #e8dcc0;
+  flex: 1;
 }
 
 .buff-item .buff-value {
@@ -234,9 +242,12 @@
 
 .buff-item .buff-time {
   color: #3498db;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  white-space: nowrap;
+  text-align: center;
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 /* Combat History */

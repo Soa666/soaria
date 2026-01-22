@@ -10,7 +10,7 @@ const router = express.Router();
 // Function to expire buffs and send Discord notifications
 export async function expireBuffs() {
   try {
-    // Find all expired buffs
+    // Find all expired buffs (including those that might still be marked as active)
     const expiredBuffs = await db.all(`
       SELECT 
         ab.id,
@@ -19,12 +19,13 @@ export async function expireBuffs() {
         bt.icon,
         ab.target_type,
         ab.target_id,
-        ab.stacks
+        ab.stacks,
+        ab.is_active
       FROM active_buffs ab
       JOIN buff_types bt ON ab.buff_type_id = bt.id
-      WHERE ab.is_active = 1 
-        AND ab.expires_at IS NOT NULL 
+      WHERE ab.expires_at IS NOT NULL 
         AND ab.expires_at <= datetime('now')
+        AND (ab.is_active = 1 OR ab.is_active IS NULL)
     `);
 
     if (expiredBuffs.length > 0) {
@@ -38,11 +39,13 @@ export async function expireBuffs() {
 
       // Deactivate expired buffs and send webhooks
       for (const buff of expiredBuffs) {
-        await db.run(`
-          UPDATE active_buffs 
-          SET is_active = 0 
-          WHERE id = ?
-        `, [buff.id]);
+        // Only process if buff is still marked as active
+        if (buff.is_active === 1) {
+          await db.run(`
+            UPDATE active_buffs 
+            SET is_active = 0 
+            WHERE id = ?
+          `, [buff.id]);
 
         // Build target description
         let targetDesc = '';
@@ -61,21 +64,25 @@ export async function expireBuffs() {
           case 'level_max': targetDesc = `bis Level ${buff.target_id}`; break;
         }
 
-        // Send webhook if configured
-        if (buffExpiredWebhook && buffExpiredWebhook.webhook_url) {
-          let message = buffExpiredWebhook.message_template || 
-            `⏰ **${buff.display_name}** ist vorbei für **${targetDesc}**!`;
-          
-          // Replace template variables
-          message = message.replace(/\{\{buff_name\}\}/g, buff.display_name);
-          message = message.replace(/\{\{buff_icon\}\}/g, buff.icon || '✨');
-          message = message.replace(/\{\{target\}\}/g, targetDesc);
-          message = message.replace(/\{\{stacks\}\}/g, (buff.stacks || 1).toString());
+          // Send webhook if configured
+          if (buffExpiredWebhook && buffExpiredWebhook.webhook_url) {
+            let message = buffExpiredWebhook.message_template || 
+              `⏰ **${buff.display_name}** ist vorbei für **${targetDesc}**!`;
+            
+            // Replace template variables
+            message = message.replace(/\{\{buff_name\}\}/g, buff.display_name);
+            message = message.replace(/\{\{buff_icon\}\}/g, buff.icon || '✨');
+            message = message.replace(/\{\{target\}\}/g, targetDesc);
+            message = message.replace(/\{\{stacks\}\}/g, (buff.stacks || 1).toString());
 
-          try {
-            await sendDiscordWebhook(buffExpiredWebhook.webhook_url, message);
-          } catch (webhookError) {
-            console.error('[Buffs] Fehler beim Senden des Ablauf-Webhooks:', webhookError);
+            try {
+              await sendDiscordWebhook(buffExpiredWebhook.webhook_url, message);
+              console.log(`[Buffs] Discord-Nachricht gesendet für abgelaufenen Buff: ${buff.display_name}`);
+            } catch (webhookError) {
+              console.error('[Buffs] Fehler beim Senden des Ablauf-Webhooks:', webhookError);
+            }
+          } else {
+            console.log(`[Buffs] Kein Webhook konfiguriert für buff_expired Event`);
           }
         }
       }

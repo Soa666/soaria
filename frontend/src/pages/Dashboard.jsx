@@ -473,12 +473,22 @@ function Dashboard() {
                   }
                 };
                 
+                const remainingTime = formatRemainingTime(buff.expires_at);
+                const isExpired = remainingTime === '⏰ Abgelaufen';
+                
+                // Don't show expired buffs
+                if (isExpired) {
+                  return null;
+                }
+                
                 return (
                   <div key={idx} className="buff-item" title={buff.description || `${buff.display_name}: +${buff.effect_value * buff.stacks}%`}>
-                    <span className="buff-icon">{buff.icon}</span>
-                    <span className="buff-name">{buff.display_name}</span>
-                    <span className="buff-value">+{buff.effect_value * buff.stacks}%</span>
-                    <span className="buff-time">{formatRemainingTime(buff.expires_at)}</span>
+                    <div className="buff-main">
+                      <span className="buff-icon">{buff.icon}</span>
+                      <span className="buff-name">{buff.display_name}</span>
+                      <span className="buff-value">+{buff.effect_value * buff.stacks}%</span>
+                    </div>
+                    <div className="buff-time">{remainingTime}</div>
                   </div>
                 );
               })}
