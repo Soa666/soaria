@@ -24,6 +24,23 @@
   font-size: 0.9rem;
 }
 
+.btn-import-suggestions {
+  background: linear-gradient(145deg, #4a2c1a, #6b4423);
+  color: #d4af37;
+  border: 1px solid #8b6914;
+  padding: 0.7rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.btn-import-suggestions:hover {
+  background: linear-gradient(145deg, #6b4423, #8b5a2b);
+  transform: translateY(-1px);
+}
+
 .tileset-filters {
   display: flex;
   gap: 8px;

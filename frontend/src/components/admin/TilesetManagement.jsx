@@ -106,6 +106,20 @@ function TilesetManagement() {
     }
   };
 
+  const handleImportSuggestions = async () => {
+    if (!confirm('Möchtest du die Vorschläge aus der Wang-Tile-Datei importieren? Nur noch nicht gemappte Tiles werden hinzugefügt.')) {
+      return;
+    }
+
+    try {
+      const response = await api.post('/tileset/apply-suggestions');
+      setMessage(`${response.data.applied} Mappings importiert (von ${response.data.total} Vorschlägen)`);
+      await loadMappings(); // Reload mappings
+    } catch (err) {
+      setError(err.response?.data?.error || 'Fehler beim Importieren');
+    }
+  };
+
   const getTileTerrain = (tileId) => {
     return tileMappings[tileId]?.terrain || null;
   };

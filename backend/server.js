@@ -73,6 +73,7 @@ app.use('/api/quests', questsRoutes);
 app.use('/api/resources', resourcesRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/buffs', buffsRoutes);
+app.use('/api/tileset', tilesetRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
