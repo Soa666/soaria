@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import ItemsManagement from './ItemsManagement';
 import './RecipesManagement.css';
 
 function RecipesManagement() {
-  const [activeTab, setActiveTab] = useState('crafting'); // 'crafting' or 'equipment'
+  const [activeTab, setActiveTab] = useState('crafting'); // 'crafting', 'equipment', or 'items'
   
   // Crafting Recipes State
   const [recipes, setRecipes] = useState([]);
@@ -382,6 +383,12 @@ function RecipesManagement() {
           onClick={() => { setActiveTab('equipment'); resetForm(); resetEquipmentForm(); }}
         >
           ⚔️ Schmiede-Rezepte ({equipmentRecipes.length})
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'items' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('items'); resetForm(); resetEquipmentForm(); }}
+        >
+          📦 Items
         </button>
       </div>
 

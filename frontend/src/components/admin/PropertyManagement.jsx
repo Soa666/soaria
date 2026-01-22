@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
+import BuildingsManagement from './BuildingsManagement';
 import './PropertyManagement.css';
 
 function PropertyManagement() {
+  const [activeTab, setActiveTab] = useState('property'); // 'property' or 'buildings'
   const [settings, setSettings] = useState({ image_path: '/buildings/huette1.jpg' });
   const [hotspots, setHotspots] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
@@ -206,6 +208,26 @@ function PropertyManagement() {
       <div className="property-header">
         <h2>🏡 Grundstück-Verwaltung</h2>
       </div>
+
+      {/* Tabs */}
+      <div className="property-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'property' ? 'active' : ''}`}
+          onClick={() => setActiveTab('property')}
+        >
+          🏡 Grundstück
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'buildings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('buildings')}
+        >
+          🏠 Gebäude
+        </button>
+      </div>
+
+      {/* Property Tab */}
+      {activeTab === 'property' && (
+        <>
 
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}
@@ -474,6 +496,13 @@ function PropertyManagement() {
           )}
         </div>
       </div>
+        </>
+      )}
+
+      {/* Buildings Tab */}
+      {activeTab === 'buildings' && (
+        <BuildingsManagement />
+      )}
     </div>
   );
 }

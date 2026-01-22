@@ -4,9 +4,39 @@
 }
 
 .property-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   padding-bottom: 1rem;
+}
+
+/* Tabs */
+.property-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
   border-bottom: 2px solid #5a4a2a;
+  padding-bottom: 0.5rem;
+}
+
+.property-tabs .tab-btn {
+  padding: 0.75rem 1.25rem;
+  background: rgba(30, 20, 40, 0.6);
+  border: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  color: #8b7a5a;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.property-tabs .tab-btn:hover {
+  color: #e8dcc0;
+  background: rgba(40, 30, 50, 0.8);
+}
+
+.property-tabs .tab-btn.active {
+  color: #d4af37;
+  border-color: #d4af37;
+  background: rgba(74, 44, 26, 0.4);
 }
 
 .property-header h2 {
