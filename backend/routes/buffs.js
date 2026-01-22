@@ -595,4 +595,173 @@ function getDefaultMultipliers() {
   };
 }
 
+// ============ BUFF EVENTS ROUTES ============
+
+// Get all buff events
+router.get('/events', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const events = await db.all(`
+      SELECT 
+        be.*,
+        bt.display_name as buff_name,
+        bt.icon as buff_icon,
+        u.username as created_by_name
+      FROM buff_events be
+      JOIN buff_types bt ON be.buff_type_id = bt.id
+      LEFT JOIN users u ON be.created_by = u.id
+      ORDER BY be.start_date, be.start_time
+    `);
+    res.json({ events });
+  } catch (error) {
+    console.error('Get buff events error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Create buff event
+router.post('/events', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, description, buff_type_id, target_type, target_id, stacks, start_date, start_time, end_date, end_time, enabled } = req.body;
+
+    if (!name || !buff_type_id || !target_type || !start_date || !end_date) {
+      return res.status(400).json({ error: 'Name, Buff-Typ, Zieltyp, Start- und Enddatum sind erforderlich' });
+    }
+
+    // Validate target type
+    const validTargetTypes = ['all', 'user', 'guild', 'guildless', 'level_min', 'level_max'];
+    if (!validTargetTypes.includes(target_type)) {
+      return res.status(400).json({ error: 'Ungültiger Zieltyp' });
+    }
+
+    // Validate target_id for specific target types
+    if (['user', 'guild', 'level_min', 'level_max'].includes(target_type) && !target_id) {
+      return res.status(400).json({ error: 'Ziel-ID ist für diesen Typ erforderlich' });
+    }
+
+    const result = await db.run(`
+      INSERT INTO buff_events (name, description, buff_type_id, target_type, target_id, stacks, start_date, start_time, end_date, end_time, enabled, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [name, description || '', buff_type_id, target_type, target_id || null, stacks || 1, start_date, start_time || '00:00:00', end_date, end_time || '23:59:59', enabled !== undefined ? (enabled ? 1 : 0) : 1, req.user.id]);
+
+    res.json({ 
+      message: 'Event erstellt',
+      id: result.lastID
+    });
+  } catch (error) {
+    console.error('Create buff event error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Update buff event
+router.put('/events/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, buff_type_id, target_type, target_id, stacks, start_date, start_time, end_date, end_time, enabled } = req.body;
+
+    await db.run(`
+      UPDATE buff_events 
+      SET name = ?, description = ?, buff_type_id = ?, target_type = ?, target_id = ?, stacks = ?, 
+          start_date = ?, start_time = ?, end_date = ?, end_time = ?, enabled = ?
+      WHERE id = ?
+    `, [name, description || '', buff_type_id, target_type, target_id || null, stacks || 1, start_date, start_time || '00:00:00', end_date, end_time || '23:59:59', enabled !== undefined ? (enabled ? 1 : 0) : 1, id]);
+
+    res.json({ message: 'Event aktualisiert' });
+  } catch (error) {
+    console.error('Update buff event error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Delete buff event
+router.delete('/events/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.run('DELETE FROM buff_events WHERE id = ?', [id]);
+    res.json({ message: 'Event gelöscht' });
+  } catch (error) {
+    console.error('Delete buff event error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Function to check and trigger buff events (called by server.js)
+export async function checkBuffEvents() {
+  try {
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
+
+    // Find events that should be active now
+    const activeEvents = await db.all(`
+      SELECT * FROM buff_events
+      WHERE enabled = 1
+        AND (
+          (start_date < ? OR (start_date = ? AND start_time <= ?))
+          AND (end_date > ? OR (end_date = ? AND end_time >= ?))
+        )
+        AND (last_triggered IS NULL OR last_triggered < datetime('now', '-1 minute'))
+    `, [currentDate, currentDate, currentTime, currentDate, currentDate, currentTime]);
+
+    for (const event of activeEvents) {
+      // Check if buff already exists for this event today
+      const existingBuff = await db.get(`
+        SELECT * FROM active_buffs ab
+        JOIN buff_events be ON ab.buff_type_id = be.buff_type_id 
+          AND ab.target_type = be.target_type 
+          AND (ab.target_id = be.target_id OR (ab.target_id IS NULL AND be.target_id IS NULL))
+        WHERE be.id = ? 
+          AND ab.is_active = 1
+          AND date(ab.created_at) = ?
+      `, [event.id, currentDate]);
+
+      if (!existingBuff) {
+        // Calculate duration until end of event
+        const startDateTime = new Date(`${event.start_date}T${event.start_time}`);
+        const endDateTime = new Date(`${event.end_date}T${event.end_time}`);
+        const durationMinutes = Math.ceil((endDateTime - now) / 60000);
+
+        if (durationMinutes > 0) {
+          const expiresAt = endDateTime.toISOString();
+
+          // Create buff
+          await db.run(`
+            INSERT INTO active_buffs (buff_type_id, target_type, target_id, duration_minutes, stacks, created_by, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `, [event.buff_type_id, event.target_type, event.target_id, durationMinutes, event.stacks, event.created_by, expiresAt]);
+
+          // Update last_triggered
+          await db.run(`
+            UPDATE buff_events 
+            SET last_triggered = datetime('now')
+            WHERE id = ?
+          `, [event.id]);
+
+          console.log(`[Buff Events] Event "${event.name}" aktiviert - Buff erstellt für ${durationMinutes} Minuten`);
+        }
+      }
+    }
+
+    // Deactivate buffs for events that have ended
+    const endedEvents = await db.all(`
+      SELECT * FROM buff_events
+      WHERE enabled = 1
+        AND (end_date < ? OR (end_date = ? AND end_time < ?))
+    `, [currentDate, currentDate, currentTime]);
+
+    for (const event of endedEvents) {
+      await db.run(`
+        UPDATE active_buffs 
+        SET is_active = 0
+        WHERE buff_type_id = ?
+          AND target_type = ?
+          AND (target_id = ? OR (target_id IS NULL AND ? IS NULL))
+          AND is_active = 1
+      `, [event.buff_type_id, event.target_type, event.target_id, event.target_id]);
+    }
+  } catch (error) {
+    console.error('[Buff Events] Fehler beim Prüfen der Events:', error);
+  }
+}
+
 export default router;

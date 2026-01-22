@@ -25,7 +25,7 @@ import equipmentRoutes from './routes/equipment.js';
 import questsRoutes from './routes/quests.js';
 import resourcesRoutes from './routes/resources.js';
 import feedbackRoutes from './routes/feedback.js';
-import buffsRoutes, { expireBuffs } from './routes/buffs.js';
+import buffsRoutes, { expireBuffs, checkBuffEvents } from './routes/buffs.js';
 import tilesetRoutes from './routes/tileset.js';
 
 dotenv.config();
@@ -134,9 +134,14 @@ initDatabase()
       setInterval(expireBuffs, 30000);
       console.log('[Buffs] Automatische Buff-Ablauf-Routine gestartet (alle 30 Sekunden)');
       
+      // Start buff events check routine - runs every minute
+      setInterval(checkBuffEvents, 60000);
+      console.log('[Buff Events] Automatische Event-Prüfung gestartet (alle 60 Sekunden)');
+      
       // Run once immediately
       respawnMonsters();
       expireBuffs();
+      checkBuffEvents();
     });
   })
   .catch((error) => {

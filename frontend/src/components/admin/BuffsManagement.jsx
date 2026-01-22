@@ -28,6 +28,8 @@ const TARGET_TYPES = [
 
 const DURATION_PRESETS = [
   { value: null, label: '♾️ Unbegrenzt' },
+  { value: 5, label: '5 Minuten' },
+  { value: 10, label: '10 Minuten' },
   { value: 30, label: '30 Minuten' },
   { value: 60, label: '1 Stunde' },
   { value: 120, label: '2 Stunden' },
@@ -39,10 +41,11 @@ const DURATION_PRESETS = [
 ];
 
 function BuffsManagement() {
-  const [activeTab, setActiveTab] = useState('active'); // 'active', 'types', 'apply'
+  const [activeTab, setActiveTab] = useState('active'); // 'active', 'types', 'apply', 'events'
   const [buffTypes, setBuffTypes] = useState([]);
   const [activeBuffs, setActiveBuffs] = useState([]);
   const [guilds, setGuilds] = useState([]);
+  const [buffEvents, setBuffEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -71,17 +74,36 @@ function BuffsManagement() {
     fetchData();
   }, []);
 
+  // Event form state
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [eventForm, setEventForm] = useState({
+    name: '',
+    description: '',
+    buff_type_id: '',
+    target_type: 'all',
+    target_id: '',
+    stacks: 1,
+    start_date: '',
+    start_time: '00:00',
+    end_date: '',
+    end_time: '23:59',
+    enabled: true
+  });
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [typesRes, activeRes, guildsRes] = await Promise.all([
+      const [typesRes, activeRes, guildsRes, eventsRes] = await Promise.all([
         api.get('/buffs/types'),
         api.get('/buffs/active'),
-        api.get('/buffs/guilds')
+        api.get('/buffs/guilds'),
+        api.get('/buffs/events').catch(() => ({ data: { events: [] } }))
       ]);
       setBuffTypes(typesRes.data.types || []);
       setActiveBuffs(activeRes.data.buffs || []);
       setGuilds(guildsRes.data.guilds || []);
+      setBuffEvents(eventsRes.data.events || []);
     } catch (error) {
       console.error('Error fetching buff data:', error);
     } finally {
@@ -187,6 +209,98 @@ function BuffsManagement() {
     }
   };
 
+  // Event management functions
+  const createEvent = async () => {
+    if (!eventForm.name || !eventForm.buff_type_id || !eventForm.start_date || !eventForm.end_date) {
+      setMessage('Bitte fülle alle Pflichtfelder aus');
+      return;
+    }
+    try {
+      await api.post('/buffs/events', {
+        ...eventForm,
+        start_time: eventForm.start_time + ':00',
+        end_time: eventForm.end_time + ':00'
+      });
+      setMessage('Event erstellt');
+      setShowEventForm(false);
+      setEventForm({
+        name: '',
+        description: '',
+        buff_type_id: '',
+        target_type: 'all',
+        target_id: '',
+        stacks: 1,
+        start_date: '',
+        start_time: '00:00',
+        end_date: '',
+        end_time: '23:59',
+        enabled: true
+      });
+      fetchData();
+    } catch (error) {
+      setMessage('Fehler: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const updateEvent = async () => {
+    if (!editingEvent) return;
+    try {
+      await api.put(`/buffs/events/${editingEvent.id}`, {
+        ...eventForm,
+        start_time: eventForm.start_time + ':00',
+        end_time: eventForm.end_time + ':00'
+      });
+      setMessage('Event aktualisiert');
+      setShowEventForm(false);
+      setEditingEvent(null);
+      setEventForm({
+        name: '',
+        description: '',
+        buff_type_id: '',
+        target_type: 'all',
+        target_id: '',
+        stacks: 1,
+        start_date: '',
+        start_time: '00:00',
+        end_date: '',
+        end_time: '23:59',
+        enabled: true
+      });
+      fetchData();
+    } catch (error) {
+      setMessage('Fehler: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const deleteEvent = async (eventId) => {
+    if (!window.confirm('Event wirklich löschen?')) return;
+    try {
+      await api.delete(`/buffs/events/${eventId}`);
+      setMessage('Event gelöscht');
+      fetchData();
+    } catch (error) {
+      setMessage('Fehler: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const editEvent = (event) => {
+    setEditingEvent(event);
+    setEventForm({
+      name: event.name,
+      description: event.description || '',
+      buff_type_id: event.buff_type_id,
+      target_type: event.target_type,
+      target_id: event.target_id || '',
+      stacks: event.stacks || 1,
+      start_date: event.start_date,
+      start_time: event.start_time ? event.start_time.substring(0, 5) : '00:00',
+      end_date: event.end_date,
+      end_time: event.end_time ? event.end_time.substring(0, 5) : '23:59',
+      enabled: event.enabled === 1
+    });
+    setShowEventForm(true);
+  };
+
   const formatExpiry = (expiresAt) => {
     if (!expiresAt) return '♾️ Unbegrenzt';
     const expiry = new Date(expiresAt);
@@ -248,6 +362,12 @@ function BuffsManagement() {
           onClick={() => setActiveTab('types')}
         >
           📋 Buff-Typen ({buffTypes.length})
+        </button>
+        <button 
+          className={activeTab === 'events' ? 'active' : ''} 
+          onClick={() => setActiveTab('events')}
+        >
+          📅 Events ({buffEvents.length})
         </button>
       </div>
 
@@ -521,6 +641,244 @@ function BuffsManagement() {
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Events Tab */}
+      {activeTab === 'events' && (
+        <div className="events-section">
+          <div className="section-header">
+            <h3>📅 Buff-Events</h3>
+            <button className="btn-new" onClick={() => { setShowEventForm(!showEventForm); setEditingEvent(null); setEventForm({
+              name: '',
+              description: '',
+              buff_type_id: '',
+              target_type: 'all',
+              target_id: '',
+              stacks: 1,
+              start_date: '',
+              start_time: '00:00',
+              end_date: '',
+              end_time: '23:59',
+              enabled: true
+            }); }}>
+              {showEventForm ? '❌ Abbrechen' : '➕ Neues Event'}
+            </button>
+          </div>
+
+          {showEventForm && (
+            <div className="event-form">
+              <h4>{editingEvent ? 'Event bearbeiten' : 'Neues Event erstellen'}</h4>
+              <div className="form-group">
+                <label>Event-Name *</label>
+                <input
+                  type="text"
+                  value={eventForm.name}
+                  onChange={(e) => setEventForm({...eventForm, name: e.target.value})}
+                  placeholder="z.B. Weihnachten 2024"
+                />
+              </div>
+              <div className="form-group">
+                <label>Beschreibung</label>
+                <textarea
+                  value={eventForm.description}
+                  onChange={(e) => setEventForm({...eventForm, description: e.target.value})}
+                  placeholder="Optional: Beschreibung des Events"
+                />
+              </div>
+              <div className="form-group">
+                <label>Buff-Typ *</label>
+                <select
+                  value={eventForm.buff_type_id}
+                  onChange={(e) => setEventForm({...eventForm, buff_type_id: e.target.value})}
+                >
+                  <option value="">-- Buff wählen --</option>
+                  {buffTypes.map(type => (
+                    <option key={type.id} value={type.id}>
+                      {type.icon} {type.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Ziel *</label>
+                <select
+                  value={eventForm.target_type}
+                  onChange={(e) => { setEventForm({...eventForm, target_type: e.target.value, target_id: ''}); setUserSearch(''); }}
+                >
+                  {TARGET_TYPES.map(t => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              {eventForm.target_type === 'user' && (
+                <div className="form-group">
+                  <label>Spieler suchen</label>
+                  <input
+                    type="text"
+                    value={userSearch}
+                    onChange={(e) => { 
+                      setUserSearch(e.target.value); 
+                      searchUsers(e.target.value);
+                    }}
+                    placeholder="Spielername eingeben..."
+                  />
+                  {userSuggestions.length > 0 && (
+                    <div className="user-suggestions">
+                      {userSuggestions.map(user => (
+                        <div key={user.id} onClick={() => {
+                          setEventForm({...eventForm, target_id: user.id});
+                          setUserSearch(user.username);
+                          setUserSuggestions([]);
+                        }}>
+                          {user.username}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {eventForm.target_type === 'guild' && (
+                <div className="form-group">
+                  <label>Gilde</label>
+                  <select
+                    value={eventForm.target_id}
+                    onChange={(e) => setEventForm({...eventForm, target_id: e.target.value})}
+                  >
+                    <option value="">-- Gilde wählen --</option>
+                    {guilds.map(guild => (
+                      <option key={guild.id} value={guild.id}>
+                        {guild.name} ({guild.member_count} Mitglieder)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {(eventForm.target_type === 'level_min' || eventForm.target_type === 'level_max') && (
+                <div className="form-group">
+                  <label>{eventForm.target_type === 'level_min' ? 'Mindestlevel' : 'Maximallevel'}</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={eventForm.target_id}
+                    onChange={(e) => setEventForm({...eventForm, target_id: e.target.value})}
+                  />
+                </div>
+              )}
+              <div className="form-group">
+                <label>Stacks</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={eventForm.stacks}
+                  onChange={(e) => setEventForm({...eventForm, stacks: parseInt(e.target.value) || 1})}
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start-Datum *</label>
+                  <input
+                    type="date"
+                    value={eventForm.start_date}
+                    onChange={(e) => setEventForm({...eventForm, start_date: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Start-Zeit</label>
+                  <input
+                    type="time"
+                    value={eventForm.start_time}
+                    onChange={(e) => setEventForm({...eventForm, start_time: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>End-Datum *</label>
+                  <input
+                    type="date"
+                    value={eventForm.end_date}
+                    onChange={(e) => setEventForm({...eventForm, end_date: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>End-Zeit</label>
+                  <input
+                    type="time"
+                    value={eventForm.end_time}
+                    onChange={(e) => setEventForm({...eventForm, end_time: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={eventForm.enabled}
+                    onChange={(e) => setEventForm({...eventForm, enabled: e.target.checked})}
+                  />
+                  Aktiviert
+                </label>
+              </div>
+              <button className="btn-create" onClick={editingEvent ? updateEvent : createEvent}>
+                {editingEvent ? '✅ Event aktualisieren' : '✅ Event erstellen'}
+              </button>
+            </div>
+          )}
+
+          <div className="events-list">
+            {buffEvents.length === 0 ? (
+              <p className="no-events">Keine Events vorhanden.</p>
+            ) : (
+              buffEvents.map(event => {
+                const startDate = new Date(`${event.start_date}T${event.start_time || '00:00:00'}`);
+                const endDate = new Date(`${event.end_date}T${event.end_time || '23:59:59'}`);
+                const now = new Date();
+                const isActive = now >= startDate && now <= endDate;
+                
+                return (
+                  <div key={event.id} className={`event-card ${!event.enabled ? 'disabled' : ''} ${isActive ? 'active' : ''}`}>
+                    <div className="event-header">
+                      <div>
+                        <h4>{event.name}</h4>
+                        {event.description && <p className="event-description">{event.description}</p>}
+                      </div>
+                      <div className="event-actions">
+                        <button className="btn-edit" onClick={() => editEvent(event)}>✏️</button>
+                        <button className="btn-delete" onClick={() => deleteEvent(event.id)}>🗑️</button>
+                      </div>
+                    </div>
+                    <div className="event-details">
+                      <div className="event-buff">
+                        <span className="buff-icon">{event.buff_icon}</span>
+                        <span>{event.buff_name}</span>
+                        {event.stacks > 1 && <span className="stacks">x{event.stacks}</span>}
+                      </div>
+                      <div className="event-target">
+                        {getTargetDescription({target_type: event.target_type, target_name: event.target_name || ''})}
+                      </div>
+                      <div className="event-dates">
+                        <div>
+                          <strong>Start:</strong> {new Date(`${event.start_date}T${event.start_time || '00:00:00'}`).toLocaleString('de-DE')}
+                        </div>
+                        <div>
+                          <strong>Ende:</strong> {new Date(`${event.end_date}T${event.end_time || '23:59:59'}`).toLocaleString('de-DE')}
+                        </div>
+                      </div>
+                      <div className="event-status">
+                        {!event.enabled && <span className="status-badge disabled">Deaktiviert</span>}
+                        {event.enabled && isActive && <span className="status-badge active">Aktiv</span>}
+                        {event.enabled && !isActive && now < startDate && <span className="status-badge upcoming">Geplant</span>}
+                        {event.enabled && !isActive && now > endDate && <span className="status-badge ended">Beendet</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

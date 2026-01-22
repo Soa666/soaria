@@ -1349,6 +1349,30 @@ Soaria - Fantasy RPG`
   // Insert default buff types
   await insertDefaultBuffTypes();
 
+  // ============ BUFF EVENTS SYSTEM ============
+  // Event buffs table - scheduled automatic buffs
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS buff_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      buff_type_id INTEGER NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id INTEGER,
+      stacks INTEGER DEFAULT 1,
+      start_date DATE NOT NULL,
+      start_time TIME,
+      end_date DATE NOT NULL,
+      end_time TIME,
+      enabled INTEGER DEFAULT 1,
+      last_triggered DATETIME,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (buff_type_id) REFERENCES buff_types(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
   console.log('Database initialized successfully');
 }
 
