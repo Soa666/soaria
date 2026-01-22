@@ -118,6 +118,42 @@ async function respawnMonsters() {
   }
 }
 
+// Automatic resource node respawn routine
+async function respawnResourceNodes() {
+  try {
+    // Find all depleted resource nodes that should respawn
+    const depletedNodes = await db.all(`
+      SELECT 
+        wrn.id,
+        wrn.max_amount,
+        wrn.depleted_at,
+        rnt.respawn_minutes
+      FROM world_resource_nodes wrn
+      JOIN resource_node_types rnt ON wrn.node_type_id = rnt.id
+      WHERE wrn.is_depleted = 1 
+        AND wrn.depleted_at IS NOT NULL
+        AND datetime(wrn.depleted_at, '+' || (rnt.respawn_minutes || 30) || ' minutes') <= datetime('now')
+    `);
+
+    for (const node of depletedNodes) {
+      await db.run(`
+        UPDATE world_resource_nodes 
+        SET is_depleted = 0, 
+            current_amount = ?,
+            depleted_at = NULL,
+            last_gathered_at = NULL
+        WHERE id = ?
+      `, [node.max_amount, node.id]);
+    }
+
+    if (depletedNodes.length > 0) {
+      console.log(`[Respawn] ${depletedNodes.length} Ressourcen-Nodes respawnt`);
+    }
+  } catch (error) {
+    console.error('[Respawn] Fehler beim Respawnen von Ressourcen:', error);
+  }
+}
+
 // Automatic buff expiration routine (uses shared function from buffs.js)
 
 // Initialize database and start server
@@ -138,8 +174,13 @@ initDatabase()
       setInterval(checkBuffEvents, 60000);
       console.log('[Buff Events] Automatische Event-Prüfung gestartet (alle 60 Sekunden)');
       
+      // Start resource node respawn routine - runs every 30 seconds
+      setInterval(respawnResourceNodes, 30000);
+      console.log('[Respawn] Automatische Ressourcen-Respawn-Routine gestartet (alle 30 Sekunden)');
+      
       // Run once immediately
       respawnMonsters();
+      respawnResourceNodes();
       expireBuffs();
       checkBuffEvents();
     });

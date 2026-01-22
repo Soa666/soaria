@@ -50,17 +50,25 @@ router.get('/nodes', authenticateToken, async (req, res) => {
     for (const node of nodes) {
       if (node.is_depleted && node.depleted_at) {
         const depletedAt = new Date(node.depleted_at);
-        const respawnTime = new Date(depletedAt.getTime() + node.respawn_minutes * 60 * 1000);
+        // Ensure we have valid dates
+        if (isNaN(depletedAt.getTime())) {
+          console.error(`[Resources] Invalid depleted_at for node ${node.id}: ${node.depleted_at}`);
+          continue;
+        }
         
+        const respawnTime = new Date(depletedAt.getTime() + (node.respawn_minutes || 30) * 60 * 1000);
+        
+        // Only respawn if enough time has passed
         if (now >= respawnTime) {
           // Respawn the node
           await db.run(`
             UPDATE world_resource_nodes 
-            SET is_depleted = 0, current_amount = max_amount, depleted_at = NULL
+            SET is_depleted = 0, current_amount = max_amount, depleted_at = NULL, last_gathered_at = NULL
             WHERE id = ?
           `, [node.id]);
           node.is_depleted = 0;
           node.current_amount = node.max_amount;
+          node.depleted_at = null;
         } else {
           node.respawn_in_seconds = Math.floor((respawnTime - now) / 1000);
         }
@@ -332,15 +340,25 @@ router.post('/gather/collect', authenticateToken, async (req, res) => {
     // Mark job as completed
     await db.run('UPDATE gathering_jobs SET is_completed = 1 WHERE id = ?', [job.id]);
 
-    // Reduce node amount
+    // Get current node state first
+    const currentNode = await db.get('SELECT current_amount, max_amount FROM world_resource_nodes WHERE id = ?', [job.node_id]);
+    
+    if (!currentNode) {
+      return res.status(400).json({ error: 'Ressourcen-Node nicht gefunden' });
+    }
+
+    const newAmount = currentNode.current_amount - 1;
+    const willBeDepleted = newAmount <= 0;
+
+    // Reduce node amount and set depleted status
     await db.run(`
       UPDATE world_resource_nodes 
-      SET current_amount = current_amount - 1,
+      SET current_amount = ?,
           last_gathered_at = datetime('now'),
-          is_depleted = CASE WHEN current_amount <= 1 THEN 1 ELSE 0 END,
-          depleted_at = CASE WHEN current_amount <= 1 THEN datetime('now') ELSE depleted_at END
+          is_depleted = ?,
+          depleted_at = CASE WHEN ? THEN datetime('now') ELSE depleted_at END
       WHERE id = ?
-    `, [job.node_id]);
+    `, [newAmount, willBeDepleted ? 1 : 0, willBeDepleted, job.node_id]);
 
     // Reduce tool durability
     if (tool) {
