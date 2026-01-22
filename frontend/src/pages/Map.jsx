@@ -474,6 +474,7 @@ function Map() {
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [monsterImages, setMonsterImages] = useState({});
+  const [tileMappings, setTileMappings] = useState({});
 
   // Load monster images when NPCs change
   useEffect(() => {
@@ -515,6 +516,21 @@ function Map() {
       setTilesetLoaded(false);
     };
     img.src = TILESET_URL;
+  }, []);
+
+  // Load tile mappings
+  useEffect(() => {
+    const loadMappings = async () => {
+      try {
+        const response = await api.get('/admin/tileset/mappings');
+        setTileMappings(response.data.mappings || {});
+        console.log('Tile mappings loaded:', Object.keys(response.data.mappings || {}).length);
+      } catch (err) {
+        console.error('Fehler beim Laden der Tile-Mappings:', err);
+        setTileMappings({});
+      }
+    };
+    loadMappings();
   }, []);
 
   // Handle URL parameters (e.g., from player profile "Show on map")
@@ -642,7 +658,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes, tilesetLoaded, monsterImages]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes, tilesetLoaded, monsterImages, tileMappings]);
 
   const fetchPlayers = async () => {
     try {
@@ -853,6 +869,26 @@ function Map() {
     }
   };
 
+  // Helper function to get tile ID using mappings or fallback
+  const getTileIdWithMappings = (terrain, variation, neighbors) => {
+    const category = getTerrainCategory(terrain);
+    
+    // Try to find a mapped tile for this terrain type
+    // First, get all tiles mapped to this terrain
+    const mappedTiles = Object.keys(tileMappings)
+      .map(id => parseInt(id))
+      .filter(id => tileMappings[id]?.terrain === category);
+    
+    if (mappedTiles.length > 0) {
+      // Use mapped tiles with variation
+      const index = Math.floor(variation * mappedTiles.length) % mappedTiles.length;
+      return mappedTiles[index];
+    }
+    
+    // Fallback to hardcoded logic if no mappings
+    return getTileForTerrainWithNeighbors(terrain, variation, neighbors);
+  };
+
   const drawMap = () => {
     try {
       const canvas = canvasRef.current;
@@ -922,28 +958,15 @@ function Map() {
               sw: getTerrainAt(tileX - 1, tileY + 1),
             };
             
-            // First, always draw grass base layer
-            const grassTileId = GRASS_TILES[Math.floor(variation * GRASS_TILES.length) % GRASS_TILES.length];
-            const grassCol = grassTileId % TILESET_COLUMNS;
-            const grassRow = Math.floor(grassTileId / TILESET_COLUMNS);
+            // Get tile ID using mappings or fallback
+            const tileId = getTileIdWithMappings(terrain, variation, neighbors);
+            const srcCol = tileId % TILESET_COLUMNS;
+            const srcRow = Math.floor(tileId / TILESET_COLUMNS);
             ctx.drawImage(
               tilesetImage,
-              grassCol * TILE_SIZE, grassRow * TILE_SIZE, TILE_SIZE, TILE_SIZE,
+              srcCol * TILE_SIZE, srcRow * TILE_SIZE, TILE_SIZE, TILE_SIZE,
               screenX, screenY, renderTileSize + 0.5, renderTileSize + 0.5
             );
-            
-            // Then draw autotiled terrain on top (water, forest, swamp)
-            const category = getTerrainCategory(terrain);
-            if (category !== 'grass') {
-              const tileId = getTileForTerrainWithNeighbors(terrain, variation, neighbors);
-              const srcCol = tileId % TILESET_COLUMNS;
-              const srcRow = Math.floor(tileId / TILESET_COLUMNS);
-              ctx.drawImage(
-                tilesetImage,
-                srcCol * TILE_SIZE, srcRow * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-                screenX, screenY, renderTileSize + 0.5, renderTileSize + 0.5
-              );
-            }
           } else {
             // Fallback: colored rectangles
             ctx.fillStyle = getTerrainColor(terrain);
