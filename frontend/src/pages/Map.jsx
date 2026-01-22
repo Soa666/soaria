@@ -476,6 +476,7 @@ function Map() {
   const [monsterImages, setMonsterImages] = useState({});
   const [resourceImages, setResourceImages] = useState({});
   const [tileMappings, setTileMappings] = useState({});
+  const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
 
   // Load monster images when NPCs change
   useEffect(() => {
@@ -588,6 +589,52 @@ function Map() {
     }
   }, [searchParams]);
 
+  // Fetch speed multiplier from buffs
+  const fetchSpeedMultiplier = async () => {
+    try {
+      const response = await api.get('/buffs/my');
+      const buffs = response.data.buffs || [];
+      
+      // Calculate speed multiplier from speed buffs
+      let speedMultiplier = 1.0;
+      buffs.forEach(buff => {
+        if (buff.effect_type === 'speed_percent' && buff.effect_value) {
+          // Speed buffs are percentage increases (e.g., 100 = +100% = 2x speed)
+          speedMultiplier += (buff.effect_value * buff.stacks) / 100;
+        } else if (buff.effect_type === 'all_stats' && buff.effect_value) {
+          // All stats buffs also affect speed
+          speedMultiplier += (buff.effect_value * buff.stacks) / 100;
+        }
+      });
+      
+      setSpeedMultiplier(speedMultiplier);
+    } catch (error) {
+      console.error('Fehler beim Laden der Speed-Buffs:', error);
+      setSpeedMultiplier(1.0);
+    }
+  };
+
+  // Calculate travel time in minutes
+  const calculateTravelTime = (fromX, fromY, toX, toY) => {
+    const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+    const TRAVEL_SPEED_LAND = 50; // units per minute
+    const speed = TRAVEL_SPEED_LAND * speedMultiplier;
+    return Math.max(1, Math.ceil(distance / speed)); // Minimum 1 minute
+  };
+
+  // Format travel time to readable string
+  const formatTravelTime = (minutes) => {
+    if (minutes < 60) {
+      return `${minutes} Minute${minutes !== 1 ? 'n' : ''}`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (mins === 0) {
+      return `${hours} Stunde${hours !== 1 ? 'n' : ''}`;
+    }
+    return `${hours} Std. ${mins} Min.`;
+  };
+
   // Initial data load - only once on mount
   useEffect(() => {
     fetchPlayers();
@@ -598,6 +645,7 @@ function Map() {
     fetchResourceNodes();
     fetchGatheringStatus();
     fetchUserTools();
+    fetchSpeedMultiplier();
     
     // Periodic refresh every 30 seconds (without clearing selection)
     const refreshInterval = setInterval(() => {
@@ -606,6 +654,7 @@ function Map() {
       fetchPlayerStats();
       fetchResourceNodes();
       fetchGatheringStatus();
+      fetchSpeedMultiplier();
     }, 30000);
     
     return () => clearInterval(refreshInterval);
@@ -2408,10 +2457,12 @@ function Map() {
             
             <p>Position: ({selectedNpc.world_x}, {selectedNpc.world_y})</p>
             {user?.world_x !== undefined && user?.world_y !== undefined && (
-              <p>Entfernung: <strong>{Math.round(Math.sqrt(
-                Math.pow((user.world_x || 0) - (selectedNpc.world_x || 0), 2) +
-                Math.pow((user.world_y || 0) - (selectedNpc.world_y || 0), 2)
-              ))} Einheiten</strong></p>
+              <p>Reisezeit: <strong>{formatTravelTime(calculateTravelTime(
+                user.world_x || 0,
+                user.world_y || 0,
+                selectedNpc.world_x || 0,
+                selectedNpc.world_y || 0
+              ))}</strong></p>
             )}
 
             {/* Monster Stats */}
@@ -2480,7 +2531,12 @@ function Map() {
                   onClick={() => handleTravelTo(selectedNpc.world_x, selectedNpc.world_y, selectedNpc.display_name)}
                   disabled={travelStatus?.traveling}
                 >
-                  🚶 Dahin bewegen
+                  🚶 Dahin bewegen ({formatTravelTime(calculateTravelTime(
+                    user?.world_x || 0,
+                    user?.world_y || 0,
+                    selectedNpc.world_x || 0,
+                    selectedNpc.world_y || 0
+                  ))})
                 </button>
               )}
               <button 
@@ -2509,7 +2565,12 @@ function Map() {
             <p className="resource-description">{selectedResource.node?.description}</p>
             
             <p>Position: ({selectedResource.node?.world_x}, {selectedResource.node?.world_y})</p>
-            <p>Entfernung: <strong>{selectedResource.distance} Einheiten</strong></p>
+            <p>Reisezeit: <strong>{formatTravelTime(calculateTravelTime(
+              user?.world_x || 0,
+              user?.world_y || 0,
+              selectedResource.node?.world_x || 0,
+              selectedResource.node?.world_y || 0
+            ))}</strong></p>
             <p>Verbleibend: <strong>{selectedResource.node?.current_amount}/{selectedResource.node?.max_amount}</strong></p>
             
             {selectedResource.node?.min_level > 1 && (
@@ -2569,7 +2630,12 @@ function Map() {
                   onClick={() => handleTravelTo(selectedResource.node?.world_x, selectedResource.node?.world_y, selectedResource.node?.display_name)}
                   disabled={travelStatus?.traveling}
                 >
-                  🚶 Dahin bewegen ({selectedResource.distance} Einheiten)
+                  🚶 Dahin bewegen ({formatTravelTime(calculateTravelTime(
+                    user?.world_x || 0,
+                    user?.world_y || 0,
+                    selectedResource.node?.world_x || 0,
+                    selectedResource.node?.world_y || 0
+                  ))})
                 </button>
               ) : (
                 <p className="cannot-gather">⚠️ Nicht sammelbar</p>
@@ -2660,10 +2726,12 @@ function Map() {
             {user?.world_x !== undefined && user?.world_y !== undefined && 
              selectedPlayer.world_x !== undefined && selectedPlayer.world_y !== undefined && (
               <p>
-                Entfernung: <strong>{Math.round(Math.sqrt(
-                  Math.pow((user.world_x || 0) - (selectedPlayer.world_x || 0), 2) +
-                  Math.pow((user.world_y || 0) - (selectedPlayer.world_y || 0), 2)
-                ))} Einheiten</strong>
+                Reisezeit: <strong>{formatTravelTime(calculateTravelTime(
+                  user.world_x || 0,
+                  user.world_y || 0,
+                  selectedPlayer.world_x || 0,
+                  selectedPlayer.world_y || 0
+                ))}</strong>
               </p>
             )}
 
@@ -2688,7 +2756,12 @@ function Map() {
                   onClick={() => handleTravelTo(selectedPlayer.world_x, selectedPlayer.world_y, selectedPlayer.username)}
                   disabled={travelStatus?.traveling}
                 >
-                  🚶 Dahin bewegen
+                  🚶 Dahin bewegen ({formatTravelTime(calculateTravelTime(
+                    user?.world_x || 0,
+                    user?.world_y || 0,
+                    selectedPlayer.world_x || 0,
+                    selectedPlayer.world_y || 0
+                  ))})
                 </button>
               )}
               <button 
@@ -2719,7 +2792,7 @@ function Map() {
                   <p>Entfernung: {Math.round(Math.sqrt(
                     Math.pow(targetCoords.x - (user.world_x || 0), 2) +
                     Math.pow(targetCoords.y - (user.world_y || 0), 2)
-                  ))} Einheiten</p>
+                  ))}</p>
                 )}
                 {isTargetOnWater(targetCoords.x, targetCoords.y) && (
                   <p className="water-warning">🌊 Ziel ist auf Wasser - Du brauchst ein Boot!</p>
