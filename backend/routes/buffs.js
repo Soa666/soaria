@@ -129,20 +129,38 @@ router.post('/debug/expire', authenticateToken, requireAdmin, async (req, res) =
       FROM active_buffs ab
       JOIN buff_types bt ON ab.buff_type_id = bt.id
       WHERE ab.expires_at IS NOT NULL 
-        AND ab.expires_at <= datetime('now')
+        AND datetime(ab.expires_at) <= datetime('now')
     `);
+
+    // Additional JavaScript check
+    const now = new Date();
+    const reallyExpired = expiredBuffs.filter(buff => {
+      if (!buff.expires_at) return false;
+      const expiry = new Date(buff.expires_at);
+      return expiry <= now;
+    });
+
+    const activeExpired = reallyExpired.filter(b => b.is_active === 1);
+
+    // Force deactivate all expired buffs
+    if (activeExpired.length > 0) {
+      for (const buff of activeExpired) {
+        await db.run('UPDATE active_buffs SET is_active = 0 WHERE id = ?', [buff.id]);
+        console.log(`[Buffs Debug] Manuell deaktiviert: ${buff.display_name} (ID: ${buff.id})`);
+      }
+    }
+
+    // Run expireBuffs to send Discord notifications
+    await expireBuffs();
 
     const result = {
       found: expiredBuffs.length,
-      active: expiredBuffs.filter(b => b.is_active === 1).length,
-      inactive: expiredBuffs.filter(b => b.is_active !== 1).length,
-      buffs: expiredBuffs
+      reallyExpired: reallyExpired.length,
+      active: activeExpired.length,
+      inactive: reallyExpired.filter(b => b.is_active !== 1).length,
+      deactivated: activeExpired.length,
+      buffs: reallyExpired
     };
-
-    // Manually expire active ones
-    if (expiredBuffs.filter(b => b.is_active === 1).length > 0) {
-      await expireBuffs();
-    }
 
     res.json(result);
   } catch (error) {
