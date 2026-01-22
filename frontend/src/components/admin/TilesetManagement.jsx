@@ -190,10 +190,14 @@ function TilesetManagement() {
                   backgroundImage: `url(${TILESET_URL})`,
                   backgroundPosition: `-${col * TILE_SIZE}px -${row * TILE_SIZE}px`,
                   backgroundSize: `${imageSize.width}px ${imageSize.height}px`,
+                  backgroundRepeat: 'no-repeat',
                   width: `${TILE_SIZE * 3}px`,
                   height: `${TILE_SIZE * 3}px`,
                   border: terrain ? `2px solid ${getTerrainColor(terrain)}` : '2px solid #444',
-                  boxShadow: isSelected ? `0 0 10px ${getTerrainColor(terrain) || '#d4af37'}` : 'none'
+                  boxShadow: isSelected ? `0 0 10px ${getTerrainColor(terrain) || '#d4af37'}` : 'none',
+                  imageRendering: 'pixelated',
+                  imageRendering: '-moz-crisp-edges',
+                  imageRendering: 'crisp-edges'
                 }}
                 onClick={() => handleTileClick(tileId)}
                 title={`Tile ${tileId}${terrain ? ` - ${TERRAIN_TYPES.find(t => t.value === terrain)?.label}` : ' - Nicht gemappt'}`}
@@ -229,9 +233,12 @@ function TilesetManagement() {
                   backgroundImage: `url(${TILESET_URL})`,
                   backgroundPosition: `-${(selectedTile % TILESET_COLUMNS) * TILE_SIZE}px -${Math.floor(selectedTile / TILESET_COLUMNS) * TILE_SIZE}px`,
                   backgroundSize: `${imageSize.width}px ${imageSize.height}px`,
+                  backgroundRepeat: 'no-repeat',
                   width: `${TILE_SIZE * 4}px`,
                   height: `${TILE_SIZE * 4}px`,
-                  imageRendering: 'pixelated'
+                  imageRendering: 'pixelated',
+                  imageRendering: '-moz-crisp-edges',
+                  imageRendering: 'crisp-edges'
                 }}
               />
             </div>

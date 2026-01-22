@@ -81,6 +81,9 @@
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  box-sizing: border-box;
 }
 
 .tile-item:hover {
