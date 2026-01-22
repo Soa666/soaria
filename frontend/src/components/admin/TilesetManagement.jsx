@@ -41,6 +41,7 @@ const TILESET_COLUMNS = 27;
 const TILESET_URL = '/world/punyworld-overworld-tileset.png';
 
 const TERRAIN_TYPES = [
+  // Basis-Terrain
   { value: 'grass', label: 'Gras', color: '#4a7c3f' },
   { value: 'water', label: 'Wasser', color: '#3a8bbd' },
   { value: 'forest', label: 'Wald', color: '#2d5a2d' },
@@ -48,6 +49,31 @@ const TERRAIN_TYPES = [
   { value: 'sand', label: 'Sand', color: '#d4b896' },
   { value: 'dirt', label: 'Dreck', color: '#8b7355' },
   { value: 'cliff', label: 'Klippe', color: '#6b6b6b' },
+  // Übergänge Gras <-> Wasser
+  { value: 'grass_to_water_top', label: 'Gras → Wasser (oben)', color: '#3d9a6b' },
+  { value: 'grass_to_water_bottom', label: 'Gras → Wasser (unten)', color: '#3d9a6b' },
+  { value: 'grass_to_water_left', label: 'Gras → Wasser (links)', color: '#3d9a6b' },
+  { value: 'grass_to_water_right', label: 'Gras → Wasser (rechts)', color: '#3d9a6b' },
+  { value: 'grass_to_water_top_left', label: 'Gras → Wasser (oben links)', color: '#3d9a6b' },
+  { value: 'grass_to_water_top_right', label: 'Gras → Wasser (oben rechts)', color: '#3d9a6b' },
+  { value: 'grass_to_water_bottom_left', label: 'Gras → Wasser (unten links)', color: '#3d9a6b' },
+  { value: 'grass_to_water_bottom_right', label: 'Gras → Wasser (unten rechts)', color: '#3d9a6b' },
+  // Wasser Ecken
+  { value: 'water_corner_top_left', label: 'Wasser Ecke (oben links)', color: '#2a7ba8' },
+  { value: 'water_corner_top_right', label: 'Wasser Ecke (oben rechts)', color: '#2a7ba8' },
+  { value: 'water_corner_bottom_left', label: 'Wasser Ecke (unten links)', color: '#2a7ba8' },
+  { value: 'water_corner_bottom_right', label: 'Wasser Ecke (unten rechts)', color: '#2a7ba8' },
+  // Übergänge Gras <-> Wald
+  { value: 'grass_to_forest_top', label: 'Gras → Wald (oben)', color: '#3a6a3a' },
+  { value: 'grass_to_forest_bottom', label: 'Gras → Wald (unten)', color: '#3a6a3a' },
+  { value: 'grass_to_forest_left', label: 'Gras → Wald (links)', color: '#3a6a3a' },
+  { value: 'grass_to_forest_right', label: 'Gras → Wald (rechts)', color: '#3a6a3a' },
+  { value: 'grass_to_forest_corner', label: 'Gras → Wald (Ecke)', color: '#3a6a3a' },
+  // Übergänge Gras <-> Pfad
+  { value: 'grass_to_path_horizontal', label: 'Gras → Pfad (horizontal)', color: '#8b6f4a' },
+  { value: 'grass_to_path_vertical', label: 'Gras → Pfad (vertikal)', color: '#8b6f4a' },
+  { value: 'grass_to_path_corner', label: 'Gras → Pfad (Ecke)', color: '#8b6f4a' },
+  // Sonstiges
   { value: 'other', label: 'Sonstiges', color: '#888888' }
 ];
 
@@ -290,6 +316,9 @@ function TilesetManagement() {
                   row={Math.floor(selectedTile / TILESET_COLUMNS)}
                   size={TILE_SIZE * 4}
                 />
+              )}
+              {!tilesetImage && (
+                <div style={{ color: '#a89070', textAlign: 'center' }}>Lädt Tile...</div>
               )}
             </div>
 
