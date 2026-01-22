@@ -265,6 +265,7 @@ router.get('/active', authenticateToken, requireAdmin, async (req, res) => {
       JOIN buff_types bt ON ab.buff_type_id = bt.id
       LEFT JOIN users u ON ab.created_by = u.id
       WHERE ab.is_active = 1
+        AND (ab.expires_at IS NULL OR ab.expires_at > datetime('now'))
       ORDER BY ab.created_at DESC
     `);
 
