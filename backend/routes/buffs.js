@@ -295,9 +295,19 @@ router.post('/apply', authenticateToken, requireAdmin, async (req, res) => {
       `);
 
       if (buffWebhook && buffWebhook.webhook_url) {
-        const durationText = duration_minutes 
-          ? `${Math.floor(duration_minutes / 60)}h ${duration_minutes % 60}m`
-          : 'permanent';
+        // Format duration
+        let durationText = 'permanent';
+        if (duration_minutes && duration_minutes > 0) {
+          const hours = Math.floor(duration_minutes / 60);
+          const minutes = duration_minutes % 60;
+          if (hours > 0 && minutes > 0) {
+            durationText = `${hours}h ${minutes}m`;
+          } else if (hours > 0) {
+            durationText = `${hours}h`;
+          } else {
+            durationText = `${minutes}m`;
+          }
+        }
         
         let message = buffWebhook.message_template || 
           `✨ **${buffType.display_name}** ist jetzt aktiv für **${targetDesc}**!\n\n⏱️ Dauer: ${durationText}`;
