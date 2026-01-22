@@ -34,6 +34,7 @@ router.get('/nodes', authenticateToken, async (req, res) => {
         rnt.description,
         rnt.category,
         rnt.icon,
+        rnt.image_path,
         rnt.required_tool_type,
         rnt.base_gather_time,
         rnt.respawn_minutes,
