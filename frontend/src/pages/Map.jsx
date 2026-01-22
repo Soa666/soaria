@@ -343,40 +343,75 @@ function isOnPath(worldX, worldY) {
   return getPathInfo(worldX, worldY) !== null;
 }
 
-// Generate terrain - balanced world like the preview image
+// ============================================================
+// VERBESSERTE TERRAIN GENERATION
+// Neue, verbesserte Terrain-Generierung für natürlichere Landschaften
+// ============================================================
 function getTerrainAt(worldX, worldY) {
-  // Large landmass shapes
-  const continent = fractalNoise(worldX, worldY, 5, 0.5, 0.001, 12345);
+  // Hauptkontinente - sehr große Landmassen (weniger Oktaven für glattere Formen)
+  const continentNoise = fractalNoise(worldX, worldY, 3, 0.5, 0.0008, 12345);
   
-  // Forest clusters - creates distinct patches
-  const forestNoise = fractalNoise(worldX, worldY, 4, 0.5, 0.004, 77777);
+  // Regionale Variation - mittlere Details
+  const regionNoise = fractalNoise(worldX, worldY, 4, 0.5, 0.003, 54321);
   
-  // Lake/water bodies
-  const lakeNoise = fractalNoise(worldX, worldY, 4, 0.5, 0.003, 88888);
+  // Lokale Details - feine Strukturen
+  const detailNoise = fractalNoise(worldX, worldY, 3, 0.4, 0.01, 99999);
   
-  // === WATER (~25% of map) ===
+  // Kombiniere für finale Höhenkarte
+  const height = continentNoise * 0.6 + regionNoise * 0.25 + detailNoise * 0.15;
   
-  // Ocean at edges (low continent value)
-  if (continent < 0.32) {
+  // Forest-spezifisches Noise (unabhängig von Höhe)
+  const forestCluster = fractalNoise(worldX, worldY, 3, 0.5, 0.005, 77777);
+  const forestDetail = fractalNoise(worldX, worldY, 2, 0.3, 0.015, 88888);
+  const forestValue = forestCluster * 0.7 + forestDetail * 0.3;
+  
+  // See/Teich Noise (für Binnengewässer)
+  const lakeNoise = fractalNoise(worldX, worldY, 3, 0.5, 0.004, 66666);
+  
+  // ============================================================
+  // TERRAIN ENTSCHEIDUNGEN (von unten nach oben)
+  // ============================================================
+  
+  // 1. TIEFES WASSER / OZEAN (~20% der Karte)
+  if (height < 0.30) {
     return 'water';
   }
   
-  // Lakes - scattered water bodies inland
-  if (lakeNoise > 0.68 && continent > 0.4) {
+  // 2. FLACHES WASSER / KÜSTE (~5% der Karte)
+  if (height < 0.38) {
+    // Küstenbereich - teilweise Wasser, teilweise Sand
+    if (detailNoise > 0.5) {
+      return 'water';
+    }
+    return 'grass'; // Strandbereich
+  }
+  
+  // 3. SEEN UND TEICHE (~5% der Landmasse)
+  // Nur auf mittlerer Höhe, nicht zu hoch in den Bergen
+  if (height > 0.4 && height < 0.65 && lakeNoise > 0.72) {
     return 'water';
   }
   
-  // === PATHS (on land only) ===
-  if (isOnPath(worldX, worldY) && continent > 0.35) {
+  // 4. PFADE (Straßennetz auf Land)
+  // Prüfe ob wir auf einem Pfad sind (100 Einheiten Raster)
+  if (isOnPath(worldX, worldY) && height > 0.35) {
     return 'path';
   }
   
-  // === FOREST (~25% of land) ===
-  if (forestNoise > 0.62 && continent > 0.38) {
-    return 'forest';
+  // 5. WÄLDER (~25-30% der Landmasse)
+  // Wälder wachsen bevorzugt in mittleren Höhenlagen
+  if (height > 0.42 && height < 0.75) {
+    // Dichte Waldcluster
+    if (forestValue > 0.58) {
+      return 'forest';
+    }
+    // Einzelne Baumgruppen (für Variation)
+    if (forestValue > 0.54 && detailNoise > 0.6) {
+      return 'forest';
+    }
   }
   
-  // === GRASS (everything else ~50% of land) ===
+  // 6. GRASLAND (Standard - ~45% der Karte)
   return 'grass';
 }
 

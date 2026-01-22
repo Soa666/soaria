@@ -102,5 +102,3 @@ rm -f ~/main.zip
 
 echo ""
 echo "✅ Update abgeschlossen!"
-echo ""
-pm2 status
