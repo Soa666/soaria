@@ -10,11 +10,12 @@ const router = express.Router();
 // Function to expire buffs and send Discord notifications
 export async function expireBuffs() {
   try {
-    // Find all expired buffs (including those that might still be marked as active)
+    // Find all expired buffs - use multiple conditions to catch all expired buffs
     const expiredBuffs = await db.all(`
       SELECT 
         ab.id,
         ab.buff_type_id,
+        ab.expires_at,
         bt.display_name,
         bt.icon,
         ab.target_type,
@@ -24,11 +25,20 @@ export async function expireBuffs() {
       FROM active_buffs ab
       JOIN buff_types bt ON ab.buff_type_id = bt.id
       WHERE ab.expires_at IS NOT NULL 
-        AND ab.expires_at <= datetime('now')
+        AND datetime(ab.expires_at) <= datetime('now')
         AND (ab.is_active = 1 OR ab.is_active IS NULL)
     `);
 
-    if (expiredBuffs.length > 0) {
+    // Additional JavaScript check for any edge cases
+    const now = new Date();
+    const reallyExpired = expiredBuffs.filter(buff => {
+      if (!buff.expires_at) return false;
+      const expiry = new Date(buff.expires_at);
+      return expiry <= now;
+    });
+
+    if (reallyExpired.length > 0) {
+      console.log(`[Buffs] Gefunden: ${expiredBuffs.length} abgelaufene Buffs, ${reallyExpired.length} wirklich abgelaufen`);
       // Get webhook for buff expiration
       const buffExpiredWebhook = await db.get(`
         SELECT webhook_url, message_template 
@@ -38,7 +48,7 @@ export async function expireBuffs() {
       `);
 
       // Deactivate expired buffs and send webhooks
-      for (const buff of expiredBuffs) {
+      for (const buff of reallyExpired) {
         // Build target description first
         let targetDesc = '';
         switch (buff.target_type) {
@@ -91,7 +101,8 @@ export async function expireBuffs() {
         }
       }
 
-      console.log(`[Buffs] ${expiredBuffs.length} abgelaufene Buffs gefunden, ${expiredBuffs.filter(b => b.is_active === 1).length} wurden deaktiviert`);
+      const deactivated = reallyExpired.filter(b => b.is_active === 1).length;
+      console.log(`[Buffs] ${reallyExpired.length} abgelaufene Buffs gefunden, ${deactivated} wurden deaktiviert`);
     } else {
       console.log(`[Buffs] Keine abgelaufenen Buffs gefunden`);
     }
@@ -300,6 +311,7 @@ router.get('/active', authenticateToken, requireAdmin, async (req, res) => {
     // First, deactivate expired buffs (cleanup with Discord notifications)
     await expireBuffs();
 
+    // Get all buffs that are marked as active AND not expired
     const buffs = await db.all(`
       SELECT 
         ab.*,
@@ -318,11 +330,19 @@ router.get('/active', authenticateToken, requireAdmin, async (req, res) => {
       JOIN buff_types bt ON ab.buff_type_id = bt.id
       LEFT JOIN users u ON ab.created_by = u.id
       WHERE ab.is_active = 1
-        AND (ab.expires_at IS NULL OR ab.expires_at > datetime('now'))
+        AND (ab.expires_at IS NULL OR datetime(ab.expires_at) > datetime('now'))
       ORDER BY ab.created_at DESC
     `);
 
-    res.json({ buffs });
+    // Additional JavaScript filter to be absolutely sure
+    const now = new Date();
+    const validBuffs = buffs.filter(buff => {
+      if (!buff.expires_at) return true; // Permanent
+      const expiry = new Date(buff.expires_at);
+      return expiry > now;
+    });
+
+    res.json({ buffs: validBuffs });
   } catch (error) {
     console.error('Get active buffs error:', error);
     res.status(500).json({ error: 'Serverfehler' });
