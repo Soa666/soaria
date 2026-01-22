@@ -26,6 +26,7 @@ import questsRoutes from './routes/quests.js';
 import resourcesRoutes from './routes/resources.js';
 import feedbackRoutes from './routes/feedback.js';
 import buffsRoutes from './routes/buffs.js';
+import tilesetRoutes from './routes/tileset.js';
 
 dotenv.config();
 
