@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { sendDiscordWebhook } from '../utils/discord.js';
 
 const router = express.Router();
 
@@ -282,6 +283,38 @@ router.post('/apply', authenticateToken, requireAdmin, async (req, res) => {
       case 'guildless': targetDesc = 'gildenlose Spieler'; break;
       case 'level_min': targetDesc = `Level ${target_id}+`; break;
       case 'level_max': targetDesc = `bis Level ${target_id}`; break;
+    }
+
+    // Send Discord webhook notification
+    try {
+      const buffWebhook = await db.get(`
+        SELECT webhook_url, message_template 
+        FROM discord_webhooks 
+        WHERE event_type = 'buff_activated' AND enabled = 1
+        LIMIT 1
+      `);
+
+      if (buffWebhook && buffWebhook.webhook_url) {
+        const durationText = duration_minutes 
+          ? `${Math.floor(duration_minutes / 60)}h ${duration_minutes % 60}m`
+          : 'permanent';
+        
+        let message = buffWebhook.message_template || 
+          `✨ **${buffType.display_name}** ist jetzt aktiv für **${targetDesc}**!\n\n⏱️ Dauer: ${durationText}`;
+        
+        // Replace template variables
+        message = message.replace(/\{\{buff_name\}\}/g, buffType.display_name);
+        message = message.replace(/\{\{buff_icon\}\}/g, buffType.icon || '✨');
+        message = message.replace(/\{\{target\}\}/g, targetDesc);
+        message = message.replace(/\{\{duration\}\}/g, durationText);
+        message = message.replace(/\{\{stacks\}\}/g, (stacks || 1).toString());
+        message = message.replace(/\{\{created_by\}\}/g, req.user.username || 'Admin');
+
+        await sendDiscordWebhook(buffWebhook.webhook_url, message);
+      }
+    } catch (webhookError) {
+      console.error('Error sending buff Discord webhook:', webhookError);
+      // Don't fail the request if webhook fails
     }
 
     res.json({ 

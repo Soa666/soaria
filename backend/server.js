@@ -118,6 +118,42 @@ async function respawnMonsters() {
   }
 }
 
+// Automatic buff expiration routine
+async function expireBuffs() {
+  try {
+    // Find all expired buffs
+    const expiredBuffs = await db.all(`
+      SELECT 
+        ab.id,
+        ab.buff_type_id,
+        bt.display_name,
+        bt.icon,
+        ab.target_type,
+        ab.target_id
+      FROM active_buffs ab
+      JOIN buff_types bt ON ab.buff_type_id = bt.id
+      WHERE ab.is_active = 1 
+        AND ab.expires_at IS NOT NULL 
+        AND ab.expires_at <= datetime('now')
+    `);
+
+    if (expiredBuffs.length > 0) {
+      // Deactivate expired buffs
+      await db.run(`
+        UPDATE active_buffs 
+        SET is_active = 0 
+        WHERE is_active = 1 
+          AND expires_at IS NOT NULL 
+          AND expires_at <= datetime('now')
+      `);
+
+      console.log(`[Buffs] ${expiredBuffs.length} abgelaufene Buffs deaktiviert`);
+    }
+  } catch (error) {
+    console.error('[Buffs] Fehler beim Ablaufen:', error);
+  }
+}
+
 // Initialize database and start server
 initDatabase()
   .then(() => {
@@ -128,8 +164,13 @@ initDatabase()
       setInterval(respawnMonsters, 60000);
       console.log('[Respawn] Automatische Respawn-Routine gestartet (alle 60 Sekunden)');
       
+      // Start buff expiration routine - runs every 30 seconds
+      setInterval(expireBuffs, 30000);
+      console.log('[Buffs] Automatische Buff-Ablauf-Routine gestartet (alle 30 Sekunden)');
+      
       // Run once immediately
       respawnMonsters();
+      expireBuffs();
     });
   })
   .catch((error) => {
