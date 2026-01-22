@@ -65,6 +65,58 @@ router.get('/types', authenticateToken, async (req, res) => {
   }
 });
 
+// Update equipment type
+router.put('/types/:typeId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { typeId } = req.params;
+    const { base_attack, base_defense, base_health, image_path } = req.body;
+
+    // Check if equipment type exists
+    const equipmentType = await db.get('SELECT id FROM equipment_types WHERE id = ?', [typeId]);
+    if (!equipmentType) {
+      return res.status(404).json({ error: 'Equipment-Typ nicht gefunden' });
+    }
+
+    // Build update query dynamically
+    const updates = [];
+    const values = [];
+
+    if (base_attack !== undefined) {
+      updates.push('base_attack = ?');
+      values.push(base_attack);
+    }
+    if (base_defense !== undefined) {
+      updates.push('base_defense = ?');
+      values.push(base_defense);
+    }
+    if (base_health !== undefined) {
+      updates.push('base_health = ?');
+      values.push(base_health);
+    }
+    if (image_path !== undefined) {
+      updates.push('image_path = ?');
+      values.push(image_path);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Keine Felder zum Aktualisieren angegeben' });
+    }
+
+    values.push(typeId);
+
+    await db.run(`
+      UPDATE equipment_types 
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `, values);
+
+    res.json({ message: 'Equipment-Typ aktualisiert' });
+  } catch (error) {
+    console.error('Update equipment type error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // Get user's equipment inventory
 router.get('/inventory', authenticateToken, async (req, res) => {
   try {

@@ -36,6 +36,11 @@ function RecipesManagement() {
     required_profession_level: 1,
     experience_reward: 10,
     craft_time: 60,
+    // Equipment type properties
+    base_attack: 0,
+    base_defense: 0,
+    base_health: 0,
+    image_path: '',
     materials: [{ item_id: '', quantity: 1 }]
   });
 
@@ -236,6 +241,10 @@ function RecipesManagement() {
       required_profession_level: 1,
       experience_reward: 10,
       craft_time: 60,
+      base_attack: 0,
+      base_defense: 0,
+      base_health: 0,
+      image_path: '',
       materials: [{ item_id: '', quantity: 1 }]
     });
     setEditingRecipe(null);
@@ -243,12 +252,19 @@ function RecipesManagement() {
 
   const handleEditEquipment = (recipe) => {
     setEditingRecipe(recipe);
+    // Get equipment type details
+    const equipmentType = equipmentTypes.find(et => et.id === recipe.equipment_type_id);
     setEquipmentFormData({
       equipment_type_id: recipe.equipment_type_id,
       profession: recipe.profession || 'blacksmith',
       required_profession_level: recipe.required_profession_level || 1,
       experience_reward: recipe.experience_reward || 10,
       craft_time: recipe.craft_time || 60,
+      // Equipment type properties
+      base_attack: equipmentType?.base_attack || 0,
+      base_defense: equipmentType?.base_defense || 0,
+      base_health: equipmentType?.base_health || 0,
+      image_path: equipmentType?.image_path || '',
       materials: recipe.materials?.length > 0 
         ? recipe.materials.map(mat => ({
             item_id: mat.item_id,
@@ -289,8 +305,20 @@ function RecipesManagement() {
 
     try {
       if (editingRecipe) {
+        // Update recipe
         await api.put(`/equipment/recipes/${editingRecipe.id}`, equipmentFormData);
-        setMessage('Equipment-Rezept aktualisiert!');
+        
+        // Update equipment type properties if editing
+        if (equipmentFormData.equipment_type_id) {
+          await api.put(`/equipment/types/${equipmentFormData.equipment_type_id}`, {
+            base_attack: equipmentFormData.base_attack,
+            base_defense: equipmentFormData.base_defense,
+            base_health: equipmentFormData.base_health,
+            image_path: equipmentFormData.image_path
+          });
+        }
+        
+        setMessage('Equipment-Rezept und Item-Werte aktualisiert!');
       } else {
         await api.post('/equipment/recipes', equipmentFormData);
         setMessage('Equipment-Rezept erstellt!');
@@ -298,6 +326,7 @@ function RecipesManagement() {
       
       resetEquipmentForm();
       fetchEquipmentRecipes();
+      fetchEquipmentTypes(); // Refresh equipment types to show updated values
     } catch (err) {
       setError(err.response?.data?.error || 'Fehler beim Speichern');
     }
@@ -585,7 +614,17 @@ function RecipesManagement() {
                   <label>Equipment-Typ</label>
                   <select
                     value={equipmentFormData.equipment_type_id}
-                    onChange={(e) => setEquipmentFormData({ ...equipmentFormData, equipment_type_id: e.target.value })}
+                    onChange={(e) => {
+                      const selectedType = equipmentTypes.find(et => et.id === parseInt(e.target.value));
+                      setEquipmentFormData({ 
+                        ...equipmentFormData, 
+                        equipment_type_id: e.target.value,
+                        base_attack: selectedType?.base_attack || 0,
+                        base_defense: selectedType?.base_defense || 0,
+                        base_health: selectedType?.base_health || 0,
+                        image_path: selectedType?.image_path || ''
+                      });
+                    }}
                     required
                   >
                     <option value="">-- Equipment wählen --</option>
@@ -646,6 +685,68 @@ function RecipesManagement() {
                   <span className="hint">{Math.floor(equipmentFormData.craft_time / 60)}:{(equipmentFormData.craft_time % 60).toString().padStart(2, '0')} Min.</span>
                 </div>
               </div>
+
+              {/* Equipment Stats Section */}
+              {editingRecipe && (
+                <div className="form-section">
+                  <h4>⚔️ Item-Werte</h4>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>⚔️ Angriff</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={equipmentFormData.base_attack}
+                        onChange={(e) => setEquipmentFormData({ ...equipmentFormData, base_attack: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>🛡️ Verteidigung</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={equipmentFormData.base_defense}
+                        onChange={(e) => setEquipmentFormData({ ...equipmentFormData, base_defense: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>❤️ Gesundheit</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={equipmentFormData.base_health}
+                        onChange={(e) => setEquipmentFormData({ ...equipmentFormData, base_health: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Image Path Section */}
+              {editingRecipe && (
+                <div className="form-section">
+                  <h4>🖼️ Bild</h4>
+                  <div className="form-group">
+                    <label>Bild-Pfad</label>
+                    <input
+                      type="text"
+                      value={equipmentFormData.image_path}
+                      onChange={(e) => setEquipmentFormData({ ...equipmentFormData, image_path: e.target.value })}
+                      placeholder="z.B. sword_iron.png"
+                    />
+                    <small>Pfad relativ zum /items/ Verzeichnis</small>
+                    {equipmentFormData.image_path && (
+                      <div className="image-preview">
+                        <img 
+                          src={`/items/${equipmentFormData.image_path}`} 
+                          alt="Preview" 
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="form-section">
                 <div className="section-header">
