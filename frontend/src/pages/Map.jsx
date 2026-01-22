@@ -518,11 +518,11 @@ function Map() {
     img.src = TILESET_URL;
   }, []);
 
-  // Load tile mappings
+  // Load tile mappings (public endpoint)
   useEffect(() => {
     const loadMappings = async () => {
       try {
-        const response = await api.get('/admin/tileset/mappings');
+        const response = await api.get('/map/tileset/mappings');
         setTileMappings(response.data.mappings || {});
         console.log('Tile mappings loaded:', Object.keys(response.data.mappings || {}).length);
       } catch (err) {

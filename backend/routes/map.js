@@ -977,6 +977,21 @@ router.post('/trade/execute', authenticateToken, async (req, res) => {
   }
 });
 
+// Get tile mappings (public, for map rendering)
+router.get('/tileset/mappings', async (req, res) => {
+  try {
+    const mappings = await db.all('SELECT * FROM tileset_mappings');
+    const mappingObj = {};
+    mappings.forEach(m => {
+      mappingObj[m.tile_id] = { terrain: m.terrain };
+    });
+    res.json({ mappings: mappingObj });
+  } catch (error) {
+    console.error('Get tileset mappings error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // Check for active jobs that would be paused when traveling
 router.get('/active-jobs', authenticateToken, async (req, res) => {
   try {
