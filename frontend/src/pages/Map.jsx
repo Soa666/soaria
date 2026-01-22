@@ -19,78 +19,82 @@ const TILESET_URL = '/world/punyworld-overworld-tileset.png';
 // TILE DEFINITIONS based on grass_biome.tsx and map1.tmx
 // ============================================================
 
-// Grass tiles - plain grass without too much variation
-// From tsx: tiles with terrain="0,0,0,0" (all grass corners)
-const GRASS_TILES = [0, 1, 2, 3, 4];  // Row 0: basic grass
+// ============================================================
+// PUNYWORLD OVERWORLD TILESET MAPPING
+// Based on wang-tiles from punyworld-overworld-tiles.tsx
+// ============================================================
+
+// Grass tiles - wangid="0,1,0,1,0,1,0,1" (all grass corners)
+const GRASS_TILES = [0, 1, 2, 27, 28, 29, 54, 55, 56];  // Pure grass tiles
 
 // Grass with flowers/details (for decoration, used sparingly)
-const GRASS_FLOWER_TILES = [13, 14, 25, 26, 37, 38];
+const GRASS_FLOWER_TILES = [10, 11, 12, 13, 14, 22, 23, 24, 25, 26];
 
-// Water autotile - from grass_biome.tsx terrain definitions
-// terrain="TL,TR,BL,BR" where 0=grass, 1=water
+// Water autotile - based on wang-tiles with water (0,6 and 0,12)
+// Wang-tiles show water transitions
 const WATER_AUTOTILE = {
-  solid: 61,        // "1,1,1,1" - all water
+  solid: 195,        // "0,6,0,6,0,6,0,6" - all water (deep)
   // Outer edges (grass on one side)
-  top: 49,          // "0,0,1,1" - grass above
-  bottom: 73,       // "1,1,0,0" - grass below
-  left: 60,         // "0,1,0,1" - grass left
-  right: 62,        // "1,0,1,0" - grass right
+  top: 189,          // "0,5,0,6,0,5,0,5" - grass above
+  bottom: 216,       // "0,6,0,6,0,5,0,5" - grass below
+  left: 191,         // "0,5,0,5,0,6,0,5" - grass left
+  right: 194,        // "0,5,0,6,0,5,0,5" - grass right
   // Outer corners (grass on two adjacent sides)
-  topLeft: 48,      // "0,0,0,1" - grass top-left corner
-  topRight: 50,     // "0,0,1,0" - grass top-right corner
-  bottomLeft: 72,   // "0,1,0,0" - grass bottom-left corner
-  bottomRight: 74,  // "1,0,0,0" - grass bottom-right corner
+  topLeft: 189,      // "0,5,0,6,0,5,0,5" - grass top-left corner
+  topRight: 190,     // "0,5,0,6,0,6,0,5" - grass top-right corner
+  bottomLeft: 192,   // "0,5,0,5,0,6,0,5" - grass bottom-left corner
+  bottomRight: 193,  // "0,5,0,6,0,6,0,5" - grass bottom-right corner
   // Inner corners (water with one grass corner poking in)
-  innerTopLeft: 97,     // "0,1,1,1" - grass only at top-left
-  innerTopRight: 96,    // "1,0,1,1" - grass only at top-right
-  innerBottomLeft: 85,  // "1,1,0,1" - grass only at bottom-left
-  innerBottomRight: 84, // "1,1,1,0" - grass only at bottom-right
+  innerTopLeft: 191,     // Water with grass corner
+  innerTopRight: 194,    // Water with grass corner
+  innerBottomLeft: 192,  // Water with grass corner
+  innerBottomRight: 193, // Water with grass corner
+  // Alternative water tiles (lighter water)
+  light: 204,        // "0,5,0,12,0,12,0,12" - light water
+  medium: 226,       // "0,12,0,12,0,12,0,12" - medium water
 };
 
-// Forest autotile - from grass_biome.tsx terrain definitions
-// terrain="TL,TR,BL,BR" where 0=grass, 2=forest
+// Forest/Trees autotile - based on wang-tiles with trees (0,5 and 0,11)
 const FOREST_AUTOTILE = {
-  solid: 70,        // "2,2,2,2" - all forest
+  solid: 147,        // "0,11,0,11,0,11,0,11" - all trees
   // Outer edges
-  top: 58,          // "0,0,2,2" - grass above
-  bottom: 82,       // "2,2,0,0" - grass below
-  left: 69,         // "0,2,0,2" - grass left
-  right: 71,        // "2,0,2,0" - grass right
+  top: 146,          // "0,11,0,11,0,5,0,5" - grass above
+  bottom: 135,       // "0,4,0,4,0,1,0,1" - grass below (using available tile)
+  left: 148,         // "0,5,0,5,0,11,0,11" - grass left
+  right: 149,        // "0,11,0,11,0,5,0,11" - grass right
   // Outer corners
-  topLeft: 57,      // "0,0,0,2" - grass top-left
-  topRight: 59,     // "0,0,2,0" - grass top-right
-  bottomLeft: 81,   // "0,2,0,0" - grass bottom-left
-  bottomRight: 83,  // "2,0,0,0" - grass bottom-right
+  topLeft: 146,      // "0,11,0,11,0,5,0,5" - grass top-left
+  topRight: 150,     // "0,11,0,5,0,11,0,11" - grass top-right
+  bottomLeft: 148,   // "0,5,0,5,0,11,0,11" - grass bottom-left
+  bottomRight: 149,  // "0,11,0,11,0,5,0,11" - grass bottom-right
   // Inner corners
-  innerTopLeft: 106,    // "0,2,2,2" - grass only at top-left
-  innerTopRight: 105,   // "2,0,2,2" - grass only at top-right
-  innerBottomLeft: 94,  // "2,2,0,2" - grass only at bottom-left
-  innerBottomRight: 93, // "2,2,2,0" - grass only at bottom-right
+  innerTopLeft: 173,    // "0,11,0,5,0,5,0,5" - grass only at top-left
+  innerTopRight: 174,   // "0,11,0,5,0,5,0,11" - grass only at top-right
+  innerBottomLeft: 176, // "0,5,0,11,0,5,0,11" - grass only at bottom-left
+  innerBottomRight: 177, // "0,11,0,5,0,11,0,5" - grass only at bottom-right
 };
 
-// Path/road tiles - dirt paths
-// Based on user feedback and tileset analysis:
-// Bild 6 shows the correct 4-way crossing tile
-// The path tiles are in row 0-3, around columns 5-8
+// Path/road tiles - dirt paths (from pathways wangset)
+// Based on wang-tiles with dirt-paths
 const PATH_TILES = {
   // Straight paths
-  horizontal: 6,     // Row 0, col 6 - horizontal middle
-  vertical: 18,      // Row 1, col 6 - vertical middle (NOT 32 which was wrong)
+  horizontal: 4,     // Horizontal path
+  vertical: 5,       // Vertical path
   
-  // 4-way crossing - from Bild 6, this is the correct one
-  cross: 30,         // Row 2, col 6 - 4-way cross (all directions)
+  // 4-way crossing
+  cross: 6,          // 4-way cross
   
   // Corners (L-shapes)
-  cornerSE: 7,       // └ - from north, turning east (or west turning south)
-  cornerSW: 5,       // ┘ - from north, turning west
-  cornerNE: 31,      // ┌ - from south, turning east  
-  cornerNW: 29,      // ┐ - from south, turning west
+  cornerSE: 31,      // └ - corner
+  cornerSW: 32,      // ┘ - corner
+  cornerNE: 33,      // ┌ - corner
+  cornerNW: 4,       // ┐ - corner (using available)
   
   // T-junctions
-  tUp: 6,            // ┴ - T with opening up (horizontal with up)
-  tDown: 18,         // ┬ - T with opening down
-  tLeft: 17,         // ┤ - T with opening left
-  tRight: 19,        // ├ - T with opening right
+  tUp: 4,            // ┴ - T with opening up
+  tDown: 5,          // ┬ - T with opening down
+  tLeft: 5,          // ┤ - T with opening left
+  tRight: 4,         // ├ - T with opening right
 };
 
 // Get the correct autotile based on neighbors
