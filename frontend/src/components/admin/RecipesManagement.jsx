@@ -65,9 +65,19 @@ function RecipesManagement() {
       fetchItems(),
       fetchBuildings(),
       fetchEquipmentRecipes(),
-      fetchEquipmentTypes()
+      fetchEquipmentTypes(),
+      fetchAvailableImages()
     ]);
     setLoading(false);
+  };
+
+  const fetchAvailableImages = async () => {
+    try {
+      const response = await api.get('/files/items');
+      setAvailableImages(response.data.images || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Bilder:', error);
+    }
   };
 
   const fetchRecipes = async () => {
@@ -727,7 +737,17 @@ function RecipesManagement() {
                 <div className="form-section">
                   <h4>🖼️ Bild</h4>
                   <div className="form-group">
-                    <label>Bild-Pfad</label>
+                    <label>
+                      Bild-Pfad
+                      <button 
+                        type="button" 
+                        onClick={() => setShowImageSelector(!showImageSelector)}
+                        className="btn btn-secondary btn-small"
+                        style={{ marginLeft: '1rem' }}
+                      >
+                        {showImageSelector ? 'Auswahl schließen' : 'Bild auswählen'}
+                      </button>
+                    </label>
                     <input
                       type="text"
                       value={equipmentFormData.image_path}
@@ -736,12 +756,48 @@ function RecipesManagement() {
                     />
                     <small>Pfad relativ zum /items/ Verzeichnis</small>
                     {equipmentFormData.image_path && (
-                      <div className="image-preview">
+                      <div className="image-preview" style={{ marginTop: '0.5rem' }}>
                         <img 
                           src={`/items/${equipmentFormData.image_path}`} 
                           alt="Preview" 
+                          style={{ 
+                            maxWidth: '100px', 
+                            maxHeight: '100px', 
+                            border: '2px solid #5a4a2a',
+                            borderRadius: '4px',
+                            padding: '4px'
+                          }}
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
+                      </div>
+                    )}
+                    {showImageSelector && (
+                      <div className="image-selector">
+                        <h4>Verfügbare Bilder:</h4>
+                        <div className="image-grid">
+                          {availableImages.map((img) => (
+                            <div
+                              key={img.filename}
+                              className={`image-option ${equipmentFormData.image_path === img.filename ? 'selected' : ''}`}
+                              onClick={() => {
+                                setEquipmentFormData({ ...equipmentFormData, image_path: img.filename });
+                                setShowImageSelector(false);
+                              }}
+                            >
+                              <img 
+                                src={`/items/${img.filename}`} 
+                                alt={img.filename}
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                              <span>{img.filename}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {availableImages.length === 0 && (
+                          <p style={{ color: '#8b7a5a', fontStyle: 'italic', marginTop: '0.5rem' }}>
+                            Keine Bilder gefunden. Bitte lege Bilder in den /items Ordner.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
