@@ -2,6 +2,40 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
 import './TilesetManagement.css';
 
+// Component to render a single tile using Canvas
+function TileCanvas({ tilesetImage, tileId, col, row, size }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (canvasRef.current && tilesetImage) {
+      const ctx = canvasRef.current.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(
+        tilesetImage,
+        col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE,
+        0, 0, size, size
+      );
+    }
+  }, [tilesetImage, col, row, size]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        imageRendering: 'pixelated'
+      }}
+    />
+  );
+}
+
 const TILE_SIZE = 16;
 const TILESET_COLUMNS = 27;
 const TILESET_URL = '/world/punyworld-overworld-tileset.png';
@@ -215,28 +249,12 @@ function TilesetManagement() {
                 title={`Tile ${tileId}${terrain ? ` - ${TERRAIN_TYPES.find(t => t.value === terrain)?.label}` : ' - Nicht gemappt'}`}
               >
                 {tilesetImage && (
-                  <canvas
-                    width={TILE_SIZE * 3}
-                    height={TILE_SIZE * 3}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      imageRendering: 'pixelated'
-                    }}
-                    ref={(canvas) => {
-                      if (canvas && tilesetImage) {
-                        const ctx = canvas.getContext('2d');
-                        ctx.imageSmoothingEnabled = false;
-                        ctx.drawImage(
-                          tilesetImage,
-                          col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-                          0, 0, TILE_SIZE * 3, TILE_SIZE * 3
-                        );
-                      }
-                    }}
+                  <TileCanvas
+                    tilesetImage={tilesetImage}
+                    tileId={tileId}
+                    col={col}
+                    row={row}
+                    size={TILE_SIZE * 3}
                   />
                 )}
                 <div className="tile-id">{tileId}</div>
@@ -265,23 +283,12 @@ function TilesetManagement() {
 
             <div className="tile-preview-large">
               {tilesetImage && (
-                <canvas
-                  width={TILE_SIZE * 4}
-                  height={TILE_SIZE * 4}
-                  className="tile-preview-image"
-                  ref={(canvas) => {
-                    if (canvas && tilesetImage) {
-                      const ctx = canvas.getContext('2d');
-                      ctx.imageSmoothingEnabled = false;
-                      const col = selectedTile % TILESET_COLUMNS;
-                      const row = Math.floor(selectedTile / TILESET_COLUMNS);
-                      ctx.drawImage(
-                        tilesetImage,
-                        col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-                        0, 0, TILE_SIZE * 4, TILE_SIZE * 4
-                      );
-                    }
-                  }}
+                <TileCanvas
+                  tilesetImage={tilesetImage}
+                  tileId={selectedTile}
+                  col={selectedTile % TILESET_COLUMNS}
+                  row={Math.floor(selectedTile / TILESET_COLUMNS)}
+                  size={TILE_SIZE * 4}
                 />
               )}
             </div>
