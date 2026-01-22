@@ -21,6 +21,7 @@ import BuffsManagement from '../components/admin/BuffsManagement';
 import PlayerInventoryManagement from '../components/admin/PlayerInventoryManagement';
 import ResourceNodeManagement from '../components/admin/ResourceNodeManagement';
 import PropertyManagement from '../components/admin/PropertyManagement';
+import TilesetManagement from '../components/admin/TilesetManagement';
 import './Admin.css';
 
 const menuItems = [
@@ -33,6 +34,7 @@ const menuItems = [
   { id: 'monsters', icon: '👹', label: 'Monster', category: 'NPCs' },
   { id: 'npcs', icon: '🏪', label: 'Händler', category: 'NPCs' },
   { id: 'resources', icon: '⛏️', label: 'Ressourcen & Drops', category: 'Spielinhalte' },
+  { id: 'tileset', icon: '🎨', label: 'Tileset', category: 'Spielinhalte' },
   { id: 'users', icon: '👥', label: 'Benutzer', category: 'Verwaltung' },
   { id: 'playerinv', icon: '🎒', label: 'Spieler-Inventar', category: 'Verwaltung' },
   { id: 'groups', icon: '🛡️', label: 'Gruppen', category: 'Verwaltung' },
@@ -137,6 +139,7 @@ function Admin() {
           {activeTab === 'monsters' && <MonsterManagement />}
           {activeTab === 'npcs' && <NpcManagement />}
           {activeTab === 'resources' && <ResourceNodeManagement />}
+          {activeTab === 'tileset' && <TilesetManagement />}
           {activeTab === 'quests' && <QuestManagement />}
           {activeTab === 'api' && <ApiManagement />}
           {activeTab === 'feedback' && <FeedbackManagement />}

@@ -1332,4 +1332,68 @@ router.delete('/property/hotspots/:id', authenticateToken, requirePermission('ma
   }
 });
 
+// ============================================================
+// TILESET MAPPINGS
+// ============================================================
+
+// Get all tile mappings
+router.get('/tileset/mappings', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const mappings = await db.all('SELECT * FROM tileset_mappings');
+    const mappingObj = {};
+    mappings.forEach(m => {
+      mappingObj[m.tile_id] = { terrain: m.terrain };
+    });
+    res.json({ mappings: mappingObj });
+  } catch (error) {
+    console.error('Get tileset mappings error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Create or update tile mapping
+router.post('/tileset/mappings', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { tileId, terrain } = req.body;
+
+    if (tileId === undefined || !terrain) {
+      return res.status(400).json({ error: 'tileId und terrain sind erforderlich' });
+    }
+
+    // Check if mapping exists
+    const existing = await db.get('SELECT * FROM tileset_mappings WHERE tile_id = ?', [tileId]);
+
+    if (existing) {
+      // Update
+      await db.run(
+        'UPDATE tileset_mappings SET terrain = ?, updated_at = CURRENT_TIMESTAMP WHERE tile_id = ?',
+        [terrain, tileId]
+      );
+      res.json({ message: 'Mapping aktualisiert' });
+    } else {
+      // Create
+      await db.run(
+        'INSERT INTO tileset_mappings (tile_id, terrain) VALUES (?, ?)',
+        [tileId, terrain]
+      );
+      res.json({ message: 'Mapping erstellt' });
+    }
+  } catch (error) {
+    console.error('Save tileset mapping error:', error);
+    res.status(500).json({ error: 'Serverfehler: ' + error.message });
+  }
+});
+
+// Delete tile mapping
+router.delete('/tileset/mappings/:tileId', authenticateToken, requirePermission('manage_items'), async (req, res) => {
+  try {
+    const { tileId } = req.params;
+    await db.run('DELETE FROM tileset_mappings WHERE tile_id = ?', [tileId]);
+    res.json({ message: 'Mapping gelöscht' });
+  } catch (error) {
+    console.error('Delete tileset mapping error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 export default router;

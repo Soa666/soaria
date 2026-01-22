@@ -1120,6 +1120,17 @@ export async function initDatabase() {
     )
   `);
 
+  // Tileset mappings (Tile-ID zu Terrain-Typ)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS tileset_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tile_id INTEGER UNIQUE NOT NULL,
+      terrain TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Add image_path column if it doesn't exist (migration)
   try {
     await db.run('ALTER TABLE resource_node_types ADD COLUMN image_path TEXT');

@@ -1,0 +1,334 @@
+.tileset-management {
+  padding: 0;
+}
+
+.tileset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.tileset-header h2 {
+  color: #d4af37;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.tileset-stats {
+  display: flex;
+  gap: 20px;
+  color: #a89070;
+  font-size: 0.9rem;
+}
+
+.tileset-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(30, 20, 40, 0.6);
+  border: 1px solid #4a3a5a;
+  border-radius: 10px;
+}
+
+.tileset-filters button {
+  background: rgba(40, 30, 50, 0.8);
+  border: 1px solid #4a3a5a;
+  color: #a89070;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.tileset-filters button:hover {
+  border-color: #8b6914;
+  color: #e8dcc0;
+}
+
+.tileset-filters button.active {
+  background: rgba(74, 44, 26, 0.8);
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+.tileset-container {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.95), rgba(20, 15, 30, 0.95));
+  border: 2px solid #5a4a2a;
+  border-radius: 12px;
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.tileset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 8px;
+  justify-items: center;
+}
+
+.tile-item {
+  position: relative;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.tile-item:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.tile-item.selected {
+  transform: scale(1.15);
+  z-index: 20;
+}
+
+.tile-item.mapped {
+  opacity: 1;
+}
+
+.tile-item.unmapped {
+  opacity: 0.7;
+}
+
+.tile-id {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+.tile-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: linear-gradient(145deg, rgba(30, 20, 40, 0.95), rgba(20, 15, 30, 0.95));
+  border: 2px solid #5a4a2a;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 2px solid #5a4a2a;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #d4af37;
+  font-size: 1.2rem;
+}
+
+.modal-close {
+  background: rgba(150, 50, 50, 0.6);
+  border: 1px solid #c0392b;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.modal-close:hover {
+  background: rgba(180, 50, 50, 0.8);
+}
+
+.tile-preview-large {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid #5a4a2a;
+}
+
+.tile-preview-image {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  border: 2px solid #5a4a2a;
+  border-radius: 4px;
+}
+
+.terrain-selector {
+  padding: 1.5rem;
+  border-bottom: 1px solid #5a4a2a;
+}
+
+.terrain-selector label {
+  display: block;
+  color: #a89070;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.terrain-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.terrain-option {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #5a4a2a;
+  border-radius: 6px;
+  padding: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e8dcc0;
+}
+
+.terrain-option:hover {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.terrain-option.active {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.2);
+}
+
+.terrain-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #fff;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+}
+
+.btn-save {
+  background: linear-gradient(145deg, #4a2c1a, #6b4423);
+  color: #d4af37;
+  border: 1px solid #8b6914;
+  padding: 0.7rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-save:hover {
+  background: linear-gradient(145deg, #6b4423, #8b5a2b);
+  transform: translateY(-1px);
+}
+
+.btn-delete {
+  background: rgba(150, 50, 50, 0.6);
+  border: 1px solid #c0392b;
+  color: #fff;
+  padding: 0.7rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover {
+  background: rgba(180, 50, 50, 0.8);
+}
+
+.btn-cancel {
+  background: rgba(60, 50, 70, 0.8);
+  border: 1px solid #4a3a5a;
+  color: #e8dcc0;
+  padding: 0.7rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  border-color: #8b6914;
+  color: #d4af37;
+}
+
+/* Messages */
+.success-message,
+.error-message {
+  padding: 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.success-message {
+  background: rgba(46, 204, 113, 0.15);
+  border: 1px solid #2ecc71;
+  color: #2ecc71;
+}
+
+.error-message {
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #8b7a5a;
+}
