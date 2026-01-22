@@ -474,6 +474,7 @@ function Map() {
   const [tilesetImage, setTilesetImage] = useState(null);
   const [tilesetLoaded, setTilesetLoaded] = useState(false);
   const [monsterImages, setMonsterImages] = useState({});
+  const [resourceImages, setResourceImages] = useState({});
   const [tileMappings, setTileMappings] = useState({});
 
   // Load monster images when NPCs change
@@ -501,6 +502,32 @@ function Map() {
       img.src = `/monsters/${imagePath}`;
     });
   }, [npcs]);
+
+  // Load resource images when resource nodes change
+  useEffect(() => {
+    if (!resourceNodes || resourceNodes.length === 0) return;
+    
+    // Find unique image_paths from resource nodes
+    const imagePaths = [...new Set(resourceNodes
+      .filter(node => node.image_path)
+      .map(node => node.image_path)
+    )];
+    
+    // Load images that aren't already loaded
+    imagePaths.forEach(imagePath => {
+      if (resourceImages[imagePath]) return; // Already loaded
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        setResourceImages(prev => ({ ...prev, [imagePath]: img }));
+      };
+      img.onerror = () => {
+        console.error('Failed to load resource image:', imagePath);
+      };
+      img.src = `/items/${imagePath}`;
+    });
+  }, [resourceNodes]);
 
   // Load tileset image
   useEffect(() => {
@@ -658,7 +685,7 @@ function Map() {
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes, tilesetLoaded, monsterImages, tileMappings]);
+  }, [players, npcs, viewCenter, zoom, user, selectedPlayer, selectedNpc, selectedResource, targetCoords, actionMode, playerImages, animationFrame, currentUserPosition, travelStatus, resourceNodes, tilesetLoaded, monsterImages, resourceImages, tileMappings]);
 
   const fetchPlayers = async () => {
     try {
@@ -1426,12 +1453,21 @@ function Map() {
           ctx.lineWidth = 2;
           ctx.stroke();
           
-          // Draw icon
+          // Draw image or icon
           ctx.shadowBlur = 0;
-          ctx.font = `${Math.max(10, markerSize * 0.9)}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(node.icon || '❓', x, y);
+          const imgSize = markerSize * 1.5;
+          
+          if (node.image_path && resourceImages[node.image_path]) {
+            // Draw image if available
+            const img = resourceImages[node.image_path];
+            ctx.drawImage(img, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+          } else {
+            // Fallback to icon
+            ctx.font = `${Math.max(10, markerSize * 0.9)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(node.icon || '❓', x, y);
+          }
           
           ctx.restore();
 
