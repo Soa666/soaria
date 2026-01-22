@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
 import './TilesetManagement.css';
 
@@ -27,6 +27,7 @@ function TilesetManagement() {
   const [error, setError] = useState('');
   const [filterTerrain, setFilterTerrain] = useState('all');
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const tilesetImageRef = useRef(null);
 
   useEffect(() => {
     loadTileset();
@@ -42,9 +43,11 @@ function TilesetManagement() {
 
   const loadTileset = () => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       setTilesetImage(img);
       setImageSize({ width: img.width, height: img.height });
+      tilesetImageRef.current = img;
       setLoading(false);
     };
     img.onerror = () => {
@@ -201,18 +204,41 @@ function TilesetManagement() {
                 key={tileId}
                 className={`tile-item ${isSelected ? 'selected' : ''} ${terrain ? 'mapped' : 'unmapped'}`}
                 style={{
-                  backgroundImage: `url(${TILESET_URL})`,
-                  backgroundPosition: `-${col * TILE_SIZE}px -${row * TILE_SIZE}px`,
-                  backgroundSize: `${imageSize.width}px ${imageSize.height}px`,
-                  backgroundRepeat: 'no-repeat',
                   width: `${TILE_SIZE * 3}px`,
                   height: `${TILE_SIZE * 3}px`,
                   border: terrain ? `2px solid ${getTerrainColor(terrain)}` : '2px solid #444',
-                  boxShadow: isSelected ? `0 0 10px ${getTerrainColor(terrain) || '#d4af37'}` : 'none'
+                  boxShadow: isSelected ? `0 0 10px ${getTerrainColor(terrain) || '#d4af37'}` : 'none',
+                  display: 'inline-block',
+                  position: 'relative'
                 }}
                 onClick={() => handleTileClick(tileId)}
                 title={`Tile ${tileId}${terrain ? ` - ${TERRAIN_TYPES.find(t => t.value === terrain)?.label}` : ' - Nicht gemappt'}`}
               >
+                {tilesetImage && (
+                  <canvas
+                    width={TILE_SIZE * 3}
+                    height={TILE_SIZE * 3}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      imageRendering: 'pixelated'
+                    }}
+                    ref={(canvas) => {
+                      if (canvas && tilesetImage) {
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = false;
+                        ctx.drawImage(
+                          tilesetImage,
+                          col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE,
+                          0, 0, TILE_SIZE * 3, TILE_SIZE * 3
+                        );
+                      }
+                    }}
+                  />
+                )}
                 <div className="tile-id">{tileId}</div>
                 {terrain && (
                   <div 
@@ -238,17 +264,26 @@ function TilesetManagement() {
             </div>
 
             <div className="tile-preview-large">
-              <div
-                className="tile-preview-image"
-                style={{
-                  backgroundImage: `url(${TILESET_URL})`,
-                  backgroundPosition: `-${(selectedTile % TILESET_COLUMNS) * TILE_SIZE}px -${Math.floor(selectedTile / TILESET_COLUMNS) * TILE_SIZE}px`,
-                  backgroundSize: `${imageSize.width}px ${imageSize.height}px`,
-                  backgroundRepeat: 'no-repeat',
-                  width: `${TILE_SIZE * 4}px`,
-                  height: `${TILE_SIZE * 4}px`
-                }}
-              />
+              {tilesetImage && (
+                <canvas
+                  width={TILE_SIZE * 4}
+                  height={TILE_SIZE * 4}
+                  className="tile-preview-image"
+                  ref={(canvas) => {
+                    if (canvas && tilesetImage) {
+                      const ctx = canvas.getContext('2d');
+                      ctx.imageSmoothingEnabled = false;
+                      const col = selectedTile % TILESET_COLUMNS;
+                      const row = Math.floor(selectedTile / TILESET_COLUMNS);
+                      ctx.drawImage(
+                        tilesetImage,
+                        col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE,
+                        0, 0, TILE_SIZE * 4, TILE_SIZE * 4
+                      );
+                    }
+                  }}
+                />
+              )}
             </div>
 
             <div className="terrain-selector">

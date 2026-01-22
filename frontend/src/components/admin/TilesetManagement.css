@@ -222,6 +222,7 @@
   image-rendering: crisp-edges;
   border: 2px solid #5a4a2a;
   border-radius: 4px;
+  display: block;
 }
 
 .terrain-selector {
