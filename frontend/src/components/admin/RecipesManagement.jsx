@@ -954,6 +954,11 @@ function RecipesManagement() {
           </div>
         </>
       )}
+
+      {/* Items Tab */}
+      {activeTab === 'items' && (
+        <ItemsManagement />
+      )}
     </div>
   );
 }

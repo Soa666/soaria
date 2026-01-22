@@ -26,9 +26,7 @@ import './Admin.css';
 
 const menuItems = [
   { id: 'online', icon: '🟢', label: 'Online Spieler', category: 'Übersicht' },
-  { id: 'items', icon: '📦', label: 'Items', category: 'Spielinhalte' },
   { id: 'recipes', icon: '📜', label: 'Rezepte', category: 'Spielinhalte' },
-  { id: 'buildings', icon: '🏠', label: 'Gebäude', category: 'Spielinhalte' },
   { id: 'property', icon: '🏡', label: 'Grundstück', category: 'Spielinhalte' },
   { id: 'quests', icon: '🗺️', label: 'Quests', category: 'Spielinhalte' },
   { id: 'monsters', icon: '👹', label: 'Monster', category: 'NPCs' },
@@ -127,11 +125,9 @@ function Admin() {
 
         <div className="admin-content">
           {activeTab === 'online' && <OnlineUsers />}
-          {activeTab === 'items' && <ItemsManagement />}
           {activeTab === 'recipes' && <RecipesManagement />}
           {activeTab === 'users' && <UsersManagement />}
           {activeTab === 'groups' && <GroupsManagement />}
-          {activeTab === 'buildings' && <BuildingsManagement />}
           {activeTab === 'property' && <PropertyManagement />}
           {activeTab === 'smtp' && <SmtpManagement />}
           {activeTab === 'email' && <EmailManagement />}
