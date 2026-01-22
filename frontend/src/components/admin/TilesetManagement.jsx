@@ -324,6 +324,34 @@ function TilesetManagement() {
 
             <div className="terrain-selector">
               <label>Terrain-Typ:</label>
+              
+              {/* Custom Input */}
+              <div className="terrain-custom-input">
+                <input
+                  type="text"
+                  placeholder="Eigener Terrain-Typ (z.B. 'gras_zu_wasser_ecke')"
+                  value={selectedTerrain}
+                  onChange={(e) => setSelectedTerrain(e.target.value)}
+                  className="terrain-text-input"
+                />
+                <button
+                  className="btn-use-custom"
+                  onClick={() => {
+                    if (selectedTerrain.trim()) {
+                      // Use custom value
+                    }
+                  }}
+                  title="Eigenen Wert verwenden"
+                >
+                  ✓
+                </button>
+              </div>
+
+              <div className="terrain-divider">
+                <span>oder aus Liste wählen:</span>
+              </div>
+
+              {/* Predefined Options */}
               <div className="terrain-options">
                 {TERRAIN_TYPES.map(type => (
                   <button
