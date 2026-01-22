@@ -39,15 +39,7 @@ export async function expireBuffs() {
 
       // Deactivate expired buffs and send webhooks
       for (const buff of expiredBuffs) {
-        // Only process if buff is still marked as active
-        if (buff.is_active === 1) {
-          await db.run(`
-            UPDATE active_buffs 
-            SET is_active = 0 
-            WHERE id = ?
-          `, [buff.id]);
-
-        // Build target description
+        // Build target description first
         let targetDesc = '';
         switch (buff.target_type) {
           case 'all': targetDesc = 'alle Spieler'; break;
@@ -64,6 +56,16 @@ export async function expireBuffs() {
           case 'level_max': targetDesc = `bis Level ${buff.target_id}`; break;
         }
 
+        // Only process if buff is still marked as active
+        if (buff.is_active === 1) {
+          console.log(`[Buffs] Deaktiviere abgelaufenen Buff: ${buff.display_name} (ID: ${buff.id}) für ${targetDesc}`);
+          
+          await db.run(`
+            UPDATE active_buffs 
+            SET is_active = 0 
+            WHERE id = ?
+          `, [buff.id]);
+
           // Send webhook if configured
           if (buffExpiredWebhook && buffExpiredWebhook.webhook_url) {
             let message = buffExpiredWebhook.message_template || 
@@ -77,22 +79,66 @@ export async function expireBuffs() {
 
             try {
               await sendDiscordWebhook(buffExpiredWebhook.webhook_url, message);
-              console.log(`[Buffs] Discord-Nachricht gesendet für abgelaufenen Buff: ${buff.display_name}`);
+              console.log(`[Buffs] ✅ Discord-Nachricht gesendet für abgelaufenen Buff: ${buff.display_name}`);
             } catch (webhookError) {
-              console.error('[Buffs] Fehler beim Senden des Ablauf-Webhooks:', webhookError);
+              console.error('[Buffs] ❌ Fehler beim Senden des Ablauf-Webhooks:', webhookError);
             }
           } else {
-            console.log(`[Buffs] Kein Webhook konfiguriert für buff_expired Event`);
+            console.log(`[Buffs] ⚠️ Kein Webhook konfiguriert für buff_expired Event (Buff: ${buff.display_name})`);
           }
+        } else {
+          console.log(`[Buffs] Buff ${buff.display_name} (ID: ${buff.id}) ist bereits deaktiviert, überspringe`);
         }
       }
 
-      console.log(`[Buffs] ${expiredBuffs.length} abgelaufene Buffs deaktiviert`);
+      console.log(`[Buffs] ${expiredBuffs.length} abgelaufene Buffs gefunden, ${expiredBuffs.filter(b => b.is_active === 1).length} wurden deaktiviert`);
+    } else {
+      console.log(`[Buffs] Keine abgelaufenen Buffs gefunden`);
     }
   } catch (error) {
     console.error('[Buffs] Fehler beim Ablaufen:', error);
   }
 }
+
+// Debug route to manually check and expire buffs
+router.post('/debug/expire', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // Find all expired buffs
+    const expiredBuffs = await db.all(`
+      SELECT 
+        ab.id,
+        ab.buff_type_id,
+        ab.is_active,
+        ab.expires_at,
+        bt.display_name,
+        bt.icon,
+        ab.target_type,
+        ab.target_id,
+        ab.stacks
+      FROM active_buffs ab
+      JOIN buff_types bt ON ab.buff_type_id = bt.id
+      WHERE ab.expires_at IS NOT NULL 
+        AND ab.expires_at <= datetime('now')
+    `);
+
+    const result = {
+      found: expiredBuffs.length,
+      active: expiredBuffs.filter(b => b.is_active === 1).length,
+      inactive: expiredBuffs.filter(b => b.is_active !== 1).length,
+      buffs: expiredBuffs
+    };
+
+    // Manually expire active ones
+    if (expiredBuffs.filter(b => b.is_active === 1).length > 0) {
+      await expireBuffs();
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Debug expire error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
 
 // ============ PUBLIC ROUTES ============
 
