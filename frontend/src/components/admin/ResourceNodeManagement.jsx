@@ -35,6 +35,7 @@ function ResourceNodeManagement() {
     is_active: true
   });
   const [availableImages, setAvailableImages] = useState([]);
+  const [showImageSelector, setShowImageSelector] = useState(false);
 
   useEffect(() => {
     fetchNodeTypes();
@@ -303,7 +304,20 @@ function ResourceNodeManagement() {
                   onClick={() => selectNodeType(nodeType)}
                 >
                   <td className="icon-cell">
-                    <span className="node-icon">{nodeType.icon || '⛏️'}</span>
+                    {nodeType.image_path ? (
+                      <img 
+                        src={`/items/${nodeType.image_path}`} 
+                        alt={nodeType.display_name}
+                        className="node-image"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'inline';
+                        }}
+                      />
+                    ) : null}
+                    <span className="node-icon" style={{ display: nodeType.image_path ? 'none' : 'inline' }}>
+                      {nodeType.icon || '⛏️'}
+                    </span>
                   </td>
                   <td className="name-cell">
                     <span className="node-name">{nodeType.display_name}</span>
@@ -371,9 +385,20 @@ function ResourceNodeManagement() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {nodeType.drops.map((drop, idx) => (
+                                  {nodeType.drops.map((drop, idx) => {
+                                    const dropItem = items.find(i => i.id === drop.item_id);
+                                    return (
                                     <tr key={idx}>
-                                      <td className="drop-item-name">{drop.item_name}</td>
+                                      <td className="drop-item-cell">
+                                        {dropItem?.image_path && (
+                                          <img 
+                                            src={`/items/${dropItem.image_path}`} 
+                                            alt={drop.item_name}
+                                            className="drop-item-image"
+                                          />
+                                        )}
+                                        <span className="drop-item-name">{drop.item_name}</span>
+                                      </td>
                                       <td>{drop.min_quantity}-{drop.max_quantity}</td>
                                       <td>
                                         <span className={`chance-badge ${drop.drop_chance >= 80 ? 'high' : drop.drop_chance >= 50 ? 'medium' : 'low'}`}>
@@ -391,7 +416,8 @@ function ResourceNodeManagement() {
                                         </button>
                                       </td>
                                     </tr>
-                                  ))}
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             ) : (
@@ -526,18 +552,50 @@ function ResourceNodeManagement() {
               <div className="form-group">
                 <label>Bild</label>
                 <div className="image-selector">
-                  <select
-                    value={editForm.image_path}
-                    onChange={(e) => setEditForm({...editForm, image_path: e.target.value})}
+                  <button
+                    type="button"
+                    onClick={() => setShowImageSelector(!showImageSelector)}
+                    className="btn-toggle-selector"
                   >
-                    <option value="">Kein Bild</option>
-                    {availableImages.map((img, idx) => (
-                      <option key={idx} value={img.path}>{img.name}</option>
-                    ))}
-                  </select>
+                    {showImageSelector ? '🔼 Bildauswahl schließen' : '🔽 Bild auswählen'}
+                  </button>
+                  {showImageSelector && (
+                    <div className="image-selector-grid">
+                      <div className="image-grid">
+                        <div
+                          className={`image-option ${!editForm.image_path ? 'selected' : ''}`}
+                          onClick={() => {
+                            setEditForm({...editForm, image_path: ''});
+                            setShowImageSelector(false);
+                          }}
+                        >
+                          <span>Kein Bild</span>
+                        </div>
+                        {availableImages.map((img, idx) => (
+                          <div
+                            key={idx}
+                            className={`image-option ${editForm.image_path === img.path ? 'selected' : ''}`}
+                            onClick={() => {
+                              setEditForm({...editForm, image_path: img.path});
+                              setShowImageSelector(false);
+                            }}
+                          >
+                            <img src={`/items/${img.path}`} alt={img.name} />
+                            <span>{img.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {availableImages.length === 0 && (
+                        <p style={{ color: '#8b7a5a', fontStyle: 'italic', marginTop: '0.5rem' }}>
+                          Keine Bilder gefunden. Bitte lege Bilder in den /items Ordner.
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {editForm.image_path && (
                     <div className="image-preview">
-                      <img src={editForm.image_path} alt="Preview" />
+                      <img src={`/items/${editForm.image_path}`} alt="Preview" />
+                      <span>{editForm.image_path}</span>
                     </div>
                   )}
                 </div>
