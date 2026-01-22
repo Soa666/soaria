@@ -557,12 +557,13 @@ export async function getBuffMultipliers(userId) {
     const guildId = user.guild_id;
 
     // Get all active buffs for this user
+    // IMPORTANT: Filter by both is_active AND expires_at to ensure expired buffs are not counted
     const buffs = await db.all(`
-      SELECT bt.effect_type, bt.effect_value, ab.stacks
+      SELECT bt.effect_type, bt.effect_value, ab.stacks, ab.expires_at, ab.is_active
       FROM active_buffs ab
       JOIN buff_types bt ON ab.buff_type_id = bt.id
       WHERE ab.is_active = 1
-        AND (ab.expires_at IS NULL OR ab.expires_at > datetime('now'))
+        AND (ab.expires_at IS NULL OR datetime(ab.expires_at) > datetime('now'))
         AND (
           ab.target_type = 'all'
           OR (ab.target_type = 'user' AND ab.target_id = ?)
@@ -573,10 +574,18 @@ export async function getBuffMultipliers(userId) {
         )
     `, [userId, guildId, guildId, level, level]);
 
+    // Double-check: Filter out any buffs that might have expired between query and now
+    const now = new Date();
+    const validBuffs = buffs.filter(buff => {
+      if (!buff.expires_at) return true; // Permanent buff
+      const expiry = new Date(buff.expires_at);
+      return expiry > now;
+    });
+
     // Calculate multipliers
     const multipliers = getDefaultMultipliers();
 
-    for (const buff of buffs) {
+    for (const buff of validBuffs) {
       const effectAmount = buff.effect_value * buff.stacks;
       
       switch (buff.effect_type) {
