@@ -11,7 +11,9 @@ const __dirname = path.dirname(__filename);
 // Parse Wang-Tile XML to extract terrain mappings
 async function parseWangTiles() {
   try {
-    const tilesetPath = path.join(__dirname, '../../world/Tiled/punyworld-overworld-tiles.tsx');
+    // Get project root (go up from backend/routes to project root)
+    const projectRoot = path.join(__dirname, '../../');
+    const tilesetPath = path.join(projectRoot, 'world/Tiled/punyworld-overworld-tiles.tsx');
     const content = await fs.readFile(tilesetPath, 'utf-8');
     
     // Extract wangcolor mappings (ID -> name)
