@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Logo from '../components/Logo';
+import api from '../services/api';
 import './Login.css';
 
 function Login() {
@@ -106,6 +107,11 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+              <Link to="/forgot-password" style={{ fontSize: '0.9rem', color: '#8b6914' }}>
+                Passwort vergessen?
+              </Link>
+            </div>
           </div>
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Lädt...' : 'Anmelden'}

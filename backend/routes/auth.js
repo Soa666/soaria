@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { sendActivationEmail } from '../utils/email.js';
+import { sendActivationEmail, sendPasswordResetEmail } from '../utils/email.js';
 import { sendDiscordRegistrationNotification } from '../utils/discord.js';
 import { updateStatistic, updateQuestObjectiveProgress } from '../helpers/statistics.js';
 import { getClientIP } from '../utils/network.js';
@@ -368,6 +368,57 @@ router.get('/activate/:token', async (req, res) => {
   } catch (error) {
     console.error('Activation error:', error);
     res.status(500).json({ error: 'Serverfehler bei der Aktivierung' });
+  }
+});
+
+// Forgot password - send new password via email
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'E-Mail-Adresse ist erforderlich' });
+    }
+
+    // Find user by email
+    const user = await db.get(
+      'SELECT id, username, email FROM users WHERE email = ?',
+      [email.trim().toLowerCase()]
+    );
+
+    // Aus Sicherheitsgründen immer die gleiche Antwort geben
+    // (auch wenn User nicht existiert)
+    if (user && user.email) {
+      // Generiere ein neues sicheres Passwort (12 Zeichen: Buchstaben, Zahlen, Sonderzeichen)
+      const passwordChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
+      let newPassword = '';
+      for (let i = 0; i < 12; i++) {
+        newPassword += passwordChars.charAt(Math.floor(Math.random() * passwordChars.length));
+      }
+
+      // Hash new password
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+
+      // Update password in database
+      await db.run(
+        'UPDATE users SET password_hash = ? WHERE id = ?',
+        [passwordHash, user.id]
+      );
+
+      // Send email with new password
+      const emailSent = await sendPasswordResetEmail(user.email, user.username, newPassword);
+
+      if (!emailSent && process.env.SMTP_USER) {
+        console.warn('Warnung: Passwort-Reset-E-Mail konnte nicht gesendet werden');
+      }
+    }
+
+    res.json({
+      message: 'Falls ein Konto mit dieser E-Mail existiert, haben wir dir ein neues Passwort per E-Mail gesendet.'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Serverfehler beim Zurücksetzen des Passworts' });
   }
 });
 

@@ -77,6 +77,161 @@ async function getTransporter() {
   return { transporter: null, config: null };
 }
 
+export async function sendPasswordResetEmail(email, username, newPassword) {
+  // Try to load template from database
+  let template = null;
+  try {
+    template = await db.get('SELECT * FROM email_templates WHERE name = ?', ['password_reset']);
+  } catch (error) {
+    console.error('Error loading email template:', error);
+  }
+
+  // Use template from database or fallback to default
+  let subject = 'Neues Passwort - Soaria';
+  let htmlContent = '';
+  let textContent = '';
+
+  if (template) {
+    subject = template.subject;
+    htmlContent = template.html_content;
+    textContent = template.text_content || '';
+    
+    // Replace template variables
+    htmlContent = htmlContent.replace(/\{\{username\}\}/g, username);
+    htmlContent = htmlContent.replace(/\{\{newPassword\}\}/g, newPassword);
+    if (textContent) {
+      textContent = textContent.replace(/\{\{username\}\}/g, username);
+      textContent = textContent.replace(/\{\{newPassword\}\}/g, newPassword);
+    }
+  } else {
+    // Fallback to default template
+    htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(20, 15, 30, 0.95) 0%, rgba(40, 25, 50, 0.95) 100%);
+          }
+          .container {
+            background: linear-gradient(145deg, rgba(30, 20, 40, 0.98), rgba(20, 15, 30, 0.98));
+            border: 3px solid #8b6914;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+          }
+          h1 {
+            color: #d4af37;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+          }
+          p {
+            color: #e8dcc0;
+            margin: 15px 0;
+          }
+          .password-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+          }
+          .password {
+            font-size: 24px;
+            font-weight: bold;
+            color: #d4af37;
+            font-family: monospace;
+            letter-spacing: 2px;
+            word-break: break-all;
+          }
+          .warning {
+            color: #ff6b6b;
+            font-weight: bold;
+            margin-top: 20px;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid rgba(212, 175, 55, 0.3);
+            text-align: center;
+            color: #8b7a5a;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🔐 Passwort zurückgesetzt</h1>
+          <p>Hallo ${username},</p>
+          <p>du hast eine Passwort-Zurücksetzung angefordert. Wir haben dir ein neues Passwort zugewiesen:</p>
+          <div class="password-box">
+            <div class="password">${newPassword}</div>
+          </div>
+          <p class="warning">⚠️ Wichtig: Bitte ändere dieses Passwort nach dem Login in deinen Einstellungen!</p>
+          <p>Du kannst dich jetzt mit deinem Benutzernamen <strong>${username}</strong> und dem neuen Passwort anmelden.</p>
+          <p>Falls du keine Passwort-Zurücksetzung angefordert hast, melde dich bitte sofort bei uns.</p>
+          <div class="footer">
+            <p>Soaria - Fantasy RPG</p>
+            <p>Dies ist eine automatische E-Mail. Bitte antworte nicht darauf.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    textContent = `
+      Passwort zurückgesetzt - Soaria
+      
+      Hallo ${username},
+      
+      du hast eine Passwort-Zurücksetzung angefordert. Wir haben dir ein neues Passwort zugewiesen:
+      
+      ${newPassword}
+      
+      ⚠️ Wichtig: Bitte ändere dieses Passwort nach dem Login in deinen Einstellungen!
+      
+      Du kannst dich jetzt mit deinem Benutzernamen ${username} und dem neuen Passwort anmelden.
+      
+      Falls du keine Passwort-Zurücksetzung angefordert hast, melde dich bitte sofort bei uns.
+      
+      Soaria - Fantasy RPG
+    `;
+  }
+
+  // Get transporter
+  const { transporter: emailTransporter, config: smtpConfig } = await getTransporter();
+
+  if (!emailTransporter || !smtpConfig) {
+    console.warn('[EMAIL] Kein SMTP konfiguriert. E-Mail wird nicht gesendet.');
+    console.warn('[EMAIL] Konfiguriere SMTP im Admin-Panel oder in der .env Datei.');
+    return false;
+  }
+
+  const mailOptions = {
+    from: `"${smtpConfig.from_name || 'Soaria'}" <${smtpConfig.from_email}>`,
+    to: email,
+    subject: subject,
+    html: htmlContent,
+    text: textContent,
+  };
+
+  try {
+    const info = await emailTransporter.sendMail(mailOptions);
+    console.log('[EMAIL] Password reset email sent:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Error sending password reset email:', error);
+    return false;
+  }
+}
+
 export async function sendActivationEmail(email, username, activationToken) {
   const activationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/activate/${activationToken}`;
 
