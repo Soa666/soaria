@@ -103,9 +103,17 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState('inventory'); // 'inventory', 'equipment', 'professions'
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [message, setMessage] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     fetchData();
+    
+    // Update time every second for buff countdown
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    
+    return () => clearInterval(timeInterval);
   }, []);
 
   const fetchData = async () => {
@@ -442,13 +450,38 @@ function Dashboard() {
           <div className="active-buffs">
             <h3>✨ Aktive Buffs</h3>
             <div className="buffs-list">
-              {activeBuffs.map((buff, idx) => (
-                <div key={idx} className="buff-item" title={buff.description}>
-                  <span className="buff-icon">{buff.icon}</span>
-                  <span className="buff-name">{buff.display_name}</span>
-                  <span className="buff-value">+{buff.effect_value * buff.stacks}%</span>
-                </div>
-              ))}
+              {activeBuffs.map((buff, idx) => {
+                // Calculate remaining time
+                const formatRemainingTime = (expiresAt) => {
+                  if (!expiresAt) return '♾️ Unbegrenzt';
+                  
+                  const expiry = new Date(expiresAt);
+                  const diff = expiry - currentTime;
+                  
+                  if (diff <= 0) return '⏰ Abgelaufen';
+                  
+                  const hours = Math.floor(diff / (1000 * 60 * 60));
+                  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                  
+                  if (hours > 0) {
+                    return `⏱️ ${hours}h ${minutes}m`;
+                  } else if (minutes > 0) {
+                    return `⏱️ ${minutes}m ${seconds}s`;
+                  } else {
+                    return `⏱️ ${seconds}s`;
+                  }
+                };
+                
+                return (
+                  <div key={idx} className="buff-item" title={buff.description || `${buff.display_name}: +${buff.effect_value * buff.stacks}%`}>
+                    <span className="buff-icon">{buff.icon}</span>
+                    <span className="buff-name">{buff.display_name}</span>
+                    <span className="buff-value">+{buff.effect_value * buff.stacks}%</span>
+                    <span className="buff-time">{formatRemainingTime(buff.expires_at)}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

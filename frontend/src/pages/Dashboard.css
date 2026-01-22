@@ -232,6 +232,13 @@
   font-weight: bold;
 }
 
+.buff-item .buff-time {
+  color: #3498db;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* Combat History */
 .combat-history {
   background: rgba(0, 0, 0, 0.2);
