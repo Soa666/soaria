@@ -194,10 +194,7 @@ function TilesetManagement() {
                   width: `${TILE_SIZE * 3}px`,
                   height: `${TILE_SIZE * 3}px`,
                   border: terrain ? `2px solid ${getTerrainColor(terrain)}` : '2px solid #444',
-                  boxShadow: isSelected ? `0 0 10px ${getTerrainColor(terrain) || '#d4af37'}` : 'none',
-                  imageRendering: 'pixelated',
-                  imageRendering: '-moz-crisp-edges',
-                  imageRendering: 'crisp-edges'
+                  boxShadow: isSelected ? `0 0 10px ${getTerrainColor(terrain) || '#d4af37'}` : 'none'
                 }}
                 onClick={() => handleTileClick(tileId)}
                 title={`Tile ${tileId}${terrain ? ` - ${TERRAIN_TYPES.find(t => t.value === terrain)?.label}` : ' - Nicht gemappt'}`}
@@ -235,10 +232,7 @@ function TilesetManagement() {
                   backgroundSize: `${imageSize.width}px ${imageSize.height}px`,
                   backgroundRepeat: 'no-repeat',
                   width: `${TILE_SIZE * 4}px`,
-                  height: `${TILE_SIZE * 4}px`,
-                  imageRendering: 'pixelated',
-                  imageRendering: '-moz-crisp-edges',
-                  imageRendering: 'crisp-edges'
+                  height: `${TILE_SIZE * 4}px`
                 }}
               />
             </div>
